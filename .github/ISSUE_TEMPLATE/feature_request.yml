@@ -1,0 +1,29 @@
+name: Focused feature request
+description: Propose a small, inspectable improvement to the workflow or CLI
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete workflow problem should be solved?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful change and its public contract.
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+      description: What should remain out of scope?
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: How would we know the change improves the workflow without harming quality?

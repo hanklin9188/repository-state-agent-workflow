@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If this workflow or its evaluation framework helps your work, cite the repository and the exact version used."
+title: "Repository-State Agent Workflow"
+type: software
+authors:
+  - name: Hank
+repository-code: "https://github.com/hanklin9188/repository-state-agent-workflow"
+url: "https://github.com/hanklin9188/repository-state-agent-workflow"
+license: MIT
+version: 0.1.0
+date-released: 2026-08-12
+keywords:
+  - coding agents
+  - repository state
+  - context engineering
+  - progressive disclosure
+  - software engineering

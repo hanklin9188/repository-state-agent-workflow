@@ -1,0 +1,27 @@
+name: Workflow feedback
+description: Share adoption results or propose a focused improvement
+title: "[Workflow]: "
+labels: [workflow]
+body:
+  - type: dropdown
+    id: project
+    attributes:
+      label: Project type
+      options:
+        - Software product
+        - ML / research
+        - Data pipeline
+        - Refactor / migration
+        - Other
+  - type: textarea
+    id: experience
+    attributes:
+      label: Experience
+      description: What improved, and what remained difficult?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Optional context-footprint, token, reliability, or handoff observations.
