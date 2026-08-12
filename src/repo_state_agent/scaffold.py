@@ -3,7 +3,6 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 
-
 TEMPLATE_MAP = {
     "AGENTS.md": "AGENTS.md",
     "ACTIVE.md": "ACTIVE.md",

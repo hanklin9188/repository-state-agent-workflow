@@ -8,6 +8,5 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from repo_state_agent.cli import main  # noqa: E402
 
-
 if __name__ == "__main__":
     raise SystemExit(main(["footprint", str(ROOT), *sys.argv[1:]]))

@@ -4,7 +4,6 @@ from pathlib import Path
 
 from .parsing import parse_active
 
-
 BASE = """Work in this repository.
 
 Read only:
