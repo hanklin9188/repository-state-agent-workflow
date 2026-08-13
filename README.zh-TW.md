@@ -17,6 +17,7 @@
 <p align="center">
   <a href="README.md">English</a> ·
   <a href="#五分鐘快速開始">快速開始</a> ·
+  <a href="#真實專案導入數據">導入數據</a> ·
   <a href="docs/company-adoption.md">公司導入</a> ·
   <a href="docs/research-methodology.md">研究方法</a>
 </p>
@@ -76,6 +77,30 @@ RSAW 也可以作為 Coding Agent state management 的研究框架。它不先�
 5. 哪些 task 類型最受益，哪些情況反而增加負擔？
 
 見 [研究方法](docs/research-methodology.md) 與 [Case Study Template](docs/case-study-template.md)。
+
+---
+
+## 真實專案導入數據
+
+### Desk Code Agent — V1 初步結果
+
+Desk Code Agent 將 RSAW 導入實際開發流程，把原本要求 Fresh Session 廣泛讀取專案全域資料的政策，改成只預設讀取 `AGENTS.md`、`ACTIVE.md` 與一份 active task spec。
+
+| 指標 | 舊 Workflow | RSAW V1 | 差異 |
+|---|---:|---:|---:|
+| Fresh-session bootstrap estimate | 33,348 | **2,967** | **-30,381** |
+| 相對下降 | — | — | **91.10%** |
+
+RSAW V1 bootstrap 組成：
+
+- `AGENTS.md`：1,639 estimated tokens
+- `ACTIVE.md`：432 estimated tokens
+- active task：896 estimated tokens
+- `rsaw verify`：PASS
+
+**重要限定：**這筆結果標記為 `BOOTSTRAP_CONTEXT_ESTIMATE`。它量測的是兩種 workflow policy 下的 deterministic fresh-session bootstrap footprint；**不是** provider billing savings、cached-input savings、完整 task context reduction，也不是「工程品質提升 91.10%」的證據。
+
+目前 V2 closure 與 task-level continuity / quality measurements 仍在進行。完整方法、限制與後續量測請看 [Desk Code Agent RSAW V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)，機器可讀結果見 [JSON summary](data/case-studies/desk-code-agent-rsaw-v1.json)。
 
 ---
 
@@ -197,6 +222,8 @@ Bounded Task Context Traffic：0.75M tokens
 
 實際費用仍取決於模型價格、cache、tool output、retry 與任務類型。更重要的指標還包括 task continuity、stale-state error、重複工作與 review 品質。
 
+真實 adoption evidence 請見 [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md) 與 [Case Studies Index](docs/case-studies/README.md)。
+
 ---
 
 ## 適用情境
@@ -260,6 +287,8 @@ RSAW 可以與 Issue Tracker、RAG、Agent Orchestrator 共存，不要求取代
 - [Progressive Disclosure](docs/progressive-disclosure.md)
 - [Validation Tiers](docs/validation-tiers.md)
 - [Agent Roles](docs/agent-roles.md)
+- [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)
+- [Case Studies Index](docs/case-studies/README.md)
 - [Token Economics](docs/token-economics.md)
 - [Evaluation](docs/evaluation.md)
 - [Migration Playbook](docs/migration-playbook.md)
