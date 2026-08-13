@@ -9,74 +9,36 @@
 </p>
 
 <p align="center">
-  一套 Markdown-first、工具無關的 Coding Agent 工作方法與小型 CLI，
-  將長期狀態搬進 Git Repository，讓 Agent 可以使用較小 Context、Fresh Session、
-  Progressive Disclosure 與 Evidence-Gated Validation 維持高品質開發。
+  一套 Markdown-first、工具無關的 Coding Agent 工作方法與小型 CLI。<br/>
+  將 continuity 從隱藏的聊天歷史搬進可版本控制的 Repository State。
 </p>
 
 <p align="center">
   <a href="README.md">English</a> ·
   <a href="#五分鐘快速開始">快速開始</a> ·
   <a href="#真實專案導入數據">導入數據</a> ·
-  <a href="docs/company-adoption.md">公司導入</a> ·
-  <a href="docs/research-methodology.md">研究方法</a>
+  <a href="#運作方式">運作方式</a> ·
+  <a href="docs/company-adoption.md">公司導入</a>
 </p>
 
 ---
 
-## 一分鐘理解核心概念
+## 為什麼需要 RSAW
 
-傳統長 Conversation 會逐漸累積舊 source、舊 log、失敗嘗試、完成的 ticket、過時決策與重複專案背景。這些內容會持續出現在後續模型呼叫中，增加 token、降低 signal-to-noise，也提高 Agent 誤用 stale state 的風險。
+長時間 Coding Agent conversation 很容易變成意外的 state store：舊 source、舊 log、失敗嘗試、已完成任務、過時決策與重複背景持續累積，後續每次 model call 都要重新處理這些內容。
 
-RSAW 將 continuity 拆成可版本控制的 Repository artifacts：
+RSAW 將隱藏的 conversation continuity 改成小而可稽核的 repository contract：
 
-| Artifact | 責任 | 更新頻率 |
-|---|---|---|
-| `AGENTS.md` | 穩定規則、建置、測試、安全與工作慣例 | 低 |
-| `ACTIVE.md` | 極小工作記憶：現在在哪、下一步做什麼 | 每個重要邊界 |
-| `docs/tasks/<task>.md` | 單一 bounded task 的執行契約 | 每張 task |
-| Git、ADR、測試、報告、artifact | 已發生的決策與證據 | 證據改變時 |
+| 問題 | RSAW 的做法 |
+|---|---|
+| Conversation 持續膨脹 | 使用 Fresh、Bounded Session |
+| 目前狀態藏在聊天裡 | 使用可版本控制的 `ACTIVE.md` |
+| 每次都廣泛預載專案 | 三檔 Bootstrap + Progressive Disclosure |
+| Agent 重複調查 | Durable evidence + 明確 next action |
+| 為了省 Context 而減少驗證 | 保留 V0–V3 Evidence Gate |
+| Reviewer 被 Builder 歷史污染 | 使用 Fresh、Role-Separated Review |
 
-Fresh Agent 只讀最少資訊，完成一張任務、驗證、更新 `ACTIVE.md`，然後停止。
-
-```mermaid
-flowchart LR
-    R[Repository State] --> S[Fresh Agent Session]
-    S --> B[讀 AGENTS + ACTIVE + Active Task]
-    B --> D{需要更多 Context?}
-    D -->|需要| X[只讀精確依賴]
-    D -->|不需要| E[執行單一任務]
-    X --> E
-    E --> V[Targeted Validation]
-    V --> C[Closure Validation]
-    C --> H[更新 ACTIVE.md]
-    H --> T[STOP]
-    T --> N[下一個 Fresh Session]
-    N --> R
-```
-
-## 對公司與團隊的價值
-
-- **可稽核交接**：目前狀態在 Git 裡，不藏在某位工程師或某個模型的聊天紀錄。
-- **Agent 可替換**：Codex、Claude Code、Cursor 或內部 Agent 可以讀同一套 Repository contract。
-- **限制變更範圍**：一個主要任務對應一個 session，降低 scope creep。
-- **更乾淨的 Review**：Reviewer 讀 spec、diff、tests 與 evidence，不需要 Builder 的長 debugging transcript。
-- **操作狀態明確**：長任務、blocker、stop condition 與 next action 都有明確紀錄。
-- **降低資料暴露**：不需要預載整個歷史文件、客戶 log 或完整專案內容。
-
-完整說明見 [公司導入與治理](docs/company-adoption.md)。
-
-## 對專業研究的價值
-
-RSAW 也可以作為 Coding Agent state management 的研究框架。它不先宣稱一定節省 token 或提升品質，而是提供可測量的假設與評估流程：
-
-1. Repository-backed state 是否降低 repeated context traffic？
-2. Fresh session 是否仍能正確延續任務？
-3. 是否降低重複調查與 stale-state error？
-4. Builder / Reviewer 分離是否維持工程品質？
-5. 哪些 task 類型最受益，哪些情況反而增加負擔？
-
-見 [研究方法](docs/research-methodology.md) 與 [Case Study Template](docs/case-study-template.md)。
+> **Repository State 是正式狀態；Conversation History 可以被丟棄。**
 
 ---
 
@@ -84,29 +46,103 @@ RSAW 也可以作為 Coding Agent state management 的研究框架。它不先�
 
 ### Desk Code Agent — V1 初步結果
 
-Desk Code Agent 將 RSAW 導入實際開發流程，把原本要求 Fresh Session 廣泛讀取專案全域資料的政策，改成只預設讀取 `AGENTS.md`、`ACTIVE.md` 與一份 active task spec。
+Desk Code Agent 將原本要求 Fresh Session 廣泛讀取專案全域資料的政策，改成 RSAW 三檔 Bootstrap：`AGENTS.md`、`ACTIVE.md` 與一份 active task spec。
 
 | 指標 | 舊 Workflow | RSAW V1 | 差異 |
 |---|---:|---:|---:|
 | Fresh-session bootstrap estimate | 33,348 | **2,967** | **-30,381** |
 | 相對下降 | — | — | **91.10%** |
 
-RSAW V1 bootstrap 組成：
+| RSAW Bootstrap 組成 | Estimated tokens |
+|---|---:|
+| `AGENTS.md` | 1,639 |
+| `ACTIVE.md` | 432 |
+| Active task | 896 |
+| **總計** | **2,967** |
 
-- `AGENTS.md`：1,639 estimated tokens
-- `ACTIVE.md`：432 estimated tokens
-- active task：896 estimated tokens
-- `rsaw verify`：PASS
+`rsaw verify`：**PASS**
 
-**重要限定：**這筆結果標記為 `BOOTSTRAP_CONTEXT_ESTIMATE`。它量測的是兩種 workflow policy 下的 deterministic fresh-session bootstrap footprint；**不是** provider billing savings、cached-input savings、完整 task context reduction，也不是「工程品質提升 91.10%」的證據。
+> **Claim boundary：**這筆結果標記為 `BOOTSTRAP_CONTEXT_ESTIMATE`。它不是 provider billing savings、cached-input savings、完整 task context reduction，也不是「工程品質提升 91.10%」的證據。
 
-目前 V2 closure 與 task-level continuity / quality measurements 仍在進行。完整方法、限制與後續量測請看 [Desk Code Agent RSAW V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)，機器可讀結果見 [JSON summary](data/case-studies/desk-code-agent-rsaw-v1.json)。
+V2 closure 與 task-level continuity / quality measurements 仍在進行。可閱讀[完整 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)、[Case Studies Index](docs/case-studies/README.md)或[機器可讀結果](data/case-studies/desk-code-agent-rsaw-v1.json)。
+
+---
+
+## 運作方式
+
+每個 Session 從最小 Context 開始；只有 active task 需要時才擴充證據；完成驗證、寫回狀態，然後停止。
+
+```mermaid
+flowchart LR
+    subgraph BOOT["01 · Bootstrap"]
+        direction TB
+        R["📦 Repository State<br/>Git · ADR · Tests · Evidence"]
+        S["✨ Fresh Agent Session"]
+        B["📖 最小 Context<br/>AGENTS.md · ACTIVE.md · Active Task"]
+        R --> S --> B
+    end
+
+    subgraph WORK["02 · Bounded Work"]
+        direction TB
+        D{"需要更多 Context？"}
+        X["🔎 只讀一份精確依賴"]
+        E["🛠️ 執行一個 Bounded Task"]
+        D -- "需要" --> X --> E
+        D -- "不需要" --> E
+    end
+
+    subgraph VERIFY["03 · Validation"]
+        direction TB
+        V["🧪 Targeted Validation"]
+        C["✅ Closure Validation"]
+        V --> C
+    end
+
+    subgraph HANDOFF["04 · Handoff"]
+        direction TB
+        H["📝 更新 ACTIVE.md"]
+        T["⏹ Stop"]
+        N["🔄 下一個 Fresh Session"]
+        H --> T --> N
+    end
+
+    B --> D
+    E --> V
+    C --> H
+    N -. "Continuity 留在 Git" .-> R
+
+    classDef source fill:#0f172a,stroke:#38bdf8,color:#f8fafc,stroke-width:2px;
+    classDef session fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.5px;
+    classDef decision fill:#fff7ed,stroke:#f97316,color:#7c2d12,stroke-width:1.5px;
+    classDef work fill:#f5f3ff,stroke:#8b5cf6,color:#4c1d95,stroke-width:1.5px;
+    classDef verify fill:#f0fdf4,stroke:#22c55e,color:#14532d,stroke-width:1.5px;
+    classDef handoff fill:#fdf2f8,stroke:#ec4899,color:#831843,stroke-width:1.5px;
+    classDef stop fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
+
+    class R source;
+    class S,B,N session;
+    class D decision;
+    class X,E work;
+    class V,C verify;
+    class H handoff;
+    class T stop;
+```
+
+### 三檔 Bootstrap
+
+| Artifact | 責任 | 更新頻率 |
+|---|---|---|
+| `AGENTS.md` | 穩定政策、安全、建置、驗證與導航 | 低 |
+| `ACTIVE.md` | 極小工作記憶：狀態、blocker、下一步、停止條件 | 每個重要邊界 |
+| `docs/tasks/<task>.md` | 一個 bounded task 與其 acceptance criteria | 每張 task |
+
+Git、ADR、測試、報告與 artifacts 仍是 durable evidence，但只有 active task 需要時才讀取。
 
 ---
 
 ## 五分鐘快速開始
 
-### 安裝
+### 1. 安裝
 
 ```bash
 git clone https://github.com/hanklin9188/repository-state-agent-workflow.git
@@ -114,18 +150,23 @@ cd repository-state-agent-workflow
 python -m pip install -e '.[dev]'
 ```
 
-### 套用到既有專案
+### 2. 套用到既有專案
 
 ```bash
 rsaw init /path/to/your-project
 cd /path/to/your-project
+```
+
+Initializer 預設只建立缺少的檔案，不會覆蓋既有專案狀態；只有明確使用 `--force` 才會覆蓋。
+
+### 3. 驗證 Handoff 與 Context Footprint
+
+```bash
 rsaw verify .
 rsaw footprint .
 ```
 
-Initializer 預設不會覆蓋既有檔案；只有明確使用 `--force` 才會覆蓋。
-
-### 日常 Agent Prompt
+### 4. 啟動 Fresh Agent Session
 
 ```text
 Work in this repository.
@@ -145,104 +186,94 @@ When complete or blocked, update ACTIVE.md and stop.
 
 ```bash
 rsaw prompt . --role builder
-rsaw prompt . --role reviewer
-rsaw prompt . --role decision
 ```
 
 ---
 
-## 五個核心原則
+## Operating Model
 
-### 1. Repository State 是正式狀態
+### 五個核心原則
 
-```text
-Repository state > Conversation history
-```
+1. **Repository State 是正式狀態**：accepted decision、executable contract、active task 與 evidence 優先於舊聊天。
+2. **一個主要任務對應一個 Session**：任務完成、closure、重大 blocker、review handoff 或 decision boundary 就停止。
+3. **Progressive Disclosure**：只有 active task 需要時，才讀精確 source、test、ADR、report 或 log。
+4. **Evidence-Gated Quality**：較小 Context 不能成為降低驗證強度的理由。
+5. **Role Separation**：Builder、Reviewer、Decision Session 使用不同且 bounded 的 Context。
 
-聊天內容與 accepted decision、executable contract、task spec 或 current handoff 衝突時，以 Repository 為準。
+### Validation Tiers
 
-### 2. 一個主要任務約等於一個 Session
-
-任務完成、驗證完成、遇到重大 blocker、只剩 long-running wait、需要 Reviewer 或進入 decision boundary 時，就更新 `ACTIVE.md` 並停止。
-
-### 3. Progressive Disclosure
-
-Fresh session 預設只讀三份文件。只有 active task 需要時才讀 source、test、ADR、report 或 log。
-
-### 4. Evidence-Gated Quality
-
-少 Context 不代表少驗證：
-
-| Tier | 時機 | 驗證 |
+| Tier | 時機 | 典型驗證 |
 |---|---|---|
-| `V0` | 修改迴圈 | syntax、lint、單一 targeted test |
-| `V1` | Task 穩定 | task-specific suite、focused integration |
-| `V2` | Task closure | full relevant tests、package/result checks |
-| `V3` | Critical/release | fresh reviewer、Standards review、Spec review |
+| `V0` | 修改迴圈 | Syntax、lint、單一 targeted test |
+| `V1` | Task 穩定 | Task-specific suite、focused integration |
+| `V2` | Task closure | Full relevant tests、package/result checks |
+| `V3` | Critical / release | Fresh reviewer、Standards Review、Spec Review |
 
-### 5. Builder / Reviewer / Decision 分離
+### Session Roles
 
-- **Builder**：實作與 focused evidence。
-- **Reviewer**：Fresh session 讀 spec、diff 與 tests。
-- **Decision**：處理 architecture 或 scientific fork。
+| Role | 讀取內容 | 交付內容 |
+|---|---|---|
+| **Builder** | Policy、active state、task、精確依賴 | Implementation 與 focused evidence |
+| **Reviewer** | Fresh context、spec、diff、tests、limitations | 獨立 correctness / compliance review |
+| **Decision** | Evidence checkpoint 與 governing constraints | Architecture 或 scientific decision |
 
-Medium reasoning 遇到重大決策時，使用兩階段：先做 evidence decomposition，再做 decision synthesis。
+Medium reasoning 處理重大決策時，先做 evidence decomposition，再做 decision synthesis。
 
 ---
 
 ## CLI
 
 ```bash
-rsaw init .                            # 初始化 workflow
-rsaw verify .                          # 驗證 ACTIVE 與引用
-rsaw footprint .                       # 估算 bootstrap context
-rsaw archive . --label T-042-complete # 封存重要 handoff
-rsaw prompt . --role builder           # 產生角色 Prompt
+rsaw init .                            # 保守加入 Workflow
+rsaw verify .                          # 驗證 ACTIVE 與 task references
+rsaw footprint .                       # 估算 Fresh Bootstrap Context
+rsaw archive . --label T-042-complete # 封存重要邊界
+rsaw prompt . --role builder           # 產生 Builder Prompt
+rsaw prompt . --role reviewer          # 產生 Fresh Reviewer Prompt
+rsaw prompt . --role decision          # 產生 Decision Prompt
 ```
 
-CLI 只是 guardrail，不是新的大型 orchestration framework。Markdown 與 Git 才是 canonical state。
+CLI 是 deterministic guardrail，不是大型 orchestration platform；Markdown 與 Git 才是 canonical state。
 
 ---
 
-## Token 與 Context 經濟
+## 導入方式
 
-真正的節省不是只少讀幾個檔案，而是縮短 obsolete context 在後續 model calls 中存在的時間。
+| 情境 | 建議作法 |
+|---|---|
+| 個人 Repository | 執行 `rsaw init`、調整三份核心 artifacts、把 verifier 加入 CI |
+| 工程團隊 | 將 Issues / Linear / Jira 對應到 bounded task contract，保留既有 tracker |
+| Research / ML Repository | 增加 frozen protocol、immutable evidence、授權邊界與分離的 execution/review session |
+| Monorepo | 使用穩定 root policy、scoped policy，以及每個獨立 workstream 一份 `ACTIVE.md` |
 
-概念計算，不是價格保證：
-
-```text
-長 Session 平均 Context：180K tokens/call
-Bounded Task 平均 Context：25K tokens/call
-Calls：30
-
-長 Session Context Traffic：5.40M tokens
-Bounded Task Context Traffic：0.75M tokens
-概念下降：約 86.1%
-```
-
-實際費用仍取決於模型價格、cache、tool output、retry 與任務類型。更重要的指標還包括 task continuity、stale-state error、重複工作與 review 品質。
-
-真實 adoption evidence 請見 [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md) 與 [Case Studies Index](docs/case-studies/README.md)。
+見 [Adoption Guide](docs/adoption-guide.md)、[Company Adoption and Governance](docs/company-adoption.md)與[Migration Playbook](docs/migration-playbook.md)。
 
 ---
 
-## 適用情境
+## 評估與研究
 
-- 大型 side project
-- 公司產品與 SaaS feature
-- Monorepo 與大型 refactor
-- ML experiment
-- Data pipeline
-- Research repository
-- Benchmark / release engineering
-- 長時間 CI、training 或 cloud job
+RSAW 將「降低 Context」視為需要驗證的 hypothesis，而不是品質結果。可信的研究至少應量測：
 
-範例：
+- Bootstrap 與 routine working-set context；
+- provider 可提供時的 cached / uncached input；
+- task completion 與 closure validation；
+- repeated work 與 stale-state error；
+- fresh-session handoff success；
+- independent review finding 與 escaped defect；
+- elapsed time 與 human intervention。
 
-- [Software feature](examples/software-project/)
-- [ML experiment](examples/ml-experiment/)
-- [Data pipeline](examples/data-pipeline/)
-- [Research repository](examples/research-repo/)
+主要 experimental unit 通常應是 task 或 matched task stream，而不是單一 model call。
+
+建議從以下文件開始：
+
+- [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)
+- [Case Studies Index](docs/case-studies/README.md)
+- [Evaluation](docs/evaluation.md)
+- [Research Methodology](docs/research-methodology.md)
+- [Case Study Template](docs/case-study-template.md)
+- [Token Economics](docs/token-economics.md)
+
+示意性的 token-economics 計算不是價格保證；單一 Repository 的結果也不能直接推廣到所有模型、Agent 或公司。
 
 ---
 
@@ -250,52 +281,83 @@ Bounded Task Context Traffic：0.75M tokens
 
 | 做法 | 優點 | RSAW 關注的缺口 |
 |---|---|---|
-| 長 Conversation | 即時歷史完整 | Context 持續膨脹、難交接、容易 stale |
-| Conversation Summary | 精簡 | 可能有資訊損失，且不一定可執行驗證 |
-| Vector/RAG Memory | 彈性 retrieval | retrieval 與 staleness 變成隱藏依賴 |
-| Issue Tracker | 規劃與責任清楚 | 通常缺少 Agent bootstrap、evidence pointer、stop contract |
-| Agent Orchestrator | 自動化與平行化 | 可能成為另一個不透明狀態來源 |
-| **RSAW** | 明確、版本化、工具無關 | 需要團隊維持小而準確的 Repository artifacts |
+| 長 Conversation | 即時歷史完整 | Hidden、持續膨脹、容易 stale、難交接 |
+| Conversation Summary | 精簡 | 可能有資訊損失，且不一定可獨立驗證 |
+| Vector / RAG Memory | Retrieval 彈性高 | Retrieval quality 與 staleness 成為隱藏依賴 |
+| Issue Tracker | 規劃與責任清楚 | 通常缺少 Agent bootstrap、evidence pointer 與 stop contract |
+| Agent Orchestrator | 自動化與平行化 | 可能成為另一個不透明 state owner |
+| **RSAW** | 明確、版本化、工具無關的 continuity | 需要維持小而準確的 Repository artifacts |
 
-RSAW 可以與 Issue Tracker、RAG、Agent Orchestrator 共存，不要求取代它們。
-
----
-
-## 目前狀態
-
-**Alpha reference implementation**。方法、templates、examples、verifier、context footprint estimator、archive helper 與 prompt renderer 已可使用；跨專案的大規模實證仍是後續研究與 adoption 工作。
-
-它不是：
-
-- 自主 Project Manager；
-- 特定 Agent 廠商 wrapper；
-- GitHub Issues / Linear / Jira 的替代品；
-- 自動 Conversation Summarizer；
-- 私人聊天記錄資料庫；
-- 降低測試與人工 Review 的理由。
+RSAW 可以與 tracker、retrieval system 與 orchestrator 共存，不要求取代它們。
 
 ---
 
-## 文件
+## 範例
+
+- [Software feature](examples/software-project/) — streaming parser implementation
+- [ML experiment](examples/ml-experiment/) — frozen holdout execution
+- [Data pipeline](examples/data-pipeline/) — dual-write migration
+- [Research repository](examples/research-repo/) — bounded scientific ticket
+
+每個範例都有自己的 `AGENTS.md`、`ACTIVE.md` 與 active task。
+
+---
+
+## 文件導航
+
+### 開始導入
 
 - [Concepts](docs/concepts.md)
 - [Architecture](docs/architecture.md)
 - [Adoption Guide](docs/adoption-guide.md)
-- [Company Adoption](docs/company-adoption.md)
-- [Research Methodology](docs/research-methodology.md)
+- [Company Adoption and Governance](docs/company-adoption.md)
+- [Migration Playbook](docs/migration-playbook.md)
+
+### 操作 Workflow
+
 - [Session Lifecycle](docs/session-lifecycle.md)
 - [Progressive Disclosure](docs/progressive-disclosure.md)
 - [Validation Tiers](docs/validation-tiers.md)
 - [Agent Roles](docs/agent-roles.md)
+- [Long-Running Work](docs/long-running-work.md)
+- [Scientific and ML Workflows](docs/scientific-and-ml-workflows.md)
+
+### 評估與擴充
+
 - [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)
 - [Case Studies Index](docs/case-studies/README.md)
-- [Token Economics](docs/token-economics.md)
 - [Evaluation](docs/evaluation.md)
-- [Migration Playbook](docs/migration-playbook.md)
+- [Research Methodology](docs/research-methodology.md)
+- [Token Economics](docs/token-economics.md)
+- [Case Study Template](docs/case-study-template.md)
+- [Anti-Patterns](docs/anti-patterns.md)
 - [FAQ](docs/faq.md)
+- [References](docs/references.md)
 
-## 貢獻與授權
+---
 
-歡迎提交 adoption case study、monorepo 範例、deterministic checks 與失敗案例。見 [CONTRIBUTING.md](CONTRIBUTING.md) 與 [Code of Conduct](CODE_OF_CONDUCT.md)。
+## 目前狀態與 Non-goals
+
+**Status：Alpha reference implementation。**方法、templates、examples、verifier、footprint estimator、archive helper 與 prompt renderer 已可使用；更廣泛的跨專案實證仍是後續工作。
+
+RSAW 刻意不是：
+
+- 自主 Project Manager；
+- 特定模型廠商 Wrapper；
+- GitHub Issues、Linear、Jira、retrieval 或 orchestration 的替代品；
+- 自動 Conversation Summarizer；
+- 私人聊天記錄資料庫；
+- 宣稱每個 Task 都能塞進單一 Session；
+- 降低測試或人工 Review 的理由。
+
+設計保持可檢視：Markdown、Git、deterministic checks 與 project-owned evidence。
+
+---
+
+## 貢獻、引用與授權
+
+歡迎提交 measured adoption study、deterministic workflow check、monorepo example 與失敗案例。見 [CONTRIBUTING.md](CONTRIBUTING.md) 與 [Code of Conduct](CODE_OF_CONDUCT.md)。
+
+研究使用請參考 [CITATION.cff](CITATION.cff)，並引用實際使用的 RSAW version 或 commit。
 
 MIT License。見 [LICENSE](LICENSE)。
