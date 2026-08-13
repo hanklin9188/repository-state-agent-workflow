@@ -23,6 +23,7 @@
 
 <p align="center">
   <a href="#five-minute-start">Quick start</a> ·
+  <a href="#real-world-adoption-evidence">Adoption evidence</a> ·
   <a href="docs/company-adoption.md">Company adoption</a> ·
   <a href="docs/research-methodology.md">Research methodology</a> ·
   <a href="README.zh-TW.md">繁體中文</a>
@@ -89,6 +90,30 @@ Candidate research questions include:
 The repository includes a preregistration-oriented methodology, metrics, threats to validity, and a case-study template. It does **not** claim universal token or quality improvements from a single project.
 
 See [Research Methodology](docs/research-methodology.md) and [Case Study Template](docs/case-study-template.md).
+
+---
+
+## Real-world adoption evidence
+
+### Desk Code Agent — preliminary V1 result
+
+Desk Code Agent adopted RSAW to replace a broad mandatory project bootstrap with the three-file fresh-session contract: `AGENTS.md`, `ACTIVE.md`, and one active task specification.
+
+| Metric | Previous workflow | RSAW V1 | Difference |
+|---|---:|---:|---:|
+| Fresh-session bootstrap estimate | 33,348 | **2,967** | **-30,381** |
+| Relative reduction | — | — | **91.10%** |
+
+RSAW V1 bootstrap composition:
+
+- `AGENTS.md`: 1,639 estimated tokens
+- `ACTIVE.md`: 432 estimated tokens
+- active task: 896 estimated tokens
+- `rsaw verify`: PASS
+
+**Interpretation:** this is a `BOOTSTRAP_CONTEXT_ESTIMATE`. It measures the deterministic fresh-session bootstrap footprint under the two policies. It is **not** measured provider billing savings, cached-input savings, total task-context reduction, or evidence that engineering quality improved by 91.10%.
+
+V2 closure and task-level continuity/quality measurements are still pending. Read the [full Desk Code Agent case study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md) or the [machine-readable result](data/case-studies/desk-code-agent-rsaw-v1.json).
 
 ---
 
@@ -228,7 +253,7 @@ Illustrative reduction:              86.1%
 
 Actual monetary savings depend on model pricing, cache behavior, tool output, retries, and task shape. The workflow should be evaluated on quality and continuity as well as token volume.
 
-See [Token Economics](docs/token-economics.md) and [Evaluation](docs/evaluation.md).
+See [Token Economics](docs/token-economics.md), [Evaluation](docs/evaluation.md), and [RSAW Case Studies](docs/case-studies/README.md).
 
 ---
 
@@ -317,6 +342,8 @@ Each example contains its own `AGENTS.md`, `ACTIVE.md`, and active task.
 
 ### Evaluation and migration
 
+- [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)
+- [Case Studies Index](docs/case-studies/README.md)
 - [Token Economics](docs/token-economics.md)
 - [Evaluation](docs/evaluation.md)
 - [Case Study Template](docs/case-study-template.md)
