@@ -4,6 +4,16 @@ The workflow should be evaluated by more than token counts. A smaller context th
 
 For a preregistration-oriented study design, metrics, statistical considerations, and threats to validity, see [Research Methodology](research-methodology.md). For a reusable report structure, see [Case Study Template](case-study-template.md).
 
+## Current adoption evidence
+
+The first documented real-project adoption measurement is available in [Desk Code Agent — RSAW V1 Bootstrap Context Case Study](case-studies/desk-code-agent-rsaw-v1-bootstrap.md).
+
+At V1, `rsaw verify` passed and the deterministic fresh-session bootstrap estimate changed from a previous-policy lower bound of **33,348 tokens** to **2,967 tokens** under the RSAW three-file bootstrap (`AGENTS.md` 1,639; `ACTIVE.md` 432; active task 896). That is an estimated reduction of **30,381 tokens / 91.10%**.
+
+This result is explicitly labeled `BOOTSTRAP_CONTEXT_ESTIMATE`. It is not provider billing savings, cached-input savings, or a full-task quality result. V2 closure and task-level continuity/quality measurements are still required before broader claims.
+
+Machine-readable data: [`../data/case-studies/desk-code-agent-rsaw-v1.json`](../data/case-studies/desk-code-agent-rsaw-v1.json).
+
 ## Before/after measures
 
 ### Context footprint

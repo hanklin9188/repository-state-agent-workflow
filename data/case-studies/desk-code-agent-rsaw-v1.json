@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "study_id": "desk-code-agent-rsaw-v1-bootstrap",
+  "status": "PRELIMINARY_V1_ADOPTION_EVIDENCE",
+  "repository": "hanklin9188/Desk-Code-Agent",
+  "workflow": "Repository-State Agent Workflow",
+  "reasoning_mode": "MEDIUM",
+  "measurement_label": "BOOTSTRAP_CONTEXT_ESTIMATE",
+  "verifier": {
+    "rsaw_verify": "PASS",
+    "v2_closure": "PENDING"
+  },
+  "baseline": {
+    "kind": "DETERMINISTIC_LOWER_BOUND",
+    "estimated_tokens": 33348,
+    "description": "Minimum mandatory fresh-session bootstrap implied by the previous broad global-read policy under the deterministic migration estimator."
+  },
+  "rsaw_bootstrap": {
+    "estimated_tokens": 2967,
+    "components": {
+      "AGENTS.md": 1639,
+      "ACTIVE.md": 432,
+      "active_task": 896
+    }
+  },
+  "difference": {
+    "estimated_tokens": -30381,
+    "reduction_tokens": 30381,
+    "reduction_percent": 91.10
+  },
+  "supported_claim": "Under Desk Code Agent's deterministic bootstrap estimator, the RSAW three-file bootstrap reduced estimated mandatory fresh-session bootstrap context from 33,348 to 2,967 tokens, a reduction of 30,381 tokens or 91.10%.",
+  "nonclaims": [
+    "provider billing savings",
+    "cached-input savings",
+    "total full-task context-traffic reduction",
+    "monetary savings",
+    "task-quality non-inferiority",
+    "universal generalization across repositories or agents"
+  ],
+  "pending_v2_closure": [
+    "mark roadmap/history as non-bootstrap context",
+    "finish documentation navigation",
+    "run V2 closure validation",
+    "preserve verifier and footprint evidence",
+    "confirm validation rules were not weakened"
+  ],
+  "future_measurements": [
+    "fresh-session bootstrap tokens",
+    "routine working-set tokens",
+    "cached input",
+    "uncached input",
+    "output tokens",
+    "tool-output volume",
+    "model calls",
+    "continuity success",
+    "repeated-work rate",
+    "stale-state errors",
+    "closure validation",
+    "independent review findings",
+    "human interventions",
+    "elapsed time"
+  ]
+}
