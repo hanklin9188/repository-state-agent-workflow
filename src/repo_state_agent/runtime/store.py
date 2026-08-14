@@ -18,7 +18,9 @@ def utc_now() -> str:
 def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     os.replace(temporary, path)
 
 
@@ -42,7 +44,10 @@ class RuntimeStore:
         atomic_write_json(self.summary_path, payload)
         atomic_write_json(
             self.latest_path,
-            {"run_id": summary.run_id, "summary": str(self.summary_path.relative_to(self.root))},
+            {
+                "run_id": summary.run_id,
+                "summary": str(self.summary_path.relative_to(self.root)),
+            },
         )
 
 
@@ -52,10 +57,10 @@ class RuntimeLock(AbstractContextManager["RuntimeLock"]):
     acquired: bool = False
 
     @classmethod
-    def for_root(cls, root: Path) -> "RuntimeLock":
+    def for_root(cls, root: Path) -> RuntimeLock:
         return cls(root.resolve() / ".rsaw/runtime.lock")
 
-    def __enter__(self) -> "RuntimeLock":
+    def __enter__(self) -> RuntimeLock:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"pid": os.getpid(), "created_at": utc_now()}
         try:
