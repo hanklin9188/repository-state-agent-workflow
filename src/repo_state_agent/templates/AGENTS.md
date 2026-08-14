@@ -4,55 +4,44 @@
 
 Repository state overrides conversation history.
 
-## Minimal Bootstrap
+## Bootstrap
 
-Read only:
+Read only `AGENTS.md`, `ACTIVE.md`, and the active task. Expand context on demand.
 
-1. `AGENTS.md`
-2. `ACTIVE.md`
-3. the active task referenced by `ACTIVE.md`
+## Persistent Workstream
 
-Use progressive disclosure for everything else.
+The workstream may run for days or weeks. Model contexts remain bounded. Every task closes with durable repository state before the next task begins.
 
-## Persistent Workstreams
+## Runtime Actions
 
-A workstream may last days or weeks. The model context must not.
+- `CONTINUE`: same context may execute the next closely coupled task.
+- `ROTATE`: the workstream continues in a fresh context.
+- `PAUSE`: human or external action is required.
+- `COMPLETE`: the workstream is terminal.
 
-Work through bounded context epochs. A context epoch may close several adjacent tasks when they share the same role, hypothesis, subsystem, and evidence domain.
+Do not print or relay next-session prompts when the RSAW supervisor is active. Update `ACTIVE.md`; the supervisor performs continuation or rotation.
 
-Every task still ends with a durable checkpoint before the next task begins.
+## Mandatory Fresh Boundaries
 
-## Continuation Gate
-
-At each task checkpoint, run `rsaw next .`.
-
-- `CONTINUE`: activate the ready next task and continue in the same context epoch.
-- `ROTATE_REQUIRED`: update `ACTIVE.md`, stop, and resume in a fresh context.
-- `STOP_REQUIRED`: preserve state and wait for the human gate or external work.
-
-Never continue across a role change, scientific execution/analysis boundary, major debugging residue, long-running-only wait, or explicit human gate.
-
-## Context Budget
-
-Prefer 20K–40K working contexts. Rotate around 50K–60K when practical. Treat routine contexts above 80K as a workflow failure unless explicitly justified.
+Rotate for role changes, Builder→Runner, Runner→Analyst, formal execution→interpretation, fresh review, major decisions, and major debugging closure.
 
 ## Validation
 
-- V0: syntax, lint, exact targeted test during editing
+- V0: syntax/lint/exact test during editing
 - V1: focused task checkpoint
-- V2: one full relevant check at context-epoch or phase closure
-- V3: fresh independent review only for critical claims, releases, or major forks
+- V2: one relevant epoch or phase closure
+- V3: independent critical review
 
-Validation is a gate, not the product. Do not add defensive validation for hypothetical failures.
+Validation is a gate, not the product. Add validation only for an observed threat or explicit contract.
 
-## Roles
+## Long-Running Work
 
-Builder may continue across adjacent engineering tasks. Reviewer, Runner, Analyst, and Decision roles start fresh unless the repository explicitly proves otherwise.
+Record job ID, revision, expected artifacts, completion condition, and next action. Do not busy-poll.
 
 ## Safety
 
-Do not use destructive Git commands or modify unrelated user work without explicit authorization.
+Do not bypass authorization, approvals, sandboxing, or destructive-action gates. Preserve failed evidence and consumed authorizations.
 
 ## Handoff
 
-Before a checkpoint or rotation, record current state, evidence pointers, blockers, next action, continuation decision, next task, and next role in `ACTIVE.md`.
+Before a checkpoint, update current state, evidence pointers, next task, next action, role, human gate, and continuation decision.

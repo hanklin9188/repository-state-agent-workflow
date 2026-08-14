@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .continuation import CONTINUE_ALLOWED, VALID_CONTINUATIONS
+from .continuation import COMPLETE, CONTINUE_ALLOWED, VALID_CONTINUATIONS
 from .parsing import parse_active
 
 VALID_ROLES = {"builder", "reviewer", "decision", "runner", "analyst"}
@@ -117,6 +117,9 @@ def verify_repository(
             result.errors.append("CONTINUE_ALLOWED is incompatible with an active Human Gate")
         if state.current_role and _role(state.current_role) != next_role:
             result.errors.append("CONTINUE_ALLOWED is incompatible with a role change")
+
+    if continuation == COMPLETE and state.human_gate:
+        result.errors.append("COMPLETE is incompatible with an active Human Gate")
 
     fenced_blocks = re.findall(r"```.*?```", text, flags=re.DOTALL)
     large_blocks = [block for block in fenced_blocks if len(block.splitlines()) > 20]

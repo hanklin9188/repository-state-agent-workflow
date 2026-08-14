@@ -11,6 +11,8 @@ def test_initialize_creates_core_files(tmp_path: Path) -> None:
     assert not skipped
     assert tmp_path.joinpath("AGENTS.md").is_file()
     assert tmp_path.joinpath("ACTIVE.md").is_file()
+    assert tmp_path.joinpath(".rsaw/config.json").is_file()
+    assert tmp_path.joinpath(".rsaw/.gitignore").is_file()
     assert tmp_path.joinpath("docs/workstreams/W-000-bootstrap.md").is_file()
     assert tmp_path.joinpath("docs/tasks/T-000-bootstrap.md").is_file()
     assert created

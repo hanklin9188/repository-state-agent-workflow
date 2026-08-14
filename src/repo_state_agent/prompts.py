@@ -11,24 +11,23 @@ VALID_MODES = {"auto", "fresh", "continue"}
 ROLE_INSTRUCTIONS = {
     "builder": """Execute the active task through its stop condition.
 Use V0/V1 checks while iterating and one V2 closure check when the context epoch closes.
-At every task checkpoint, persist evidence, update ACTIVE.md, and run `rsaw next .`.
-Continue to the next task only when the continuation result is CONTINUE.
+At every task checkpoint, persist evidence and update ACTIVE.md.
 """,
     "reviewer": """Act as a fresh reviewer.
 Read the governing spec, diff or commit, tests, and evidence.
 Do not preload the builder's debugging history.
 Report correctness, spec compliance, regression risk, and blocking findings.
-Update ACTIVE.md and stop at the review boundary.
+Update ACTIVE.md at the review boundary.
 """,
     "decision": """Use the two-pass Medium decision workflow.
 Pass A decomposes facts, inferences, options, constraints, and missing evidence.
 Pass B synthesizes the decision and records assumptions.
 Do not implement the decision in this context epoch.
-Update ACTIVE.md and stop at the decision boundary.
+Update ACTIVE.md at the decision boundary.
 """,
     "runner": """Execute only the registered or authorized run described by the active task.
 Preserve raw evidence and do not redesign after observing results.
-Update ACTIVE.md and stop at the execution boundary.
+Update ACTIVE.md at the execution boundary.
 """,
     "analyst": """Analyze only the sealed evidence and governing protocol referenced by
     the active task.
@@ -93,7 +92,7 @@ Do not reconstruct old chat history.
 When the active task reaches a checkpoint:
 - persist evidence and commit or record the durable state;
 - activate the next task in ACTIVE.md;
-- run `rsaw verify .` and `rsaw next .`;
-- CONTINUE only when the gate says CONTINUE;
-- otherwise stop for a fresh context, human gate, or long-running handoff.
+- run `rsaw verify .` and, in manual mode, run `rsaw next .`;
+- declare CONTINUE_ALLOWED, ROTATE_REQUIRED, STOP_REQUIRED, or COMPLETE;
+- do not weaken safety, validation, or scientific role boundaries to save context.
 """

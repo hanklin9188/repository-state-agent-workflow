@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "adapter": "codex",
+    "codex_binary": "codex",
+    "sandbox": "workspace-write",
+    "approve_for_me": false,
+    "max_transitions": 100,
+    "max_turns_per_epoch": 6,
+    "rotate_input_tokens": 60000,
+    "max_total_input_tokens": 5000000,
+    "interactive_gates": true,
+    "wait_on_pause": false
+  }
+}

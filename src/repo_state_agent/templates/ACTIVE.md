@@ -23,8 +23,8 @@ Spec: docs/tasks/T-000-bootstrap.md
 
 ## Current State
 
-- RSAW workstream files have been initialized.
-- Project-specific policy and the first real task still need review.
+- RSAW has been initialized.
+- Project policy and the first real workstream task still need review.
 
 ## Evidence
 
@@ -57,16 +57,16 @@ None.
 
 ## Next Exact Action
 
-Customize AGENTS.md, define the real workstream, and replace T-000 with the first real task.
+Customize policy, define the real workstream, and activate the first real task.
 
 ## Stop Condition
 
-Project policy, workstream, and the first real task are actionable and `rsaw verify .` passes.
+Project policy, workstream, and first task are actionable and `rsaw verify .` passes.
 
 ## Continuation Gate
 
 Decision: ROTATE_REQUIRED
-Reason: Bootstrap changes repository policy and should hand off to a fresh project task.
+Reason: Bootstrap policy changes should hand off to a fresh project context.
 
 ## Next Task
 

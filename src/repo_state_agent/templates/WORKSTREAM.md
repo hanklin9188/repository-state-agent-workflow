@@ -6,7 +6,7 @@ Move project continuity from conversation history into versioned repository stat
 
 ## Outcome
 
-A stable agent policy, compact active handoff, bounded task contracts, and an explicit context-rotation policy.
+A stable policy, compact active handoff, bounded task contracts, explicit rotation rules, and an optional runtime supervisor.
 
 ## State Machine
 
@@ -14,17 +14,16 @@ A stable agent policy, compact active handoff, bounded task contracts, and an ex
 T-000 Bootstrap
 → T-001 First real task
 → project-defined phases
+→ COMPLETE
 ```
 
 ## Continuation Policy
 
-Continue within one context epoch only when the next task is ready and shares the same role, hypothesis, subsystem, and evidence domain.
-
-Rotate for role changes, scientific execution/analysis boundaries, major debugging residue, long-running waits, human gates, or context pressure.
+Continue only for the same role, objective, subsystem, evidence domain, and safety boundary. Rotate for role/scientific boundaries or context pressure. Pause only for human/external gates.
 
 ## Validation Budget
 
-V0 during edits, V1 at task checkpoints, V2 once at epoch closure, and V3 only for critical work.
+V0 during edits, V1 at task checkpoints, V2 once at epoch closure, V3 only for critical work.
 
 ## Human Gates
 
@@ -33,6 +32,10 @@ V0 during edits, V1 at task checkpoints, V2 once at epoch closure, and V3 only f
 - unresolved architecture/scientific fork;
 - destructive action.
 
+## Runtime Limits
+
+The supervisor must enforce bounded turns, token pressure rotation, no automatic retry after agent failure, and single-supervisor locking.
+
 ## Workstream Stop
 
-The project-defined milestone is complete and a new workstream is activated.
+The project-defined milestone is complete and `ACTIVE.md` declares `COMPLETE`.

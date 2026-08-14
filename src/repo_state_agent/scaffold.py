@@ -6,6 +6,8 @@ from pathlib import Path
 TEMPLATE_MAP = {
     "AGENTS.md": "AGENTS.md",
     "ACTIVE.md": "ACTIVE.md",
+    ".rsaw/config.json": "CONFIG.json",
+    ".rsaw/.gitignore": "RSAW_GITIGNORE.txt",
     "docs/workstreams/W-000-bootstrap.md": "WORKSTREAM.md",
     "docs/tasks/T-000-bootstrap.md": "TASK.md",
     "docs/agents/repository-state-workflow.md": "WORKFLOW.md",

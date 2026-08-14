@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repository-state-agent-workflow"
-version = "0.2.0"
-description = "Repository-backed persistent workstreams with bounded context epochs for reliable coding agents"
+version = "0.3.0"
+description = "Repository-backed workstreams with bounded context epochs and automatic agent rotation"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -18,6 +18,7 @@ keywords = [
   "context-engineering",
   "persistent-workstreams",
   "context-rotation",
+  "runtime-supervisor",
   "progressive-disclosure",
   "developer-tools",
   "software-engineering",
@@ -51,14 +52,14 @@ Issues = "https://github.com/hanklin9188/repository-state-agent-workflow/issues"
 Changelog = "https://github.com/hanklin9188/repository-state-agent-workflow/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "src" }
 include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-repo_state_agent = ["templates/*.md"]
+repo_state_agent = ["templates/*.md", "templates/*.json", "templates/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

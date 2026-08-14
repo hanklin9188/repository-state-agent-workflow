@@ -54,15 +54,21 @@ def test_same_role_ready_task_can_continue(tmp_path: Path) -> None:
     assert result.action == "CONTINUE"
 
 
-def test_role_change_forces_rotation(tmp_path: Path) -> None:
+def test_role_change_rotates_without_pausing_workstream(tmp_path: Path) -> None:
     _write_state(tmp_path, "CONTINUE_ALLOWED", next_role="Reviewer")
     result = decide_continuation(parse_active(tmp_path))
-    assert result.action == "ROTATE_REQUIRED"
+    assert result.action == "ROTATE"
     assert "ROLE_CHANGE" in result.reasons
 
 
-def test_human_gate_forces_stop(tmp_path: Path) -> None:
+def test_human_gate_pauses(tmp_path: Path) -> None:
     _write_state(tmp_path, "CONTINUE_ALLOWED", gate="Approve production deployment.")
     result = decide_continuation(parse_active(tmp_path))
-    assert result.action == "STOP_REQUIRED"
+    assert result.action == "PAUSE"
     assert "HUMAN_GATE" in result.reasons
+
+
+def test_complete_is_a_terminal_action(tmp_path: Path) -> None:
+    _write_state(tmp_path, "COMPLETE")
+    result = decide_continuation(parse_active(tmp_path))
+    assert result.action == "COMPLETE"

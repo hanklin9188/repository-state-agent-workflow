@@ -11,11 +11,11 @@ def test_status_and_next_commands(tmp_path: Path, capsys) -> None:
     assert main(["status", str(tmp_path)]) == 0
     status = capsys.readouterr().out
     assert "WORKSTREAM  W-000" in status
-    assert "GATE        ROTATE_REQUIRED" in status
+    assert "ACTION      ROTATE" in status
 
     assert main(["next", str(tmp_path)]) == 0
     decision = capsys.readouterr().out
-    assert decision.startswith("ROTATE_REQUIRED")
+    assert decision.startswith("ROTATE")
 
 
 def test_prompt_auto_command(tmp_path: Path, capsys) -> None:
@@ -24,3 +24,10 @@ def test_prompt_auto_command(tmp_path: Path, capsys) -> None:
     prompt = capsys.readouterr().out
     assert "Resume the active RSAW workstream" in prompt
     assert "docs/tasks/T-000-bootstrap.md" in prompt
+
+
+def test_run_dry_run_does_not_require_codex(tmp_path: Path, capsys) -> None:
+    initialize_repository(tmp_path)
+    assert main(["run", str(tmp_path), "--dry-run"]) == 0
+    output = capsys.readouterr().out
+    assert "RSAW DRY_RUN" in output
