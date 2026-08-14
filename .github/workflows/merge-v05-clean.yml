@@ -1,0 +1,100 @@
+name: Merge validated RSAW 0.5 release candidate
+
+on:
+  push:
+    branches:
+      - feat/token-efficient-runtime-v5-clean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/token-efficient-runtime-v5-clean
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Require the validated 0.5 release receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f docs/releases/rsaw-v5-validation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('docs/releases/rsaw-v5-validation.json').read_text())
+          assert payload['release'] == '0.5.0'
+          assert payload['status'] == 'VALIDATED'
+          required = {
+              'ruff', 'pytest', 'rsaw_verify', 'strict_context_plan',
+              'footprint_gate', 'supervisor_dry_run', 'runtime_report',
+              'markdown_links', 'release_surface'
+          }
+          assert required.issubset(set(payload['checks']))
+          PY
+          grep -q 'version = "0.5.0"' pyproject.toml
+          test -f src/repo_state_agent/runtime/context.py
+          test -f src/repo_state_agent/runtime/rotation.py
+
+      - name: Re-run final release checks
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw context . --strict
+          rsaw run . --dry-run
+          rsaw report . --json
+          python scripts/check_markdown_links.py .
+
+      - name: Remove branch-only workflow and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/merge-v05-clean.yml
+          rm -f .github/workflows/build-v05-clean.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: finalize RSAW 0.5 release candidate'
+            git push origin HEAD:feat/token-efficient-runtime-v5-clean
+          fi
+
+      - name: Create or find pull request
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          PR="$(gh pr list --repo '${{ github.repository }}' --head feat/token-efficient-runtime-v5-clean --base main --state open --json number --jq '.[0].number')"
+          if [[ -z "$PR" ]]; then
+            URL="$(gh pr create --repo '${{ github.repository }}' \
+              --head feat/token-efficient-runtime-v5-clean \
+              --base main \
+              --title 'feat: add cache-aware context runtime' \
+              --body 'RSAW 0.5 adds deterministic context manifests, stable/dynamic fingerprints, cache-aware rotation, checkpoint-normalized efficiency metrics, updated Live Runtime Console observability, comprehensive tests, documentation, and redesigned visuals. Repository authority, lifecycle safety, human gates, role independence, and scientific boundaries remain unchanged.')"
+            PR="${URL##*/}"
+          fi
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+
+      - name: Merge validated pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr merge '${{ steps.pr.outputs.number }}' --repo '${{ github.repository }}' \
+            --squash --delete-branch=false \
+            --subject 'feat: add cache-aware context runtime' \
+            --body 'Add RSAW 0.5 context planning, cache-aware rotation, checkpoint-normalized context metrics, updated Live Runtime Console observability, tests, migration guidance, and redesigned project visuals.'
