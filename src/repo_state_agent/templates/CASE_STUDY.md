@@ -1,25 +1,19 @@
-# Repository-State Workflow Case Study
+# Case Study — Project
 
-## Project
+## Question
 
-## Agent and Reasoning Mode
+## Compared Workflows
 
-## Baseline Workflow
+## Unit of Analysis
 
-## Repository-State Workflow
+## Context / Token Measures
 
-## Task Sample
+## Quality / Completion Measures
 
-## Context Footprint Before
+## Human Intervention
 
-## Context Footprint After
-
-## Repeated-Work Observations
-
-## Quality / Validation Observations
-
-## Handoff Success
+## Results
 
 ## Limitations
 
-## Conclusion
+## Reproduction

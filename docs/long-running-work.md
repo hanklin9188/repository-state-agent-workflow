@@ -2,6 +2,8 @@
 
 Long-running work includes CI, builds, benchmarks, training, cloud jobs, deployments, and data processing.
 
+A long-lived workstream does not require a long-lived model context.
+
 ## Handoff contract
 
 When the process is the only remaining blocker, record:
@@ -12,14 +14,15 @@ When the process is the only remaining blocker, record:
 - expected outputs;
 - artifact location;
 - completion condition;
-- next exact action.
+- next exact action;
+- next role.
 
-Then stop when the process can safely continue independently.
+Then set the continuation gate to `STOP_REQUIRED` or `ROTATE_REQUIRED` and stop when safe.
 
 ## Avoid busy-wait loops
 
-Repeated polling wastes model calls and context. Poll only at meaningful intervals required for correctness or safety.
+Repeated polling wastes calls and context. Poll only when correctness or safety requires it.
 
-## Results session
+## Result epoch
 
-When work finishes, use a fresh result-review session that reads the job handoff and generated evidence, not the entire submission session.
+When the process finishes, use a fresh result-review epoch that reads the job handoff and generated evidence—not the submission conversation.

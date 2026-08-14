@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repository-state-agent-workflow"
-version = "0.1.0"
-description = "Repository-backed memory and bounded-session workflow for low-context, high-quality coding agents"
+version = "0.2.0"
+description = "Repository-backed persistent workstreams with bounded context epochs for reliable coding agents"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -16,6 +16,8 @@ keywords = [
   "agent-workflow",
   "repository-state",
   "context-engineering",
+  "persistent-workstreams",
+  "context-rotation",
   "progressive-disclosure",
   "developer-tools",
   "software-engineering",

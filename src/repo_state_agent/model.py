@@ -15,3 +15,12 @@ class ActiveState:
     stop_condition: str
     next_role: str
     reasoning: str
+    workstream_id: str = ""
+    workstream_spec: Path | None = None
+    epoch_id: str = ""
+    current_role: str = ""
+    continuation: str = "ROTATE_REQUIRED"
+    continuation_reason: str = ""
+    next_task_id: str = ""
+    next_task_spec: Path | None = None
+    human_gate: str = ""

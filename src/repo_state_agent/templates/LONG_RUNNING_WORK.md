@@ -1,12 +1,10 @@
 # Long-Running Work Handoff
 
-## Work Type
-
-## Job / Run / Process ID
+## Process / Job ID
 
 ## Revision
 
-## Command or Protocol
+## Command / Protocol
 
 ## Expected Outputs
 
@@ -14,10 +12,4 @@
 
 ## Completion Condition
 
-## Current State
-
 ## Next Exact Action
-
-## Polling Policy
-
-Do not repeatedly poll when waiting is the only remaining action.

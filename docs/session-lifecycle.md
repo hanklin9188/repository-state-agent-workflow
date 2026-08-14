@@ -1,30 +1,53 @@
 # Session Lifecycle
 
+RSAW 0.2 separates task checkpoints from context rotation.
+
 ```mermaid
 flowchart TD
-    N[New session] --> R[Read AGENTS + ACTIVE + active task]
-    R --> Q{Need more context?}
-    Q -->|Yes| D[Read exact dependency]
-    Q -->|No| X[Execute]
-    D --> X
-    X --> V0[V0 targeted validation]
-    V0 --> C{Task stable?}
-    C -->|No| X
-    C -->|Yes| V2[V1/V2 closure validation]
-    V2 --> U[Update ACTIVE]
-    U --> S[Stop]
+    N[New or continuing context epoch]
+    R[Read AGENTS + ACTIVE + active task]
+    Q{Need more context?}
+    D[Read exact dependency]
+    X[Execute task]
+    V0[V0/V1 targeted validation]
+    K[Durable task checkpoint]
+    G{Continuation Gate}
+    C[Activate next adjacent task]
+    V2[V2 epoch/phase closure]
+    S[Stop and rotate]
+    H[Stop at human/external gate]
+
+    N --> R --> Q
+    Q -->|Yes| D --> X
+    Q -->|No| X
+    X --> V0 --> K --> G
+    G -->|CONTINUE| C --> X
+    G -->|ROTATE_REQUIRED| V2 --> S
+    G -->|STOP_REQUIRED| H
 ```
 
-## Recommended session boundaries
+## Checkpoint after every task
 
-Start a fresh session after:
+Even when the context continues:
 
-- task completion;
-- closure verification;
-- a large debugging episode;
-- builder-to-reviewer transition;
-- a major design decision;
-- long-running work handoff;
-- a significant change in the governing hypothesis or specification.
+- accepted evidence is persisted;
+- the current task is closed or updated;
+- the next task is activated;
+- `ACTIVE.md` is updated;
+- `rsaw verify .` and `rsaw next .` run.
 
-The boundary is a quality mechanism, not merely a token-saving trick. It removes obsolete context and forces explicit handoff state.
+## Continue when
+
+The next task shares the role, objective, subsystem, and evidence domain, and no independent review or human gate is required.
+
+## Rotate when
+
+- role changes;
+- scientific phase changes;
+- major debugging residue exists;
+- the specification changed;
+- long-running work is the only blocker;
+- context pressure is high;
+- a human gate is reached.
+
+The boundary is both a quality mechanism and a context-cost mechanism.

@@ -7,11 +7,13 @@ authors:
 repository-code: "https://github.com/hanklin9188/repository-state-agent-workflow"
 url: "https://github.com/hanklin9188/repository-state-agent-workflow"
 license: MIT
-version: 0.1.0
-date-released: 2026-08-12
+version: 0.2.0
+date-released: 2026-08-14
 keywords:
   - coding agents
   - repository state
-  - context engineering
+  - persistent workstreams
+  - context epochs
+  - context rotation
   - progressive disclosure
   - software engineering

@@ -1,19 +1,17 @@
 # Decision Checkpoint
 
-## Decision Question
-
-## Observed Facts
+## Facts
 
 ## Inferences
 
-## Competing Options
-
 ## Constraints
+
+## Options
 
 ## Missing Evidence
 
-## Human Values Required
+## Decision
 
-## Pass-A Conclusion
+## Assumptions
 
-Evidence decomposition is complete. Architecture synthesis has not yet been performed.
+## Next Action

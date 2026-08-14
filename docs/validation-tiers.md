@@ -1,42 +1,27 @@
 # Validation Tiers
 
-## V0 — Edit loop
+Validation protects the current claim. It is not an invitation to test every hypothetical failure.
 
-Fast feedback:
+| Tier | Boundary | Purpose | Examples |
+|---|---|---|---|
+| `V0` | Edit loop | Fast local correctness | syntax, lint, exact unit test |
+| `V1` | Task checkpoint | Prove the bounded task is stable | focused suite, small integration |
+| `V2` | Context epoch / phase closure | Prove the completed coherent phase | full relevant suite once, package check |
+| `V3` | Critical claim / release / major fork | Independent challenge | fresh reviewer, scientific/spec review |
 
-- parse or compile;
-- lint changed file;
-- one targeted test;
-- deterministic local assertion.
+## Persistent epoch rule
 
-## V1 — Task stability
+Several adjacent tasks may each use V1. Run V2 once when the epoch or coherent phase closes, rather than repeating full validation at every task.
 
-When the feature appears complete:
+## When to add validation
 
-- task-specific suite;
-- focused integration;
-- public-seam negative tests;
-- compatibility checks.
+Add a new check only when:
 
-## V2 — Ticket closure
+1. an observed defect threatens the next claim; or
+2. an explicit contract requires executable coverage.
 
-Before marking the task complete:
+A legitimate negative scientific result is progress. It does not automatically justify more validator engineering.
 
-- full relevant test suite;
-- repository lint/type checks;
-- package/schema/result validation;
-- clean diff and worktree checks.
+## Evidence boundary
 
-## V3 — Critical or release work
-
-Use a fresh reviewer for:
-
-- standards review;
-- spec review;
-- security/release checks;
-- clean-environment verification;
-- scientific review when applicable.
-
-## Why tiers matter
-
-Running the entire test suite after every small edit wastes time and agent context. Running only targeted tests at closure creates false confidence. Tiers preserve both iteration speed and closure quality.
+Passing tests proves implementation behavior. Measured or production claims still need their own protocol, provenance, data, analysis, and decision rules.

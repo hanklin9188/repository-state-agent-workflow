@@ -1,7 +1,8 @@
-# ADR-0000: Decision Title
+# ADR-NNN — Title
 
-- Status: Proposed
-- Date: YYYY-MM-DD
+## Status
+
+Proposed
 
 ## Context
 
@@ -11,4 +12,4 @@
 
 ## Consequences
 
-## Revisit Conditions
+## Evidence / Validation

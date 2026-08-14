@@ -1,82 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="384" viewBox="0 0 1280 384" role="img" aria-labelledby="wtitle wdesc" font-family="Segoe UI, Noto Sans TC, PingFang TC, Microsoft JhengHei, Helvetica, Arial, sans-serif">
-  <title id="wtitle">RSAW session loop</title>
-  <desc id="wdesc">Bootstrap, bounded work, validate, handoff — continuity lives in Git, not in chat history.</desc>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#07111f"/>
-      <stop offset="0.55" stop-color="#0b1f33"/>
-      <stop offset="1" stop-color="#123a4a"/>
-    </linearGradient>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="#38bdf8"/>
-    </marker>
-    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="#5eead4"/>
-    </marker>
-  </defs>
-
-  <rect width="1280" height="384" rx="24" fill="url(#bg)"/>
-  <circle cx="1130" cy="40" r="170" fill="#2563eb" opacity="0.10"/>
-  <circle cx="120" cy="330" r="190" fill="#14b8a6" opacity="0.08"/>
-
-  <!-- 01 Bootstrap -->
-  <g>
-    <rect x="48" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#5eead4" stroke-width="2.5"/>
-    <circle cx="82" cy="98" r="15" fill="#5eead4"/>
-    <text x="82" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">01</text>
-    <text x="106" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Bootstrap</text>
-    <line x1="70" y1="124" x2="276" y2="124" stroke="#5eead4" stroke-opacity="0.25" stroke-width="1.5"/>
-    <text x="72" y="156" font-size="14.5" fill="#cbd5e1">Fresh agent session</text>
-    <text x="72" y="182" font-size="14.5" fill="#cbd5e1">reads only three files:</text>
-    <text x="72" y="208" font-size="14.5" fill="#cbd5e1">AGENTS.md · ACTIVE.md</text>
-    <text x="72" y="240" font-size="13" fill="#5eead4">+ active task — ~3K tokens</text>
-  </g>
-
-  <!-- 02 Bounded work -->
-  <g>
-    <rect x="358" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#60a5fa" stroke-width="2.5"/>
-    <circle cx="392" cy="98" r="15" fill="#60a5fa"/>
-    <text x="392" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">02</text>
-    <text x="416" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Bounded work</text>
-    <line x1="380" y1="124" x2="586" y2="124" stroke="#60a5fa" stroke-opacity="0.25" stroke-width="1.5"/>
-    <text x="382" y="156" font-size="14.5" fill="#cbd5e1">Execute exactly one</text>
-    <text x="382" y="182" font-size="14.5" fill="#cbd5e1">bounded task; read extra</text>
-    <text x="382" y="208" font-size="14.5" fill="#cbd5e1">files only when needed</text>
-    <text x="382" y="240" font-size="13" fill="#60a5fa">progressive disclosure</text>
-  </g>
-
-  <!-- 03 Validate -->
-  <g>
-    <rect x="668" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#4ade80" stroke-width="2.5"/>
-    <circle cx="702" cy="98" r="15" fill="#4ade80"/>
-    <text x="702" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">03</text>
-    <text x="726" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Validate</text>
-    <line x1="690" y1="124" x2="896" y2="124" stroke="#4ade80" stroke-opacity="0.25" stroke-width="1.5"/>
-    <text x="692" y="156" font-size="14.5" fill="#cbd5e1">Targeted checks while</text>
-    <text x="692" y="182" font-size="14.5" fill="#cbd5e1">iterating; closure checks</text>
-    <text x="692" y="208" font-size="14.5" fill="#cbd5e1">once the task is stable</text>
-    <text x="692" y="240" font-size="13" fill="#4ade80">evidence gates V0–V3</text>
-  </g>
-
-  <!-- 04 Handoff -->
-  <g>
-    <rect x="978" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#f472b6" stroke-width="2.5"/>
-    <circle cx="1012" cy="98" r="15" fill="#f472b6"/>
-    <text x="1012" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">04</text>
-    <text x="1036" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Handoff</text>
-    <line x1="1000" y1="124" x2="1206" y2="124" stroke="#f472b6" stroke-opacity="0.25" stroke-width="1.5"/>
-    <text x="1002" y="156" font-size="14.5" fill="#cbd5e1">Update ACTIVE.md with</text>
-    <text x="1002" y="182" font-size="14.5" fill="#cbd5e1">the next state, then</text>
-    <text x="1002" y="208" font-size="14.5" fill="#cbd5e1">stop the session</text>
-    <text x="1002" y="240" font-size="13" fill="#f472b6">next session starts fresh</text>
-  </g>
-
-  <!-- forward arrows -->
-  <line x1="302" y1="174" x2="350" y2="174" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)"/>
-  <line x1="612" y1="174" x2="660" y2="174" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)"/>
-  <line x1="922" y1="174" x2="970" y2="174" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowTeal)"/>
-
-  <!-- return loop -->
-  <path d="M1103 288 V348 H173 V296" fill="none" stroke="#5eead4" stroke-width="2.5" stroke-dasharray="7 6" stroke-opacity="0.75" marker-end="url(#arrowTeal)"/>
-  <text x="640" y="336" text-anchor="middle" font-size="13.5" fill="#94a3b8">Continuity lives in Git — not in chat history</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+<title id="title">RSAW persistent workstream lifecycle</title>
+<desc id="desc">A context epoch executes tasks, checkpoints state, and continues or rotates through a continuation gate.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker></defs>
+<rect width="1280" height="420" rx="24" fill="#f8fafc"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<text x="640" y="44" text-anchor="middle" font-size="30" font-weight="700" fill="#0f172a">Persistent workstream, bounded context epochs</text>
+<g stroke-width="2">
+<rect x="55" y="115" width="180" height="92" rx="18" fill="#e0f2fe" stroke="#0284c7"/><text x="145" y="148" text-anchor="middle" font-size="18" font-weight="700" fill="#0c4a6e">Minimal bootstrap</text><text x="145" y="178" text-anchor="middle" font-size="14" fill="#075985">AGENTS · ACTIVE · task</text>
+<rect x="285" y="115" width="180" height="92" rx="18" fill="#ede9fe" stroke="#7c3aed"/><text x="375" y="148" text-anchor="middle" font-size="18" font-weight="700" fill="#4c1d95">Context epoch</text><text x="375" y="178" text-anchor="middle" font-size="14" fill="#5b21b6">one or more adjacent tasks</text>
+<rect x="515" y="115" width="180" height="92" rx="18" fill="#dcfce7" stroke="#16a34a"/><text x="605" y="148" text-anchor="middle" font-size="18" font-weight="700" fill="#14532d">Checkpoint</text><text x="605" y="178" text-anchor="middle" font-size="14" fill="#166534">evidence + ACTIVE update</text>
+<rect x="745" y="115" width="180" height="92" rx="18" fill="#fef3c7" stroke="#d97706"/><text x="835" y="148" text-anchor="middle" font-size="18" font-weight="700" fill="#78350f">Continuation gate</text><text x="835" y="178" text-anchor="middle" font-size="14" fill="#92400e">deterministic decision</text>
+<rect x="990" y="82" width="190" height="72" rx="16" fill="#ccfbf1" stroke="#0f766e"/><text x="1085" y="115" text-anchor="middle" font-size="18" font-weight="700" fill="#134e4a">CONTINUE</text><text x="1085" y="137" text-anchor="middle" font-size="13" fill="#115e59">same epoch</text>
+<rect x="990" y="174" width="190" height="72" rx="16" fill="#f3e8ff" stroke="#9333ea"/><text x="1085" y="207" text-anchor="middle" font-size="18" font-weight="700" fill="#581c87">ROTATE</text><text x="1085" y="229" text-anchor="middle" font-size="13" fill="#6b21a8">fresh context</text>
+<rect x="745" y="292" width="180" height="72" rx="16" fill="#fee2e2" stroke="#dc2626"/><text x="835" y="325" text-anchor="middle" font-size="18" font-weight="700" fill="#7f1d1d">STOP</text><text x="835" y="347" text-anchor="middle" font-size="13" fill="#991b1b">human or external gate</text>
+</g>
+<g stroke="#64748b" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M235 161 H285"/><path d="M465 161 H515"/><path d="M695 161 H745"/><path d="M925 145 C955 145 955 118 990 118"/><path d="M925 177 C955 177 955 210 990 210"/><path d="M835 207 V292"/><path d="M1085 82 C1085 34 375 34 375 115"/><path d="M1085 246 C1085 270 145 270 145 207"/></g>
+<text x="640" y="397" text-anchor="middle" font-size="16" fill="#475569">Every task closes durably; the gate decides whether the model context continues.</text>
+</g></svg>

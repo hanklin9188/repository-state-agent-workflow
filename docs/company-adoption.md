@@ -1,143 +1,103 @@
 # Company Adoption and Governance
 
-Repository-State Agent Workflow is designed for engineering organizations that want agent productivity without making a model conversation an ungoverned system of record.
+RSAW gives engineering organizations agent continuity without making a model conversation an ungoverned system of record.
 
-## Executive summary
-
-The operating model is simple:
+## Operating model
 
 ```text
-Stable policy        → AGENTS.md
-Current handoff      → ACTIVE.md
-Current work contract→ task spec
-Durable evidence     → Git, tests, ADRs, reports, artifacts
+Stable policy          → AGENTS.md
+Long-range roadmap     → workstream spec
+Current frontier       → ACTIVE.md
+Bounded work contract  → task spec
+Durable evidence       → Git, CI, ADRs, reports, artifacts
+Context retention      → explicit continuation gate
 ```
 
-This gives teams an inspectable continuity layer that can be reviewed, versioned, secured, and used by multiple agent vendors.
+## Why persistent workstreams help
 
-## Business and engineering value
+### Lower hidden-state risk
 
-### Reduced hidden state
+Project state is visible, reviewable, versioned, and portable across agents and vendors.
 
-A long conversation is difficult to audit and difficult to transfer. Repository state is visible to engineers, reviewers, CI, and future agents.
+### Less unnecessary reboot cost
 
-### Vendor and model portability
+Closely coupled Builder tasks can share one Context Epoch instead of repeatedly reloading the same subsystem.
 
-The workflow does not require one model provider. A team can change agents without losing the project’s continuation contract.
+### Bounded context growth
 
-### Bounded operational risk
+Hard rotation boundaries prevent a multi-week workstream from becoming a multi-week model conversation.
 
-One substantial task per session makes the intended change surface, validation boundary, and stop condition explicit.
+### Cleaner accountability
 
-### Cleaner review and accountability
+Every task checkpoint records evidence, next action, next task, role, and gate decision.
 
-The reviewer receives a task contract, diff, validation evidence, known limitations, and explicit review questions. The builder’s full debugging transcript is intentionally excluded unless needed.
+### Lower default data exposure
 
-### Lower unnecessary data exposure
+Progressive disclosure reduces broad repository and log loading. It complements—but does not replace—access control.
 
-Progressive disclosure minimizes broad repository, log, or customer-data loading. This does not replace access control, but it reduces the default context footprint.
-
-## What RSAW does not replace
-
-RSAW complements rather than replaces:
+## RSAW does not replace
 
 - GitHub Issues, Linear, Jira, or internal trackers;
-- code review and branch protections;
+- code review and branch protection;
 - CI/CD;
-- security review and secrets management;
-- architecture decision records;
-- incident management;
+- secrets management and security review;
+- ADRs and incident management;
 - agent orchestration platforms.
-
-The external tracker can remain the planning authority. The active task file becomes the repository-local executable contract for the current agent session.
 
 ## Recommended rollout
 
-### Stage 1 — One-repository pilot
+### Stage 1 — One workstream pilot
 
-Select a repository with:
+Choose a feature, migration, experiment series, or release train with real tests and multiple adjacent tasks.
 
-- recurring agent use;
-- several bounded engineering tasks;
-- an existing test suite;
-- a team willing to maintain `ACTIVE.md` accurately.
+### Stage 2 — Conservative rotation
 
-Measure a baseline before changing the workflow.
+Start with `ROTATE_REQUIRED`. Enable continuation only for tightly coupled Builder tasks.
 
-### Stage 2 — Team operating contract
+### Stage 3 — Team contract
 
-Agree on:
+Agree on authority order, role boundaries, validation tiers, context budgets, human gates, and prohibited handoff data.
 
-- authority order;
-- active task location;
-- required validation tiers;
-- session stop conditions;
-- review responsibilities;
-- what information must never enter handoff files.
+### Stage 4 — Measured evaluation
 
-Add `rsaw verify .` to CI as a fast governance check.
-
-### Stage 3 — Multi-agent or monorepo adoption
-
-Use scoped policy files and independent active-state streams only where teams truly operate independently. Avoid one enormous `ACTIVE.md` for unrelated subprojects.
-
-### Stage 4 — Organization metrics
-
-Track whether the workflow changes:
-
-- repeated investigation;
-- context footprint;
-- task cycle time;
-- review findings;
-- escaped defects;
-- human intervention;
-- stale-state incidents;
-- successful handoffs across agents or engineers.
+Track tokens per successfully closed task, repeated reads, stale-state incidents, completion, review findings, human intervention, and elapsed time.
 
 ## Governance model
 
 | Layer | Owner | Change control |
 |---|---|---|
 | Stable policy | Repository maintainers | Reviewed, infrequent |
-| Current active state | Active builder/owner | Updated at meaningful boundaries |
-| Task contract | Task owner and reviewers | Frozen or versioned during execution |
-| ADRs | Architecture owners | Explicit decision process |
-| Tests and schemas | Engineering team | Normal code review |
-| Raw evidence | Producing system | Immutable or append-only by policy |
+| Workstream | Workstream owner | Milestone/state-machine changes |
+| ACTIVE | Current role owner | Every checkpoint |
+| Task contract | Task owner/reviewer | Frozen or versioned during execution |
+| Continuation gate | Current role + repository rules | Explicit and auditable |
+| Raw evidence | Producing system | Immutable or append-only |
 
 ## Security and privacy
 
-Do not place these in `ACTIVE.md` or task specs:
-
-- credentials or API keys;
-- customer data;
-- proprietary raw logs;
-- full incident dumps;
-- model-provider secrets;
-- unrestricted production database output.
-
-Use paths, hashes, redacted evidence, access-controlled systems, or approved secure storage. The workflow defines continuity, not authorization.
+Do not place credentials, customer data, proprietary raw logs, incident dumps, provider secrets, or unrestricted production output in workstream, task, or ACTIVE files. Use approved secure storage and reference paths or hashes.
 
 ## Failure modes to monitor
 
-- `ACTIVE.md` becomes a project diary.
-- Multiple documents claim to be current state.
-- Agents preload the entire documentation tree anyway.
-- Tasks are too broad to close in one session.
-- Reviewers inherit the builder’s stale reasoning.
-- Validation tiers are used to justify skipping closure tests.
-- Long-running jobs are repeatedly polled without productive work.
-- Teams optimize token counts while quality deteriorates.
+- ACTIVE becomes a project diary;
+- workstream becomes a duplicate task tracker;
+- continuation is always allowed;
+- role/scientific boundaries are ignored;
+- contexts exceed budget routinely;
+- full validation runs after every edit;
+- long-running jobs are busy-polled;
+- token reduction is optimized while quality declines.
 
-## Adoption success criteria
+## Adoption success
 
-A pilot is healthy when a fresh authorized engineer or agent can answer, without hidden chat context:
+A fresh authorized engineer or agent should answer:
 
-1. What is the active task?
-2. What has already been verified?
-3. What must be read?
-4. What is the next exact action?
-5. What stops the session?
-6. What evidence closes the task?
+1. What workstream is active?
+2. What task is active?
+3. What has been verified?
+4. What is next?
+5. May the current context continue?
+6. What forces rotation or a human stop?
+7. What evidence closes the task?
 
-If those answers require the prior conversation, the repository-state migration is incomplete.
+If those answers require hidden chat history, adoption is incomplete.

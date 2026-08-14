@@ -1,117 +1,138 @@
 # Research Methodology
 
-This document defines a conservative evaluation framework for Repository-State Agent Workflow. It treats claimed benefits as hypotheses to test, not conclusions embedded in the design.
+This document treats RSAW benefits as hypotheses to test, not conclusions embedded in the design.
 
 ## Research objective
 
-Evaluate whether explicit repository-backed continuity and bounded coding-agent sessions can reduce repeated context and stale-state failure without degrading engineering quality or task continuity.
+Evaluate whether repository-backed continuity and adaptive context epochs reduce context cost, repeated work, and stale-state failure without degrading successful task closure or independent review quality.
 
 ## Research questions
 
-- **RQ1 — Context efficiency:** How much does the workflow reduce fresh-session and repeated-call context traffic?
-- **RQ2 — Continuity:** Can a fresh agent resume the correct task without hidden conversational state?
-- **RQ3 — Reliability:** Does the workflow reduce stale-state errors and repeated work?
-- **RQ4 — Quality:** Are task completion, tests, and review outcomes maintained or improved?
-- **RQ5 — Handoff:** Can builders, reviewers, humans, and different agent systems exchange work successfully?
-- **RQ6 — Boundary conditions:** Which task and repository characteristics make the workflow useful or costly?
+- **RQ1 — Context efficiency:** How do always-persistent, always-fresh, and adaptive-epoch workflows differ in task-stream input cost?
+- **RQ2 — Retention value:** Which adjacent tasks benefit from retaining context?
+- **RQ3 — Rotation value:** Which boundaries benefit from a fresh context?
+- **RQ4 — Continuity:** Can a fresh agent resume correctly from repository state?
+- **RQ5 — Reliability:** Does RSAW reduce stale-state errors and repeated investigation?
+- **RQ6 — Quality:** Are task completion, closure validation, and review outcomes maintained or improved?
+- **RQ7 — Boundary conditions:** Which repository, task, model, and role characteristics predict benefit or harm?
+
+## Required workflow conditions
+
+A strong RSAW 0.2 study should compare:
+
+### A. Always persistent
+
+One growing conversation or context retains all prior task history.
+
+### B. RSAW 0.1 / always fresh
+
+Every substantial task checkpoints and rotates.
+
+### C. RSAW 0.2 / adaptive epoch
+
+Every task checkpoints; adjacent tasks may continue when the explicit gate permits it.
+
+Specify prompts, rotation policy, tool permissions, and hidden state for every condition.
 
 ## Falsifiable hypotheses
 
-- **H1:** Median repeated context traffic is lower under repository-state sessions than under long-conversation sessions for matched tasks.
-- **H2:** Fresh-session continuation success is non-inferior under the repository-state workflow.
-- **H3:** Repeated investigation and stale-state errors occur less frequently.
-- **H4:** Closure-validation success and independent-review findings do not degrade.
-- **H5:** Benefits are larger for multi-ticket, long-running, or role-separated work than for small one-shot tasks.
+- **H1:** RSAW 0.2 lowers median total input tokens per successfully closed task relative to always persistent.
+- **H2:** RSAW 0.2 lowers bootstrap and repeated-read overhead relative to RSAW 0.1 for closely coupled task streams.
+- **H3:** RSAW 0.2 is non-inferior on task completion and closure validation.
+- **H4:** Hard rotation rules preserve reviewer and scientific independence.
+- **H5:** Adaptive epochs reduce repeated investigation without increasing stale-state errors.
+- **H6:** Benefits vary with task coupling, role boundaries, debugging residue, and repository size.
 
-A valid study must allow these hypotheses to be rejected.
+A valid study must allow every hypothesis to be rejected.
 
 ## Experimental unit
 
-The primary unit should normally be a task or matched task stream, not an individual model call. Repeated calls within one task are correlated and should not be treated as independent samples.
+The primary unit is normally a matched task stream or successfully closed task—not a model call. Repeated calls, tools, and edits within one task are correlated.
 
-## Candidate study designs
+## Primary metric
 
-### Paired within-repository comparison
+```text
+Total input tokens / successfully closed tasks
+```
 
-Match similar tasks in one repository and alternate workflows. Control model, reasoning mode, tool permissions, test environment, and task complexity as closely as practical.
+Report failure counts separately. Do not divide only by attempted tasks.
 
-### Interrupted continuation test
-
-Stop a builder at a preregistered boundary. Start a fresh agent with only repository state and measure whether it identifies the correct task, evidence, next action, and stop condition.
-
-### Cross-agent handoff
-
-Use one agent as builder and another as reviewer or continuation agent. Record hidden-context requests and handoff failures.
-
-### Longitudinal case study
-
-Measure one repository before and after migration. Report task mix and environmental changes; do not interpret a single case as universal evidence.
-
-## Required baselines
-
-At minimum compare against one clearly specified baseline:
-
-- a continuous long conversation;
-- a conversation plus manually written summary;
-- an issue-tracker-only workflow;
-- another persistent-memory system.
-
-Do not label a baseline “standard agent workflow” without specifying its context, prompts, and handoff process.
-
-## Metrics
+## Secondary metrics
 
 ### Context and cost
 
-- bootstrap tokens;
-- average and maximum active-context tokens per call;
-- total repeated context traffic;
-- cached and uncached inputs where available;
-- output tokens;
-- tool-output volume;
-- monetary cost where provider accounting is available.
+- bootstrap and routine working-set estimates;
+- total input;
+- cached and uncached input where available;
+- output and tool-result volume;
+- monetary cost;
+- maximum epoch size;
+- tasks per epoch.
 
 ### Continuity
 
-- active-task identification accuracy;
-- next-action identification accuracy;
+- active-task identification;
+- next-action identification;
 - verified-state recognition;
-- unnecessary file reads;
-- requests for hidden prior-conversation information;
+- unnecessary reads;
+- requests for hidden conversation;
 - time to productive first edit.
 
 ### Engineering quality
 
-- task completion;
-- targeted and closure test results;
+- completion;
+- V1/V2 results;
 - independent review findings;
 - escaped defects;
-- regression rate;
 - spec-compliance findings;
 - rework after review.
 
-### Process quality
+### Rotation quality
 
-- repeated investigation rate;
-- stale-state incidents;
-- session count;
-- human interventions;
-- blocker-handling quality;
-- long-running polling volume;
-- handoff document size and freshness.
+- continuation/rotation decisions;
+- hard-boundary compliance;
+- false continuation and false rotation taxonomy;
+- stale-context incidents;
+- handoff loss;
+- human gates.
 
-## Suggested event schema
+## Candidate study designs
 
-A study should preserve task-level records containing:
+### Paired task streams
+
+Use comparable task sequences in one repository and counterbalance workflow order.
+
+### Interrupted continuation
+
+Stop at a preregistered checkpoint. Test whether a fresh context identifies the correct task, evidence, next action, gate, and role.
+
+### Context-retention ablation
+
+Hold the repository state constant while varying context retention across adjacent tasks.
+
+### Cross-agent role handoff
+
+Use separate Builder, Reviewer, Runner, or Analyst agents and record hidden-context requests and review defects.
+
+### Longitudinal case study
+
+Measure one repository before and after adoption. Report task mix and environment changes; do not generalize one case universally.
+
+## Event schema
+
+A task-level record should include:
 
 ```text
 task_id
+workstream_id
+epoch_id
 repository_revision
 workflow_condition
 agent_model
 reasoning_mode
-tool_permissions
-session_id
-session_role
+role
+continuation_decision
+rotation_reason
 context_tokens
 cached_tokens
 output_tokens
@@ -124,65 +145,37 @@ human_interventions
 elapsed_time
 ```
 
-Store only data permitted by project privacy and security policy.
+Store only data permitted by project security and privacy policy.
 
-## Development and evaluation separation
+## Development and confirmation
 
-If prompts, templates, context budgets, or verifier rules are tuned during a pilot, use separate tasks or repositories for confirmation. Do not tune the workflow and report the same tasks as untouched evaluation.
+If continuation rules, budgets, prompts, templates, or verifier behavior are tuned on a pilot, use separate task streams or repositories for confirmation.
 
 ## Statistical analysis
 
-The exact analysis depends on task count and pairing. Prefer:
+Prefer:
 
-- paired task-level differences;
+- paired task-stream differences;
 - medians and robust intervals for skewed token/cost data;
-- explicit non-inferiority margins for quality metrics;
-- bootstrap confidence intervals where assumptions are appropriate;
-- qualitative failure taxonomy for low-frequency but important continuity errors.
+- explicit non-inferiority margins for quality;
+- bootstrap intervals at the task or task-stream unit;
+- failure taxonomy for rare but important stale-state and handoff errors.
 
-Do not treat every model call as an independent observation.
+Do not treat model calls as independent observations.
 
 ## Threats to validity
 
-### Selection bias
-
-Teams may adopt the workflow on unusually difficult projects. Report repository and task characteristics.
-
-### Learning effects
-
-Agents or maintainers may improve over time independent of the workflow. Counterbalance task order where possible.
-
-### Model drift
-
-Model versions and provider behavior change. Pin or record exact versions and dates.
-
-### Instrumentation effects
-
-Measuring tokens, files, or tool calls may alter behavior. Document instrumentation.
-
-### Contamination
-
-A model may have seen public issues or repository content during training. Use fresh private or held-out tasks where appropriate.
-
-### Generalizability
-
-Results from one language, repository, organization, or agent should not be generalized without replication.
+- task-selection and repository-selection bias;
+- learning and ordering effects;
+- model/provider drift;
+- instrumentation effects;
+- public-repository contamination;
+- inaccurate token estimates when provider accounting is unavailable;
+- workflow noncompliance;
+- limited generalizability across languages, agents, and organizations.
 
 ## Reporting standard
 
-Publish:
-
-- workflow version and commit;
-- baseline prompt and state strategy;
-- task selection procedure;
-- excluded/failed tasks;
-- raw or redacted aggregate data as policy permits;
-- context accounting assumptions;
-- quality and continuity outcomes;
-- negative results and limitations.
+Publish workflow version, commit, baseline prompts, task selection, excluded tasks, failures, context-accounting assumptions, quality outcomes, rotation decisions, limitations, and negative results.
 
 Use [Case Study Template](case-study-template.md) for a consistent report.
-
-## Related motivation
-
-Long-context research has shown that access to relevant information can degrade with context placement and length, while repository-level software tasks require coordinated reasoning across many files and execution steps. RSAW tests an engineering response: keep the default context small, explicit, and task-relevant, then expand it on demand. See [References](references.md).

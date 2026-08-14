@@ -6,6 +6,7 @@ from pathlib import Path
 TEMPLATE_MAP = {
     "AGENTS.md": "AGENTS.md",
     "ACTIVE.md": "ACTIVE.md",
+    "docs/workstreams/W-000-bootstrap.md": "WORKSTREAM.md",
     "docs/tasks/T-000-bootstrap.md": "TASK.md",
     "docs/agents/repository-state-workflow.md": "WORKFLOW.md",
 }
@@ -31,5 +32,6 @@ def initialize_repository(root: Path, force: bool = False) -> tuple[list[Path], 
         created.append(target)
 
     (root / "docs/handoffs/archive").mkdir(parents=True, exist_ok=True)
+    (root / "docs/checkpoints").mkdir(parents=True, exist_ok=True)
     (root / "docs/decisions").mkdir(parents=True, exist_ok=True)
     return created, skipped

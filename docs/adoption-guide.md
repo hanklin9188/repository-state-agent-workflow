@@ -1,65 +1,57 @@
 # Adoption Guide
 
-## 1. Audit current state
-
-Identify where these currently live:
-
-- stable agent instructions;
-- current task state;
-- task acceptance criteria;
-- architecture decisions;
-- test and review evidence;
-- long-running process state.
-
-Do not create new documents until you know which existing source is authoritative.
-
-## 2. Choose canonical locations
-
-The default layout is:
-
-```text
-AGENTS.md
-ACTIVE.md
-docs/tasks/
-docs/decisions/
-docs/handoffs/archive/
-```
-
-Reuse an existing task directory or ADR convention rather than creating duplicate systems.
-
-## 3. Initialize conservatively
+## Fast path
 
 ```bash
+python -m pip install git+https://github.com/hanklin9188/repository-state-agent-workflow.git
+cd /path/to/project
 rsaw init .
+rsaw verify .
+rsaw status .
+rsaw prompt .
 ```
 
-Review every generated file. The generic template is a starting point, not project truth.
+No service, database, API key, or model integration is required.
 
-## 4. Move only continuity state
+## 1. Audit current authority
 
-Put stable rules in `AGENTS.md` and immediate continuation state in `ACTIVE.md`.
+Identify where stable instructions, current work, task acceptance, decisions, tests, evidence, and long-running state already live. Reuse existing Issue/ADR/task conventions rather than duplicating them.
 
-Do not move complete project history, raw logs, giant result tables, or duplicated design documents into the active handoff.
+## 2. Choose one pilot workstream
 
-## 5. Define the first bounded task
+Start with a feature line, migration, experiment sequence, or release train. Do not reorganize the entire company or monorepo first.
 
-Write one task contract with goal, authority, scope, acceptance criteria, validation, evidence, and stop condition.
+## 3. Keep ACTIVE small
 
-## 6. Establish validation tiers
+Store only the current frontier, evidence pointers, next action, gate, next task, and role. Keep complete history in existing systems.
 
-Map V0–V3 to the project's real commands. Preserve full closure validation and independent review for critical work.
+## 4. Start conservatively
 
-## 7. Add CI guardrails
+Use `ROTATE_REQUIRED` at first. Enable `CONTINUE_ALLOWED` for tightly coupled Builder tasks after the next task is independently specified.
+
+## 5. Map validation tiers
+
+Define V0–V3 using real project commands. V2 should run once at context-epoch or phase closure; V3 is reserved for critical independent review.
+
+## 6. Add CI guardrails
 
 ```bash
 rsaw verify .
 rsaw footprint . --max-tokens 15000
 ```
 
-Treat budgets as engineering guardrails, not universal laws.
+Treat budgets as local guardrails, not universal laws.
 
-## 8. Pilot and measure
+## 7. Measure the pilot
 
-Start with one repository or workstream. Measure context, continuity, repeated work, review quality, and human intervention before organization-wide rollout.
+Compare:
 
-See [Company Adoption and Governance](company-adoption.md) for organizational rollout and [Research Methodology](research-methodology.md) for formal evaluation.
+- bootstrap and routine working-set context;
+- repeated reads and repeated investigation;
+- tokens per successfully closed task;
+- completion and review quality;
+- stale-state errors;
+- human interventions;
+- elapsed time.
+
+See [Company Adoption](company-adoption.md), [Evaluation](evaluation.md), and [Research Methodology](research-methodology.md).

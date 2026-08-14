@@ -2,7 +2,7 @@
   "name": "repository-state-agent-workflow",
   "owner": "hanklin9188",
   "visibility": "public",
-  "description": "Repository-backed memory and bounded-session workflow for low-context, high-quality coding agents.",
+  "description": "Repository-backed persistent workstreams with bounded context epochs for reliable coding agents.",
   "license": "MIT",
   "topics": [
     "coding-agents",
@@ -10,10 +10,10 @@
     "agent-workflow",
     "agents-md",
     "context-engineering",
+    "persistent-workstreams",
+    "context-rotation",
     "developer-tools",
     "software-engineering",
-    "prompt-engineering",
-    "llm",
     "research-tools"
   ],
   "social_preview": "docs/assets/social-preview.png"

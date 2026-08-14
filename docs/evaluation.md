@@ -1,86 +1,95 @@
-# Evaluate the Workflow
+# Evaluate RSAW
 
-The workflow should be evaluated by more than token counts. A smaller context that produces worse code is not a successful result.
+RSAW must be evaluated by more than token counts. Smaller context that produces worse work is not a successful result.
 
-For a preregistration-oriented study design, metrics, statistical considerations, and threats to validity, see [Research Methodology](research-methodology.md). For a reusable report structure, see [Case Study Template](case-study-template.md).
+## Current evidence
 
-## Current adoption evidence
+The first documented adoption measurement is [Desk Code Agent — RSAW 0.1 Bootstrap Context](case-studies/desk-code-agent-rsaw-v1-bootstrap.md).
 
-The first documented real-project adoption measurement is available in [Desk Code Agent — RSAW V1 Bootstrap Context Case Study](case-studies/desk-code-agent-rsaw-v1-bootstrap.md).
+The deterministic bootstrap estimate changed from **33,348** to **2,967 tokens** under the three-file contract, a **91.1%** reduction.
 
-At V1, `rsaw verify` passed and the deterministic fresh-session bootstrap estimate changed from a previous-policy lower bound of **33,348 tokens** to **2,967 tokens** under the RSAW three-file bootstrap (`AGENTS.md` 1,639; `ACTIVE.md` 432; active task 896). That is an estimated reduction of **30,381 tokens / 91.10%**.
-
-This result is explicitly labeled `BOOTSTRAP_CONTEXT_ESTIMATE`. It is not provider billing savings, cached-input savings, or a full-task quality result. V2 closure and task-level continuity/quality measurements are still required before broader claims.
+This is explicitly a `BOOTSTRAP_CONTEXT_ESTIMATE`. It is not provider billing savings, cached-input savings, full-task reduction, or a quality result.
 
 Machine-readable data: [`../data/case-studies/desk-code-agent-rsaw-v1.json`](../data/case-studies/desk-code-agent-rsaw-v1.json).
 
-## Before/after measures
+## RSAW 0.2 evaluation question
 
-### Context footprint
+RSAW 0.2 introduces adaptive context epochs. The primary comparison should include:
 
-Record approximate fresh-session bootstrap and routine working-set sizes.
+1. **Always persistent** — one growing conversation or context;
+2. **Always fresh / RSAW 0.1** — rotate after every substantial task;
+3. **Adaptive epoch / RSAW 0.2** — retain context across adjacent tasks and rotate at explicit gates.
 
-```bash
-rsaw footprint . --json
+## Primary unit
+
+Use a matched task stream or successfully closed task. Calls within one task are correlated and must not be treated as independent samples.
+
+## Primary efficiency metric
+
+```text
+Tokens per successfully closed task
 ```
 
-Where provider accounting is available, distinguish cached input, uncached input, output, and tool-result volume.
+This prevents a low-token failed task from appearing efficient.
 
-### Continuity success
+## Context and cost
 
-Can a fresh builder answer, without prior chat history:
+Measure where available:
 
-- What is the active task?
-- What is already verified?
-- What must be read?
-- What exact action is next?
-- When should it stop?
+- bootstrap context;
+- routine working-set context;
+- total input tokens;
+- cached and uncached input;
+- output tokens;
+- tool-output volume;
+- repeated file reads;
+- repeated investigation;
+- monetary cost.
 
-### Repeated-work rate
+## Quality and continuity
 
-Track whether agents repeat already completed investigation, tests, implementation, or failed approaches without new evidence.
+Measure:
 
-### Stale-state errors
+- task completion;
+- V1/V2 closure;
+- independent review findings;
+- escaped defects;
+- stale-state errors;
+- correct active-task and next-action identification;
+- fresh handoff success;
+- human intervention;
+- time to productive work.
 
-Track defects caused by following obsolete source, decisions, protocols, requirements, or historical task state.
+## Rotation quality
 
-### Handoff quality
+For RSAW 0.2 record:
 
-Measure whether fresh reviewers and builders can continue without hidden conversational knowledge.
+- continuation decisions;
+- rotation reasons;
+- tasks per epoch;
+- epoch context estimate;
+- false continuation: context retained when rotation was needed;
+- false rotation: context discarded when retention would have helped;
+- role/scientific boundary compliance.
 
-### Engineering quality
+## Matched-study discipline
 
-Compare:
+Control model, reasoning mode, tools, task complexity, repository revision, and validation requirements as closely as practical. Counterbalance workflow order when possible.
 
-- task completion rate;
-- test failures at closure;
-- defect escape rate;
-- review findings;
-- spec-compliance findings;
-- time to recover from interruption;
-- human interventions.
+If prompts, budgets, or rotation rules are tuned during development, use separate task streams for confirmation.
 
-## Fresh-session simulation
+## Reporting
 
-A practical repository check uses three no-history simulations:
+Publish:
 
-1. **Builder:** identify task, prerequisites, next action, and stop condition.
-2. **Reviewer:** identify governing spec, diff, evidence, and review questions without builder history.
-3. **Decision:** locate observed facts, constraints, options, and missing evidence without loading all project history.
+- RSAW version and commit;
+- workflow condition;
+- baseline prompt and state strategy;
+- task selection;
+- excluded and failed tasks;
+- token-accounting assumptions;
+- quality and continuity results;
+- human gates;
+- limitations and negative results.
 
-A workflow that requires hidden conversation context fails the continuity test.
-
-## Suggested case-study structure
-
-1. Project type and size
-2. Agent/tool and reasoning mode
-3. Original state and session pattern
-4. Repository-state migration
-5. Task sample and baseline
-6. Context before/after
-7. Continuity and quality results
-8. Failure analysis
-9. Limitations and threats to validity
-10. Changes made after adoption
-
-Do not claim universal token or quality improvements from one repository. Publish the task mix, assumptions, measurement method, failures, and uncertainty.
+See [Research Methodology](research-methodology.md) and [Case Study Template](case-study-template.md).

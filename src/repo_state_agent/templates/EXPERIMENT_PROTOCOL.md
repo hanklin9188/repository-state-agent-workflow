@@ -1,29 +1,21 @@
 # Experiment Protocol
 
-## Status
-
-PROPOSED / REGISTERED_NOT_AUTHORIZED / AUTHORIZED / COMPLETE
-
 ## Research Question
 
-## Hypotheses
-
-## Scope
+## Frozen Scope
 
 ## Independent Unit
 
 ## Conditions
 
-## Controlled Variables
+## Schedule
 
-## Raw Evidence
+## Measurements
 
-## Analysis Plan
+## Analysis
 
-## Acceptance / Rejection / Inconclusive / Invalid Semantics
+## Result Semantics
 
-## Authorization Boundary
+## Authorization
 
-## Stop Condition
-
-## Immutable Hashes
+## Evidence

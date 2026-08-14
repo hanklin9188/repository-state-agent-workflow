@@ -1,12 +1,20 @@
 # T-000 — Bootstrap Repository-State Workflow
 
+## Workstream
+
+W-000 — Bootstrap
+
 ## Goal
 
-Customize the workflow for this repository and define the first real task.
+Customize RSAW for this repository and define the first real task.
 
 ## Why
 
-Fresh agent sessions need explicit policy, current state, and a bounded task contract.
+Long-lived project continuity belongs in the repository; model context should remain bounded.
+
+## Role
+
+Builder
 
 ## Blocked By
 
@@ -21,9 +29,10 @@ None.
 ## In Scope
 
 - customize AGENTS.md;
+- update the workstream contract;
 - update ACTIVE.md;
-- choose the canonical task location;
-- define the first real task.
+- define the first real task;
+- choose whether the next checkpoint can continue or must rotate.
 
 ## Out of Scope
 
@@ -34,26 +43,30 @@ None.
 
 - AGENTS.md contains stable project policy;
 - ACTIVE.md is compact and actionable;
+- workstream spec exists;
 - active task exists;
+- continuation decision is explicit;
 - `rsaw verify .` passes.
 
-## Targeted Tests
+## Targeted Validation
 
 ```bash
 rsaw verify .
+rsaw status .
+rsaw next .
 ```
-
-## Full Closure Validation
-
-Project-defined.
 
 ## Evidence Expected
 
 A clean diff and verified active handoff.
 
+## Continuation Candidate
+
+Rotate after bootstrap because the next task establishes real project work.
+
 ## Stop Condition
 
-The first real task is ready for a fresh builder session.
+The first real task is ready for a fresh builder context.
 
 ## Next Dependency if Complete
 

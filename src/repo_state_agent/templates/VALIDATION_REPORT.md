@@ -2,22 +2,12 @@
 
 ## Scope
 
-## Result
+## V0 / V1
 
-PASS / FAIL / PARTIAL / BLOCKED
+## V2 Closure
 
-## Validation Tier
+## V3 Review
 
-V0 / V1 / V2 / V3
+## Failures
 
-## Checks
-
-## Negative Cases
-
-## Evidence
-
-## Limitations
-
-## Remaining Blockers
-
-## Next Action
+## Final Status

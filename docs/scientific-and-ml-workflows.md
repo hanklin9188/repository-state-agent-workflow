@@ -2,38 +2,44 @@
 
 Repository-state execution is especially useful when code, protocols, datasets, jobs, and evidence evolve together.
 
-## Separate session types
+## Mandatory fresh boundaries
 
 ### Preregistration
 
 - read design authority;
 - freeze protocol and schedule;
-- define acceptance and failure semantics;
-- update active handoff;
-- stop before execution authorization.
+- define acceptance, failure, and stopping semantics;
+- update the active handoff;
+- rotate before execution authorization.
 
 ### Formal execution
 
 - read registered protocol, readiness, and authorization;
 - execute only authorized work;
 - preserve raw evidence;
-- validate;
-- update active handoff;
-- stop.
+- validate the terminal contract;
+- update ACTIVE;
+- rotate.
 
-### Scientific review
+### Scientific analysis
 
-Use a fresh two-pass decision session:
+- start fresh from sealed evidence;
+- compare registered expectation with measured result;
+- separate facts, inference, and uncertainty;
+- stop before implementing a follow-up design.
 
-1. registered expectation versus measured result;
-2. interpretation, competing explanations, and next design.
+### Scientific decision
 
-Do not combine execution and post-hoc follow-up design in one long context.
+- use a fresh two-pass decision context;
+- record options, assumptions, and prospective changes;
+- do not retroactively rewrite the prior run.
+
+Persistent engineering workstreams do not remove these independence boundaries.
+
+## Long-running training or benchmarking
+
+Record job ID, code revision, configuration/protocol hash, expected outputs, artifact location, and next review action in `ACTIVE.md`. Stop when waiting is the only remaining action. Use a fresh result-review epoch when the job finishes.
 
 ## Evidence state
 
-A test passing proves software behavior. A measured claim requires its own protocol, provenance, immutable raw evidence, analysis, and decision rules.
-
-## Long-running training
-
-When training is submitted, store the job ID, code revision, configuration hash, expected outputs, and next review action in `ACTIVE.md`. Do not keep an agent session open merely to poll the job.
+A software test is not measured evidence. A scientific claim requires protocol, provenance, immutable raw evidence, analysis, and registered interpretation rules.

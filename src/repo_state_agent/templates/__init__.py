@@ -1,1 +1,1 @@
-"""Packaged Markdown templates."""
+"""Bundled RSAW templates."""

@@ -1,12 +1,8 @@
-# Reviewer Handoff
-
-## Task
+# Review Handoff
 
 ## Governing Spec
 
-## Commit / Diff
-
-## Changed Files
+## Diff / Commit
 
 ## Tests and Evidence
 
@@ -14,6 +10,4 @@
 
 ## Review Questions
 
-## Out of Scope
-
-The builder's full debugging transcript is intentionally omitted.
+## Blocking Findings

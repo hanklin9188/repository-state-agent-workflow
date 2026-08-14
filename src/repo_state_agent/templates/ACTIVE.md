@@ -6,9 +6,15 @@ Branch: main
 HEAD: UNKNOWN
 Status: inspect before work
 
-## Active Milestone
+## Workstream
 
-Bootstrap repository-state workflow.
+ID: W-000
+Spec: docs/workstreams/W-000-bootstrap.md
+
+## Context Epoch
+
+ID: E-000
+Role: Builder
 
 ## Active Task
 
@@ -17,10 +23,10 @@ Spec: docs/tasks/T-000-bootstrap.md
 
 ## Current State
 
-- Workflow files have been initialized.
-- Project-specific policy still needs review.
+- RSAW workstream files have been initialized.
+- Project-specific policy and the first real task still need review.
 
-## Verified Preconditions
+## Evidence
 
 - Repository root identified.
 
@@ -37,6 +43,10 @@ Spec: docs/tasks/T-000-bootstrap.md
 - all decisions;
 - archived handoffs.
 
+## Human Gate
+
+None.
+
 ## Running or Pending External Work
 
 None.
@@ -47,11 +57,20 @@ None.
 
 ## Next Exact Action
 
-Customize AGENTS.md and replace the bootstrap task with the first real task.
+Customize AGENTS.md, define the real workstream, and replace T-000 with the first real task.
 
 ## Stop Condition
 
-Project policy is customized and a real active task is defined.
+Project policy, workstream, and the first real task are actionable and `rsaw verify .` passes.
+
+## Continuation Gate
+
+Decision: ROTATE_REQUIRED
+Reason: Bootstrap changes repository policy and should hand off to a fresh project task.
+
+## Next Task
+
+None.
 
 ## Next Session Role
 
