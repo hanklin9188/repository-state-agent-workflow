@@ -1,0 +1,134 @@
+name: Validate and merge RSAW 0.5
+
+on:
+  push:
+    branches:
+      - feat/token-efficient-runtime-v5
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/token-efficient-runtime-v5
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Apply staged implementation when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f scripts/apply_v05_core.py ]]; then
+            python scripts/apply_v05_core.py
+            python scripts/apply_v05_docs.py
+            python scripts/apply_v05_fixes.py
+          fi
+
+      - name: Install and normalize
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff check . --fix
+          ruff format .
+          ruff check .
+
+      - name: Validate generated implementation
+        run: |
+          pytest -q
+          rsaw verify .
+          rsaw context . --strict
+          rsaw footprint . --max-tokens 15000
+          rsaw run . --dry-run
+          rsaw report . --json
+          python scripts/check_markdown_links.py .
+
+      - name: Assert release surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+          assert repo_state_agent.__version__ == '0.5.0'
+          assert version('repository-state-agent-workflow') == '0.5.0'
+          PY
+          test -f src/repo_state_agent/runtime/context.py
+          test -f src/repo_state_agent/runtime/rotation.py
+          test -f docs/assets/runtime-architecture-v05.svg
+          test -f docs/assets/context-lifecycle.svg
+          test -f docs/assets/live-terminal-dashboard.svg
+          rsaw context . --json | python -c "import json,sys; p=json.load(sys.stdin); assert p['stable_fingerprint']; assert p['dynamic_fingerprint']; assert p['within_budget']"
+          rsaw run --help | grep -q -- '--max-fresh-input-tokens'
+          rsaw run --help | grep -q -- '--min-cache-reuse-ratio'
+
+      - name: Remove staging-only files and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f scripts/apply_v05_core.py scripts/apply_v05_docs.py scripts/apply_v05_fixes.py
+          rm -f .github/workflows/apply-v05-upgrade.yml
+          rm -f .github/workflows/finalize-v05-upgrade.yml
+          rm -f .github/workflows/release-v05-upgrade.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if ! git diff --cached --quiet; then
+            git diff --cached --stat
+            git commit -m 'feat: add cache-aware context runtime'
+            git push origin HEAD:feat/token-efficient-runtime-v5
+          fi
+
+  compatibility:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/token-efficient-runtime-v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check .
+      - run: pytest -q
+      - run: rsaw verify .
+      - run: rsaw context . --strict
+      - run: rsaw footprint . --max-tokens 15000
+      - run: rsaw run . --dry-run
+      - run: rsaw report . --json
+      - run: python scripts/check_markdown_links.py .
+
+  merge:
+    needs: compatibility
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Merge validated pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          PR="$(gh pr list --repo '${{ github.repository }}' --head feat/token-efficient-runtime-v5 --base main --state open --json number --jq '.[0].number')"
+          if [[ -z "$PR" ]]; then
+            echo 'No open upgrade pull request found.' >&2
+            exit 1
+          fi
+          gh pr merge "$PR" --repo '${{ github.repository }}' --squash --delete-branch=false \
+            --subject 'feat: add cache-aware context runtime' \
+            --body 'Add RSAW 0.5 context planning, cache-aware rotation, checkpoint-normalized efficiency metrics, updated Live Console observability, tests, documentation, and visuals.'
