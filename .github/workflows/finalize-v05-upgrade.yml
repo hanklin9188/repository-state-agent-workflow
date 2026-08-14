@@ -1,0 +1,99 @@
+name: Finalize RSAW 0.5 upgrade
+
+on:
+  push:
+    branches:
+      - feat/token-efficient-runtime-v5
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/token-efficient-runtime-v5
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Apply staged implementation when needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f scripts/apply_v05_core.py ]]; then
+            python scripts/apply_v05_core.py
+            python scripts/apply_v05_docs.py
+            python scripts/apply_v05_fixes.py
+          fi
+
+      - name: Install development package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Normalize and lint
+        run: |
+          ruff check . --fix
+          ruff format .
+          ruff check .
+
+      - name: Test implementation
+        run: pytest -q
+
+      - name: Validate repository contracts
+        run: |
+          rsaw verify .
+          rsaw context . --strict
+          rsaw footprint . --max-tokens 15000
+          rsaw run . --dry-run
+          rsaw report . --json
+          python scripts/check_markdown_links.py .
+
+      - name: Assert release surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+          assert repo_state_agent.__version__ == '0.5.0'
+          assert version('repository-state-agent-workflow') == '0.5.0'
+          PY
+          test -f src/repo_state_agent/runtime/context.py
+          test -f src/repo_state_agent/runtime/rotation.py
+          test -f docs/assets/runtime-architecture-v05.svg
+          test -f docs/assets/context-lifecycle.svg
+          test -f docs/assets/live-terminal-dashboard.svg
+          rsaw context . --json | python -c "import json,sys; p=json.load(sys.stdin); assert p['stable_fingerprint']; assert p['dynamic_fingerprint']; assert p['within_budget']"
+          rsaw run --help | grep -q -- '--max-fresh-input-tokens'
+          rsaw run --help | grep -q -- '--min-cache-reuse-ratio'
+
+      - name: Remove staging-only files
+        run: |
+          rm -f scripts/apply_v05_core.py
+          rm -f scripts/apply_v05_docs.py
+          rm -f scripts/apply_v05_fixes.py
+          rm -f .github/workflows/apply-v05-upgrade.yml
+          rm -f .github/workflows/finalize-v05-upgrade.yml
+
+      - name: Commit validated implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No generated changes remain to commit.'
+          else
+            git diff --cached --stat
+            git commit -m 'feat: add cache-aware context runtime'
+            git push origin HEAD:feat/token-efficient-runtime-v5
+          fi
