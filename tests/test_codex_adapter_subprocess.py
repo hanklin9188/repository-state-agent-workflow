@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import stat
 from pathlib import Path
 
 from repo_state_agent.runtime.codex import CodexAdapter
@@ -47,7 +47,7 @@ output_path.write_text("checkpoint complete", encoding="utf-8")
 def _fake_binary(tmp_path: Path) -> Path:
     binary = tmp_path / "codex-fake"
     binary.write_text(FAKE_CODEX, encoding="utf-8")
-    binary.chmod(binary.stat().st_mode | os.stat.S_IXUSR)
+    binary.chmod(binary.stat().st_mode | stat.S_IXUSR)
     return binary
 
 
