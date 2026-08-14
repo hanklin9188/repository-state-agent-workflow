@@ -21,7 +21,7 @@ from ..verify import verify_repository
 from .adapter import AgentAdapter
 from .config import RuntimeConfig
 from .model import RuntimeSummary
-from .store import RuntimeLock, RuntimeStore, utc_now
+from .store import RuntimeLock, RuntimeLockError, RuntimeStore, utc_now
 
 STATUS_COMPLETE = "COMPLETE"
 STATUS_PAUSED = "PAUSED"
@@ -375,14 +375,32 @@ def supervise(
                 "MAX_TRANSITIONS",
                 24,
             )
-    except RuntimeError as exc:
+    except RuntimeLockError as exc:
         return _finish(
             summary,
             store,
-            parse_active(root),
+            _safe_state(root, initial_state),
             STATUS_FAILED,
             f"SUPERVISOR_LOCKED: {exc}",
             25,
+        )
+    except KeyboardInterrupt:
+        return _finish(
+            summary,
+            store,
+            _safe_state(root, initial_state),
+            STATUS_PAUSED,
+            "SUPERVISOR_INTERRUPTED",
+            20,
+        )
+    except Exception as exc:  # pragma: no cover - final fail-closed boundary
+        return _finish(
+            summary,
+            store,
+            _safe_state(root, initial_state),
+            STATUS_FAILED,
+            f"SUPERVISOR_EXCEPTION: {type(exc).__name__}: {exc}",
+            26,
         )
 
 
@@ -494,6 +512,13 @@ metadata rather than busy-waiting or bypassing authority.
 def _active_signature(root: Path) -> str:
     active = root / "ACTIVE.md"
     return hashlib.sha256(active.read_bytes()).hexdigest()
+
+
+def _safe_state(root: Path, fallback: ActiveState) -> ActiveState:
+    try:
+        return parse_active(root)
+    except Exception:
+        return fallback
 
 
 def _wait_for_state_change(root: Path, previous: str, poll_seconds: float) -> bool:

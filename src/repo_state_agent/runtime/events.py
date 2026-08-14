@@ -13,6 +13,7 @@ class CodexEventAccumulator:
     total_usage: TokenUsage = TokenUsage()
     latest_turn_usage: TokenUsage = TokenUsage()
     event_count: int = 0
+    turn_completed: bool = False
     errors: list[str] = field(default_factory=list)
 
     def feed(self, line: str) -> dict[str, Any] | None:
@@ -36,6 +37,7 @@ class CodexEventAccumulator:
             usage = _usage(event.get("usage"))
             self.latest_turn_usage = usage
             self.total_usage = self.total_usage + usage
+            self.turn_completed = True
         elif event_type == "turn.failed":
             message = _error_message(event.get("error"))
             if message:

@@ -13,6 +13,9 @@ if args == ["--version"]:
 if args[:2] == ["exec", "--help"]:
     print("--json --output-last-message resume")
     raise SystemExit(0)
+if args == ["login", "status"]:
+    print("Logged in")
+    raise SystemExit(0)
 
 prompt = sys.stdin.read()
 output_path = pathlib.Path(args[args.index("--output-last-message") + 1])
@@ -52,7 +55,12 @@ def test_codex_adapter_doctor_and_fresh_resume_round_trip(tmp_path):
 
     doctor = adapter.doctor()
     assert doctor.ok
-    assert set(doctor.capabilities) == {"exec-json", "exec-resume", "last-message"}
+    assert set(doctor.capabilities) == {
+        "authenticated",
+        "exec-json",
+        "exec-resume",
+        "last-message",
+    }
 
     run_dir = tmp_path / "runtime"
     fresh = adapter.run_turn(

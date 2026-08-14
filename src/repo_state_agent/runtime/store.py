@@ -11,6 +11,10 @@ from typing import Any
 from .model import RuntimeSummary
 
 
+class RuntimeLockError(RuntimeError):
+    """Raised when another live supervisor already owns the repository."""
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -70,7 +74,9 @@ class RuntimeLock(AbstractContextManager["RuntimeLock"]):
                 self.path.unlink(missing_ok=True)
                 descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             else:
-                raise RuntimeError(f"Another RSAW supervisor owns {self.path}") from None
+                raise RuntimeLockError(
+                    f"Another RSAW supervisor owns {self.path}"
+                ) from None
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
             handle.write("\n")
