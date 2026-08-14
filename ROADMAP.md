@@ -1,48 +1,39 @@
 # Roadmap
 
-## 0.1 — Reference implementation
+## 0.3 — Runtime Supervisor
 
-- Repository-backed memory
-- Always-fresh bounded sessions
-- Conservative scaffold, verifier, footprint, prompt, and archive commands
-- Software, ML, data, and research examples
-- Adoption and evaluation documentation
+- [x] automatic Codex fresh-context rotation
+- [x] resume within bounded epochs
+- [x] human/external PAUSE semantics
+- [x] terminal COMPLETE state
+- [x] provider usage and transition accounting
+- [x] failure-safe runtime limits and lock
+- [x] manual agent-neutral mode retained
+- [ ] prospective controlled adoption study
+- [ ] measured quality/non-inferiority analysis
 
-## 0.2 — Persistent workstreams
+## 0.4 — Runtime Hardening and Interoperability
 
-- Context epochs spanning closely coupled tasks
-- Durable checkpoints at every task boundary
-- Deterministic continuation and rotation gate
-- Workstream-aware scaffold, status, next, checkpoint, and prompt commands
-- Backward-compatible migration from 0.1
-- Scientific and review hard-rotation boundaries
+- detached/background supervisor service with explicit operator controls
+- crash-safe resume of supervisor metadata
+- optional signed runtime summaries
+- richer non-destructive pilot tooling
+- first additional agent adapter after Codex behavior is stable
+- monorepo and parallel-workstream governance
 
-## 0.2 evaluation frontier
+## Research questions
 
-- Matched comparison: always persistent vs always fresh vs adaptive epoch
-- Tokens per successfully closed task
-- Repeated-read and stale-state measures
-- Handoff success, reviewer defects, and human interventions
-- Context-pressure and rotation-policy sensitivity
-
-## 0.3 — Interoperability
-
-- Optional task-tracker adapters while Markdown/Git remain authoritative
-- More role templates for security, release, operations, and scientific review
-- Monorepo and parallel-workstream patterns
-- Cross-agent and cross-tool handoff demonstrations
-
-## Long-term research questions
-
-- Which repository/task properties predict the value of context retention?
-- How should rotation balance re-understanding cost and stale-context risk?
-- Can deterministic gates approach learned rotation policies?
-- Do medium-reasoning models benefit disproportionately from repository-state continuity?
-- Which validation and reviewer patterns prevent quality regression?
+- When does CONTINUE outperform ROTATE without increasing defects?
+- Which task, role, and repository properties predict useful context retention?
+- Can token-pressure rotation reduce cost while preserving closure quality?
+- How much human relay time does automatic rotation remove?
+- Are medium-reasoning models helped disproportionately by cleaner context?
+- What is the best metric: total tokens, tokens per closure, or quality-adjusted cost?
 
 ## Explicit non-goals
 
-- Building a large autonomous project-management platform
-- Owning private conversations or proprietary memory
-- Replacing CI, code review, or issue tracking
-- Claiming universal token or quality improvements without replicated evidence
+- replacing issue trackers, CI, code review, or access control
+- silently bypassing agent sandbox or approval systems
+- autonomous authorization of destructive/scientific actions
+- hiding failed evidence or automatically retrying formal runs
+- claiming universal token or quality improvements without replication

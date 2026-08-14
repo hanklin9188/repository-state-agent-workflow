@@ -26,4 +26,6 @@ jobs:
       - run: pytest -q
       - run: rsaw verify .
       - run: rsaw footprint . --max-tokens 15000
+      - run: rsaw run . --dry-run
+      - run: rsaw report . --json
       - run: python scripts/check_markdown_links.py .

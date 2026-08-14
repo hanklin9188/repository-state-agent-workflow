@@ -1,8 +1,25 @@
-# Continuation Gate
+# Continuation and Runtime Actions
 
-The Continuation Gate decides whether the next task may reuse the current context epoch.
+`ACTIVE.md` declares repository intent. RSAW applies deterministic safety rules
+and derives one runtime action.
 
-## ACTIVE.md contract
+## Repository decisions
+
+- `CONTINUE_ALLOWED`
+- `ROTATE_REQUIRED`
+- `STOP_REQUIRED`
+- `COMPLETE`
+
+## Runtime actions
+
+| Action | Meaning |
+|---|---|
+| `CONTINUE` | resume the current agent thread |
+| `ROTATE` | keep the workstream running in a fresh thread |
+| `PAUSE` | wait for explicit human/external action |
+| `COMPLETE` | terminate the workstream |
+
+## Example
 
 ```markdown
 ## Continuation Gate
@@ -17,53 +34,26 @@ Spec: docs/tasks/T-109-readiness.md
 Builder
 ```
 
-## Decisions
+`CONTINUE_ALLOWED` still rotates when the next task is missing or the role
+changes. A Human Gate always pauses.
 
-### `CONTINUE_ALLOWED`
-
-A project-level proposal to keep the context.
-
-The CLI still forces rotation when:
-
-- the next task is missing;
-- the role changes;
-- a human gate is active.
-
-### `ROTATE_REQUIRED`
-
-Checkpoint and start a fresh context.
-
-Use for role changes, scientific boundaries, major debugging residue, specification changes, or context pressure.
-
-### `STOP_REQUIRED`
-
-The workflow cannot continue autonomously. Typical reasons are interactive privilege, exact formal authorization, destructive action, missing credential, or external work.
-
-## Evaluate the gate
+## Manual inspection
 
 ```bash
 rsaw next .
 ```
 
-Example output:
+## Automatic execution
 
-```text
-CONTINUE
-Reason: SAME_EPOCH
-Next task: T-109 (docs/tasks/T-109-readiness.md)
-Next role: Builder
+```bash
+rsaw run . --agent codex
 ```
 
-Or:
-
-```text
-ROTATE_REQUIRED
-Reason: ROLE_CHANGE
-Next role: Reviewer
-```
+ROTATE is not a workstream stop. The Runtime Supervisor creates the fresh
+context. Only PAUSE requires human/external intervention.
 
 ## Deterministic scope
 
-The CLI is intentionally conservative. It does not inspect hidden model context or infer semantic similarity from embeddings. The repository declares the intended continuation; deterministic safety rules constrain it.
-
-A future evaluation may compare explicit gates, fixed-N rotation, always-fresh, and always-persistent workflows. Until then, the gate is an auditable operating contract—not a learned optimizer.
+RSAW does not use embeddings or hidden model state to guess semantic similarity.
+The repository declares intent; deterministic safety constraints and runtime
+budgets limit continuation.

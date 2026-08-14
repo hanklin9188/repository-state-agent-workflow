@@ -1,440 +1,356 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="Repository-State Agent Workflow banner" width="100%" />
+  <img src="docs/assets/banner.svg" alt="Repository-State Agent Workflow" width="100%" />
 </p>
 
 <h1 align="center">Repository-State Agent Workflow</h1>
 
+<p align="center"><strong>讓 Workstream 持續運作，讓 Context 在需要時自動更換。</strong></p>
+
 <p align="center">
-  <strong>長期持續的 Workstream，有界的 Model Context。</strong>
+  以 Repository 保存長期狀態，以有界 Context Epoch 執行工作，並由 Runtime
+  Supervisor 自動延續或更換 Codex Context。
 </p>
 
 <p align="center">
-  把專案 continuity 留在 Git；高度相關的任務可以共享 Context，過時歷史累積前則明確 Rotate。
-</p>
-
-<p align="center">
-  <a href="https://github.com/hanklin9188/repository-state-agent-workflow/actions/workflows/ci.yml"><img src="https://github.com/hanklin9188/repository-state-agent-workflow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f766e" alt="MIT License" /></a>
-  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-2563eb" alt="Python 3.10+" /></a>
-  <img src="https://img.shields.io/badge/version-0.2.0-7c3aed" alt="Version 0.2.0" />
-  <img src="https://img.shields.io/badge/setup-免服務_·_免資料庫-0ea5e9" alt="免服務與資料庫" />
-</p>
-
-<p align="center">
-  <a href="#60-秒開始使用">60 秒開始</a> ·
-  <a href="#rsaw-02-怎麼運作">運作方式</a> ·
-  <a href="#什麼時候繼續什麼時候-rotate">Continue / Rotate</a> ·
-  <a href="#cli">CLI</a> ·
-  <a href="#實測結果">實測結果</a> ·
-  <a href="README.md">English</a>
+  <a href="README.md">English</a> ·
+  <a href="#兩分鐘開始">兩分鐘開始</a> ·
+  <a href="#runtime-狀態機">狀態機</a> ·
+  <a href="#品質與安全">品質與安全</a> ·
+  <a href="#目前證據">目前證據</a>
 </p>
 
 ---
 
 ## RSAW 是什麼？
 
-**RSAW** 是一套以 Repository 為中心的 Coding / Research Agent 工作方式。
+**RSAW** 是一套 Repository-first 的 Agent 工作方式與小型 Runtime。
 
-Repository 保存長期、可版本控制的專案記憶；Model Context 只負責當下工作。
+Repository 保存可版本控制的專案記憶；Model Context 只是可以替換的短期工作記憶。
 
-RSAW 0.2 不再要求每完成一張小 Task 就一定開新 Session，也不允許一條 Conversation 無限成長。它新增：
+0.3 版補上 v2 最後缺少的一層：**自動執行 Context Rotation**。
 
-- **Persistent Workstream**：可持續數天或數週的長期主線；
-- **Context Epoch**：一個 Context 可完成數個高度相關的 Task；
-- **Durable Checkpoint**：每張 Task 仍然先寫回 Repository；
-- **Continuation Gate**：明確決定 `CONTINUE`、`ROTATE_REQUIRED` 或 `STOP_REQUIRED`。
+- **CONTINUE**：下一個高度相關 Task 沿用同一個 Codex Thread；
+- **ROTATE**：Workstream 不停，自動建立新的 Codex Thread；
+- **PAUSE**：只有真人或外部動作必要時才暫停；
+- **COMPLETE**：Workstream 正式完成。
 
-```text
-長期 Workstream
-      ↓
-Bounded Task
-      ↓
-Durable Checkpoint
-      ↓
-Continuation Gate
- ┌────────────┴────────────┐
-CONTINUE              ROTATE / STOP
-同一 Context          Fresh Context / Human Gate
-```
+因此 Builder → Runner、Runner → Analyst 不再需要使用者人工複製下一份 Prompt。
+Supervisor 會在保留 Repository State 的同時，自動換成 Fresh Context。
 
-> **專案 continuity 長期存在；Model Context 隨時可以丟棄。**
+> **長期持續的是 Workstream，不是無限膨脹的聊天。**
 
 ---
 
-## 60 秒開始使用
+## 為什麼需要它？
 
-不需要 Daemon、Database、Hosted Service、API Key 或特定模型設定。
+長 Conversation 很容易變成混合狀態：
+
+```text
+舊 Source
++ 失敗嘗試
++ 過期決策
++ Raw Logs
++ 已完成 Tasks
++ 現在的工作
+```
+
+每個 Task 都 Fresh 可以清除舊 Context，但也會反覆讀相同檔案、重建相同
+Subsystem mental model、增加 Handoff 與 Bootstrap 成本。
+
+RSAW 將生命週期拆開：
+
+| 層級 | 生命週期 | 責任 |
+|---|---:|---|
+| `AGENTS.md` | 月 | 穩定政策與安全規則 |
+| Workstream | 天到週 | 長期研究或開發狀態機 |
+| Task Checkpoint | 小時到天 | 一個可驗證工作單位 |
+| Context Epoch | 有界 | 一個或數個高度耦合的 Agent Turns |
+
+---
+
+## 兩分鐘開始
 
 ### 1. 安裝
 
 ```bash
-python -m pip install git+https://github.com/hanklin9188/repository-state-agent-workflow.git
+python -m pip install \
+  git+https://github.com/hanklin9188/repository-state-agent-workflow.git
 ```
 
-開發者版本：
+自動 Runtime Mode 需要已完成登入的 Codex CLI。
 
-```bash
-git clone https://github.com/hanklin9188/repository-state-agent-workflow.git
-cd repository-state-agent-workflow
-python -m pip install -e '.[dev]'
-```
-
-### 2. 套用到任何 Repository
+### 2. 初始化專案
 
 ```bash
 cd /path/to/your-project
 rsaw init .
 ```
 
-Initializer 預設不覆蓋既有檔案；只有明確使用 `--force` 才會替換。
+初始化只建立缺少的檔案，不會在沒有 `--force` 的情況下覆蓋現有
+`AGENTS.md`、`ACTIVE.md` 或 Task 系統。
 
-### 3. 驗證目前狀態
+### 3. 檢查
 
 ```bash
 rsaw verify .
+rsaw doctor . --agent codex
 rsaw status .
-rsaw footprint .
 ```
 
-### 4. 產生 Agent Prompt
+### 4. 啟動真正持續的 Workstream
+
+```bash
+rsaw run . --agent codex
+```
+
+Supervisor 會自動：
+
+1. 讀 Repository Authority；
+2. 啟動 Active Task；
+3. 驗證 Agent 是否寫入 Durable Checkpoint；
+4. 判斷沿用或更換 Context；
+5. 只在 Human/External Gate 時暫停；
+6. 直到 Repository 宣告 `COMPLETE` 才結束。
+
+### Manual Mode
+
+仍可使用 Agent-neutral 的手動模式：
 
 ```bash
 rsaw prompt .
+rsaw next .
 ```
 
-把輸出貼給 Codex、Claude Code、Cursor、aider 或其他 Coding Agent 即可。
-
-**設定到這裡就完成。**
-
-<details>
-<summary><strong><code>rsaw init .</code> 會建立什麼？</strong></summary>
-
-```text
-AGENTS.md
-ACTIVE.md
-docs/
-├── agents/
-│   └── repository-state-workflow.md
-├── workstreams/
-│   └── W-000-bootstrap.md
-├── tasks/
-│   └── T-000-bootstrap.md
-├── checkpoints/
-├── decisions/
-└── handoffs/
-    └── archive/
-```
-
-</details>
-
-第一次套用可直接看 [Getting Started](docs/getting-started.md)。
+Core Workflow 對任何能讀 Repository 的 Agent 都有效；目前自動 Runtime Adapter
+先支援 Codex CLI。
 
 ---
 
-## RSAW 0.2 怎麼運作？
-
-| 層級 | 用途 | 典型生命週期 |
-|---|---|---:|
-| `AGENTS.md` | 穩定 Policy、安全、Validation、Rotation 規則 | 數月 |
-| Workstream Spec | 長期 State Machine 與 Milestone | 數天到數週 |
-| `ACTIVE.md` | 極小的當前 Frontier 與 Gate State | 每次 Checkpoint |
-| Task Spec | 一個可以驗證的工作單位 | 數小時到數天 |
-
-Agent 在 **Context Epoch** 裡工作：同一個 bounded context 可以完成一張或數張相鄰 Task。
+## Runtime 狀態機
 
 ```mermaid
 flowchart TD
     W[Persistent Workstream]
-    B[Minimal Bootstrap\nAGENTS + ACTIVE + Active Task]
-    E[Context Epoch]
-    T[執行 Bounded Task]
-    V[V0/V1 Targeted Validation]
+    S[Repository State]
+    A[Agent Turn]
     C[Durable Checkpoint]
-    G{Continuation Gate}
-    N[啟用下一張相鄰 Task]
-    R[Rotate 到 Fresh Context]
-    H[Human / External Gate]
+    G{Runtime Action}
+    K[保留 Codex Thread]
+    R[建立 Fresh Codex Thread]
+    P[Human / External Gate]
+    D[Complete]
 
-    W --> B --> E --> T --> V --> C --> G
-    G -->|CONTINUE| N --> T
-    G -->|ROTATE_REQUIRED| R --> B
-    G -->|STOP_REQUIRED| H
+    W --> S --> A --> C --> G
+    G -->|CONTINUE| K --> A
+    G -->|ROTATE| R --> S
+    G -->|PAUSE| P
+    P -->|resolved| R
+    G -->|COMPLETE| D
 ```
 
-### Workstream
+### CONTINUE
 
-長期 Roadmap，例如一條 Feature Line、Migration、Release Train、Research Program 或 Experiment Series。
+相同 Role、目標、Subsystem、Evidence Domain 與 Safety Boundary 時，可在同一
+Context Epoch 繼續：
 
-### Task
-
-Task 依然 bounded、可驗證。即使同一 Context 繼續，每張 Task 結束時仍必須建立 Durable Checkpoint。
-
-### Context Epoch
-
-只有當下一張 Task 共享以下條件時，才適合保留 Context：
-
-- 相同 Role；
-- 相同 Hypothesis / Objective；
-- 相同 Subsystem；
-- 相同 Evidence Domain；
-- 相同 Safety Boundary。
-
-### Continuation Gate
-
-```bash
-rsaw next .
+```text
+設計 → 實作 → Focused Integration → Smoke → Readiness
 ```
 
-| Gate 結果 | 意義 |
+### ROTATE
+
+Workstream 仍然 Running，但 Supervisor 自動換成 Fresh Codex Thread。適用於：
+
+- Builder → Runner；
+- Runner → Analyst；
+- Formal Execution → Scientific Interpretation；
+- Fresh Reviewer；
+- 重大 Decision；
+- 大型 Debugging episode 結束；
+- Context/Token Pressure。
+
+### PAUSE
+
+只有真正需要真人或外部事件時才暫停：
+
+- Formal Authorization；
+- `sudo`、Credential 或權限；
+- Destructive Action；
+- 無法由既定規則決定的科學／架構分岔；
+- 必須等待的 External Job。
+
+互動式 `rsaw run` 可以接收真人的精確回覆，啟動獨立 Gate-resolution Turn，
+驗證 Repository State，接著自動 Rotate，不再要求使用者搬 Prompt。
+
+### COMPLETE
+
+只有 Repository 明確宣告 `COMPLETE`，整個 Workstream 才結束。
+
+---
+
+## 品質與安全
+
+| Guardrail | 作用 |
 |---|---|
-| `CONTINUE` | 下一張 Task 已準備好，且可留在同一 Context Epoch |
-| `ROTATE_REQUIRED` | 先寫回 Repository，再開 Fresh Context |
-| `STOP_REQUIRED` | Human Gate、External Job 或其他 Hard Stop |
+| 每個 Turn 前後執行 Repository Verification | 不合法 Handoff 直接 Fail Closed |
+| `ACTIVE.md` 必須真的前進 | 防止「Agent 說完成但沒有 Durable State」 |
+| 預設 `workspace-write` Sandbox | RSAW 不啟用 Dangerous Bypass |
+| Human Gate 必須明確存在 | 不推測 Authorization 或 Destructive Permission |
+| Agent Failure 不自動重試 | 不用新 Evidence 覆蓋舊 Failure |
+| Single-supervisor Lock | 防止兩個 Runtime 競爭同一 Workstream |
+| Turn / Transition / Token Limits | 防止無界循環 |
+| Role Boundary 強制 Fresh | 保留 Review 與科學獨立性 |
+
+### Validation Tiers
+
+- **V0**：編輯中的 Syntax、Lint、Exact Test；
+- **V1**：Task Checkpoint 的 Focused Validation；
+- **V2**：Context Epoch 或 Phase Closure 一次；
+- **V3**：Critical Work 的 Fresh Independent Review。
+
+> **Validation 是門檻，不是產品本身。**
+
+RSAW 節省的是重複 Context 與重複工作，不是必要的 Evidence。
 
 ---
 
-## 什麼時候繼續？什麼時候 Rotate？
+## Token-aware Rotation
 
-### 可以繼續同一 Context
+Codex Adapter 會讀取 JSONL 中的 Provider Usage：
 
-- Role 不變；
-- 下一張 Task 已經存在；
-- Subsystem 與 Objective 高度相關；
-- 不需要 Formal Independence；
-- 沒有 Human Gate 或 Long-running-only wait；
-- Context 壓力仍在 Budget 內。
+- Input Tokens；
+- Cached Input Tokens；
+- Cache-write Input Tokens；
+- Output Tokens；
+- Reasoning Output Tokens。
 
-例如：
+預設限制位於 `.rsaw/config.json`：
 
-```text
-Feature Design
-→ Implementation
-→ Targeted Integration
-→ Smoke Test
+```json
+{
+  "runtime": {
+    "max_turns_per_epoch": 6,
+    "rotate_input_tokens": 60000,
+    "max_total_input_tokens": 5000000,
+    "max_transitions": 100
+  }
+}
 ```
 
-### 必須 Rotate
-
-- Builder → Reviewer / Runner / Analyst / Decision；
-- Preregistration → Formal Execution；
-- Formal Execution → Scientific Analysis；
-- 一次大型 Debugging Episode 結束；
-- Hypothesis 或 Specification 改變；
-- Long-running Job 成為唯一 Blocker；
-- 需要 `sudo`、Credential、Formal Authorization 或 Destructive Action；
-- Context 接近 Repository Budget。
-
-建議預設：
-
-```text
-理想 Epoch：20K–40K tokens
-建議 Rotate：50K–60K
-Routine Hard Ceiling：約 80K
-```
-
-這些是 Workflow Guardrail，不是 Model 的通用極限。
-
-詳見 [Context Epochs](docs/context-epochs.md) 與 [Continuation Gate](docs/continuation-gate.md)。
-
----
-
-## `ACTIVE.md` 長什麼樣子？
-
-```markdown
-# Active Handoff
-
-## Workstream
-ID: W-042
-Spec: docs/workstreams/W-042-checkout.md
-
-## Context Epoch
-ID: E-042-build
-Role: Builder
-
-## Active Task
-ID: T-108
-Spec: docs/tasks/T-108-checkout-smoke.md
-
-## Current State
-- Checkout API 已完成。
-- Focused Tests 通過。
-
-## Next Exact Action
-執行 Integration Smoke，並凍結 Execution Commit。
-
-## Continuation Gate
-Decision: CONTINUE_ALLOWED
-Reason: 下一張 Task 保持相同 Role 與 Checkout Subsystem。
-
-## Next Task
-ID: T-109
-Spec: docs/tasks/T-109-checkout-readiness.md
-
-## Next Session Role
-Builder
-```
-
-每個 Checkpoint 執行：
+查看實際 Runtime 結果：
 
 ```bash
-rsaw verify .
-rsaw next .
+rsaw report .
+rsaw report . --json
 ```
 
-即使 `ACTIVE.md` 誤寫 `CONTINUE_ALLOWED`，只要下一個 Role 變成 Reviewer，CLI 仍會強制 `ROTATE_REQUIRED`。
+可看到 Fresh/Resume Turns、Epochs、Checkpoints、Transitions 與每個成功
+Checkpoint 的 Input Tokens。
 
 ---
 
-## 兩種模式，共用同一套格式
-
-### Classic Always-Fresh
-
-```text
-Decision: ROTATE_REQUIRED
-```
-
-維持 RSAW 0.1 的「一張 substantial task 一個 Fresh Context」。
-
-### Persistent Workstream
-
-```text
-Decision: CONTINUE_ALLOWED
-```
-
-同時指定一張已準備完成的 Next Task；只有安全規則也通過時才會 `CONTINUE`。
-
-舊版 0.1 Repository 仍然可用；Workstream / Epoch 欄位可以逐步 Migration。
-
----
-
-## 通用 Prompt
-
-初始化完成後，每個 Fresh Context 通常只需要：
-
-```text
-Work in this repository.
-
-Resume the active RSAW workstream from repository state.
-Read only:
-1. AGENTS.md
-2. ACTIVE.md
-3. the active task referenced by ACTIVE.md
-
-Use progressive disclosure.
-At every task checkpoint, persist evidence, update ACTIVE.md, and run `rsaw next .`.
-Continue only when the gate returns CONTINUE; otherwise stop or rotate.
-Do not reconstruct conversation history.
-```
-
-也可以直接：
-
-```bash
-rsaw prompt .
-```
-
----
-
-## CLI
+## 主要指令
 
 | 指令 | 功能 |
 |---|---|
-| `rsaw init .` | 不覆蓋既有檔案地建立 Plug-and-play Workstream Scaffold |
-| `rsaw verify .` | 驗證 ACTIVE、Task、Workstream、Role、Path 與 Gate 一致性 |
-| `rsaw status .` | 顯示目前 Workstream、Epoch、Task、Role 與 Human Gate |
-| `rsaw next .` | 計算 Continue / Rotate / Stop |
-| `rsaw prompt .` | 自動產生 Role-aware Prompt |
-| `rsaw prompt . --mode fresh` | 強制產生 Fresh-context Prompt |
-| `rsaw prompt . --role reviewer` | 產生 Fresh Reviewer Prompt |
-| `rsaw checkpoint .` | Archive 目前 Handoff Checkpoint |
-| `rsaw footprint .` | 估算 Bootstrap Context Footprint |
-| `rsaw archive . --label ...` | 在重要邊界封存 `ACTIVE.md` |
+| `rsaw init .` | 初始化缺少的 Workstream 與 Runtime 設定 |
+| `rsaw verify .` | 驗證 ACTIVE 與所有 Authority Pointers |
+| `rsaw status .` | 顯示現在 Task、Role、Gate 與 Action |
+| `rsaw next .` | 計算 CONTINUE / ROTATE / PAUSE / COMPLETE |
+| `rsaw doctor . --agent codex` | 檢查 Codex Adapter |
+| `rsaw run . --agent codex` | 長期監督 Workstream，自動 Rotation |
+| `rsaw run . --dry-run` | 不啟動 Codex，只查看下一步 |
+| `rsaw report .` | 報告 Runtime Token 與 Transition 數據 |
+| `rsaw prompt .` | Manual Mode 產生最小 Prompt |
 
-CLI 是 deterministic guardrail，不是 Autonomous Orchestration Platform。
-
----
-
-## 必要驗證，不進 Validation Rabbit Hole
-
-| Tier | 時機 | 典型檢查 |
-|---|---|---|
-| `V0` | Edit Loop | Syntax、Lint、單一精確 Targeted Test |
-| `V1` | Task Checkpoint | Focused Task / Integration Suite |
-| `V2` | Context Epoch / Phase Closure | 一次 Full Relevant Closure Validation |
-| `V3` | Critical Claim、Release、Major Fork | Fresh Independent Review |
-
-> **Validation 是 Gate，不是 Product。**
-
-只有實際威脅當前 Claim 的 observed failure，或明確 Contract，才值得新增 Validation。
-
-詳見 [Validation Tiers](docs/validation-tiers.md)。
+RSAW 不會自動啟用 Codex 的 Dangerous Sandbox Bypass。`--approve-for-me` 必須
+明確選擇，且仍交由 Codex Approval Reviewer 與 Workspace-write Sandbox 處理。
 
 ---
 
-## Scientific / ML Workflow
+## 目前證據
 
-Persistent Engineering Context 不會取消 Scientific Independence Boundary。
+### RSAW v1 Bootstrap
 
-必須 Rotate：
+Desk Code Agent Case Study 的 Fresh Bootstrap Estimate 從 **33,348** 降到
+**2,967** tokens，估計下降 **91.1%**。
+
+這只是 `BOOTSTRAP_CONTEXT_ESTIMATE`，不是 Billing、Total Task Token 或品質提升證據。
+
+### EdgeFlow v1 vs v2 Matched Replay
+
+五個真實 EdgeFlow Tasks 的 retrospective matched replay：
+
+| 指標 | RSAW v1 | RSAW v2 |
+|---|---:|---:|
+| Fresh Sessions / Epochs | 5 | 2 |
+| Repository Context Traffic | 53,444 | 20,972 conservative |
+| Delta-only | — | 19,848 |
+| 估計下降 | — | **60.8%–62.9%** |
+| Repeated-read 下降 | — | **98.1%–99.0%** |
+
+v2 Structured Handoff Metadata 大 20.1%。Quality Non-inferiority 與 Provider
+Billing Savings 尚未因果驗證。
+
+### RSAW v3
+
+0.3 Runtime 現在可以 prospectively 保存 Codex Usage 與 Transition Events，讓後續能
+直接比較 No RSAW、Always Fresh v1、Bounded Epoch v2 與 Auto Supervisor v3。
+
+目前不宣稱 v3 已有 Universal Token 或 Quality Improvement。
+
+---
+
+## 科學與 ML 工作
+
+自動 Runtime 不會消除科學 Fresh Boundary：
 
 ```text
 Preregistration
-→ Fresh Formal Runner
-→ Fresh Scientific Analyst
-→ Fresh Decision / Follow-up Design
+→ ROTATE
+Formal Execution
+→ ROTATE
+Scientific Analysis
 ```
 
-Long-running Training / Benchmark 應將 Job ID、Revision、Command、Artifact Location 與 Completion Condition 寫進 `ACTIVE.md`，不要讓 Agent Session 留著 Busy-wait。
-
-詳見 [Scientific & ML Workflows](docs/scientific-and-ml-workflows.md)。
-
----
-
-## 實測結果
-
-### Desk Code Agent — RSAW 0.1 初步結果
-
-| 指標 | 舊 Workflow | RSAW 0.1 | 變化 |
-|---|---:|---:|---:|
-| Fresh-session Bootstrap Estimate | 33,348 tokens | **2,967 tokens** | **−91.1%** |
-
-> **Claim Boundary：**這是 `BOOTSTRAP_CONTEXT_ESTIMATE`，不是 Provider Billing Savings、Cached-input Savings、完整 Task Token Reduction，也不是品質提升 91.1% 的證據。
-
-RSAW 0.2 研究的下一個問題是：**哪些相鄰 Task 應保留 Context，哪些邊界應該 Rotate？** 目前尚未宣稱 0.2 已有實測 Token Saving。
+Supervisor 自動換 Context，但不合併角色、不弱化 Evidence Independence。
 
 ---
 
 ## 文件
 
-| 快速理解 | 實際運作 | 評估與導入 |
-|---|---|---|
-| [Getting Started](docs/getting-started.md) | [Context Epochs](docs/context-epochs.md) | [Evaluation](docs/evaluation.md) |
-| [Concepts](docs/concepts.md) | [Continuation Gate](docs/continuation-gate.md) | [Research Methodology](docs/research-methodology.md) |
-| [Architecture](docs/architecture.md) | [Session Lifecycle](docs/session-lifecycle.md) | [Case Studies](docs/case-studies/README.md) |
-| [Adoption Guide](docs/adoption-guide.md) | [Validation Tiers](docs/validation-tiers.md) | [Company Adoption](docs/company-adoption.md) |
-| [0.1 → 0.2 Migration](docs/migration-v1-to-v2.md) | [Scientific Workflows](docs/scientific-and-ml-workflows.md) | [Token Economics](docs/token-economics.md) |
-| [Anti-Patterns](docs/anti-patterns.md) | [Long-Running Work](docs/long-running-work.md) | [FAQ](docs/faq.md) |
+- [Getting Started](docs/getting-started.md)
+- [Runtime Supervisor](docs/runtime-supervisor.md)
+- [Codex Adapter](docs/codex-adapter.md)
+- [Continuation Gate](docs/continuation-gate.md)
+- [Architecture](docs/architecture.md)
+- [Migration 0.2 → 0.3](docs/migration-v2-to-v3.md)
+- [Runtime Evaluation](docs/runtime-evaluation.md)
+- [FAQ](docs/faq.md)
 
 ---
 
-## 狀態與 Non-goals
+## 限制
 
-**狀態：** Alpha Reference Implementation，版本 0.2.0。
-
-RSAW 不是：
-
-- Autonomous Project Manager；
-- Hosted Memory Service；
-- Git、CI、Code Review、Issues、Linear 或 Jira 的替代品；
-- 所有 Task 都應該留在同一 Context 的主張；
-- 降低測試或 Human Review 的理由；
-- 尚未重複驗證就宣稱 Universal Token Saving 的工具。
-
-核心保持透明：Markdown、Git、小型 Deterministic Checks 與 Project-owned Evidence。
+- 自動 Runtime 目前先支援本機 Codex CLI；Core/Manual Mode 仍為 Agent-neutral。
+- RSAW 不能建立 ChatGPT Web Conversation；它透過 `codex exec` 更換本機 Codex Thread。
+- PAUSE 不會自行創造 Credential、sudo、Authorization 或科學決策。
+- Token Budget 是 Operating Guardrail，不是已證明的 Universal Optimum。
+- 單一 Repository Case Study 不能推出普遍節省或品質提升。
 
 ---
 
-## Contributing、Citation、License
+## 開發驗證
 
-特別歡迎 Always-persistent、Always-fresh 與 Adaptive Context Epoch 的 matched evaluation。
+```bash
+git clone https://github.com/hanklin9188/repository-state-agent-workflow.git
+cd repository-state-agent-workflow
+python -m pip install -e '.[dev]'
+ruff check .
+pytest -q
+rsaw verify .
+rsaw run . --dry-run
+```
 
-詳見 [CONTRIBUTING.md](CONTRIBUTING.md)、[CITATION.cff](CITATION.cff) 與 [LICENSE](LICENSE)。
+RSAW 保持 Markdown-first、Git-first；Runtime Supervisor 是可選執行層，不是大型
+Project-management Platform。

@@ -1,0 +1,31 @@
+{
+  "study_id": "EDGEFLOW_RSAW_V1_V2_001",
+  "classification": "RETROSPECTIVE_MATCHED_REPLAY_ESTIMATE",
+  "matched_tasks": 5,
+  "conditions": {
+    "rsaw_v1": {
+      "fresh_sessions": 5,
+      "estimated_context_tokens": 53444
+    },
+    "rsaw_v2_conservative": {
+      "context_epochs": 2,
+      "estimated_context_tokens": 20972,
+      "relative_reduction": 0.608,
+      "repeated_read_reduction": 0.981
+    },
+    "rsaw_v2_delta_only": {
+      "context_epochs": 2,
+      "estimated_context_tokens": 19848,
+      "relative_reduction": 0.629,
+      "repeated_read_reduction": 0.99
+    }
+  },
+  "handoff_metadata_change": 0.201,
+  "quality_noninferiority": "NOT_EVALUATED_CAUSALLY",
+  "provider_billing_savings": "NOT_EVALUATED",
+  "limitations": [
+    "retrospective replay",
+    "single workstream",
+    "repository-context estimate rather than provider usage"
+  ]
+}

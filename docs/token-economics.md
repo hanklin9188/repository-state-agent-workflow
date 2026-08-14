@@ -1,85 +1,56 @@
 # Token Economics
 
-RSAW optimizes repeated context traffic, not a provider's private caching implementation.
+## Productive versus repeated context
 
-## Context traffic
-
-A simplified task-stream estimate is:
+RSAW does not minimize tokens indiscriminately. It aims to increase:
 
 ```text
-Total input context ≈ Σ input_context_at_call_i
+useful task reasoning / total context traffic
 ```
 
-An always-persistent context may grow continuously. An always-fresh workflow resets often but repeatedly pays bootstrap and re-understanding cost. RSAW 0.2 attempts to retain context only across tasks where continuity has clear value.
+The avoidable portion is repeated history, obsolete debugging, broad preload,
+and reorientation after unnecessary fresh starts.
 
-## Three conceptual costs
+## Three accounting levels
 
-### Always persistent
+### Repository estimate
+
+`rsaw footprint` estimates UTF-8 characters divided by four. This is useful for
+stable bootstrap comparisons but is not provider billing.
+
+### Retrospective workstream replay
+
+Reconstruct which files each workflow condition would load. State assumptions
+and do not treat a counterfactual estimate as measured usage.
+
+### Measured runtime usage
+
+`rsaw run` records token usage emitted by Codex JSON events. `rsaw report`
+separates input, cached input, cache-write input, output, and reasoning output.
+
+## Cost-quality metric
+
+Prefer:
 
 ```text
-low handoff cost
-+ high accumulated-history cost
-+ stale-context risk
+input tokens / successfully closed task
 ```
 
-### RSAW 0.1 always fresh
+and report completion, validation, reviewer findings, rework, and human
+intervention alongside token totals.
 
-```text
-low accumulated-history cost
-+ repeated bootstrap/re-reading cost
-+ possible handoff loss
-```
+## Rotation economics
 
-### RSAW 0.2 adaptive epoch
+Always-fresh tasks pay repeated bootstrap and subsystem reconstruction. An
+unbounded thread accumulates obsolete context. Bounded epochs seek an operating
+point between those costs.
 
-```text
-amortized bootstrap across adjacent tasks
-+ bounded context growth
-+ explicit rotation cost
-```
+Runtime limits are safety guardrails, not optimized thresholds. Tune on pilot
+work and evaluate on separate tasks.
 
-## Illustrative example
+## Existing evidence
 
-Suppose three closely coupled tasks each require a 3K bootstrap.
-
-```text
-Always fresh:
-3K + 3K + 3K = 9K bootstrap
-
-One context epoch:
-3K initial bootstrap + 1K delta + 1K delta = 5K
-```
-
-This suggests a 44% bootstrap/handoff reduction for that example. It is not measured RSAW 0.2 evidence.
-
-## Existing measured result
-
-The Desk Code Agent RSAW 0.1 case study reports a deterministic bootstrap estimate of 33,348 → 2,967 tokens, or −91.1%.
-
-That result is not full-task token saving, cached-input saving, or billing saving.
-
-## Recommended evaluation target
-
-Use:
-
-```text
-Total input tokens / successfully closed tasks
-```
-
-alongside completion, V2 closure, review findings, stale-state errors, human intervention, and elapsed time.
-
-## Real-world caveats
-
-Actual cost depends on provider cache behavior, tool output, retries, model reasoning, task complexity, context retention, and whether rotation triggers are followed.
-
-## Suggested budgets
-
-- `ACTIVE.md`: ≤140 lines and ≤12 KB
-- stable `AGENTS.md`: target ≤250 lines
-- active task: target ≤200 lines
-- fresh bootstrap: preferably ≤5K tokens after project customization
-- routine context epoch: 20K–40K
-- rotation recommended: 50K–60K
-- routine hard ceiling: ~80K unless justified
-
-These are operating hypotheses and local engineering budgets—not universal model limits.
+- Desk Code Agent v1: 91.1% bootstrap-context estimate reduction.
+- EdgeFlow v1/v2 replay: 60.8%–62.9% estimated repository-context reduction.
+- RSAW 0.3: prospective provider accounting enabled; no universal improvement
+  claimed yet.

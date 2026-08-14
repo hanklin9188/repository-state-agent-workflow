@@ -6,10 +6,10 @@ Repository state overrides conversation history.
 
 Use this authority order:
 
-1. accepted decisions, registered protocols, and immutable contracts;
+1. accepted decisions and immutable contracts;
 2. executable schemas, tests, and validation;
 3. active task specification;
-4. `ACTIVE.md` current frontier;
+4. `ACTIVE.md` continuation state;
 5. conversation context.
 
 ## Minimal Bootstrap
@@ -20,65 +20,83 @@ Read only:
 2. `ACTIVE.md`;
 3. the active task referenced by `ACTIVE.md`.
 
-Use progressive disclosure. Do not preload all decisions, reports, logs, examples, source, or archived handoffs.
+Use progressive disclosure for everything else.
 
-## Persistent Workstreams
+## Persistent Workstream
 
-The workstream may persist for days or weeks. The model context may not.
+The workstream may span many tasks and context epochs. Every task must still
+produce a durable checkpoint before the next task begins.
 
-A Context Epoch may complete several adjacent tasks when they share the same role, objective, subsystem, evidence domain, and safety boundary. Every task still closes with a durable checkpoint.
+When the RSAW supervisor is active, do not ask the human to copy a next-session
+prompt. Update `ACTIVE.md`; the supervisor applies the next runtime action.
 
-## Continuation Gate
+## Runtime Actions
 
-At each task checkpoint:
+- `CONTINUE`: reuse the current context for a tightly coupled task.
+- `ROTATE`: keep the workstream running in a fresh context.
+- `PAUSE`: wait for explicit human or external action.
+- `COMPLETE`: terminate the workstream.
 
-1. persist evidence;
-2. activate the next task;
-3. update `ACTIVE.md`;
-4. run `rsaw verify .` and `rsaw next .`.
+## Mandatory Rotation
 
-Continue only when the gate returns `CONTINUE`.
+Use a fresh context for:
 
-Hard rotation boundaries include:
-
-- role change;
-- preregistration → formal execution;
-- formal execution → scientific analysis;
+- Builder → Reviewer, Runner, Analyst, or Decision;
+- formal execution → interpretation;
+- preregistration → execution;
+- independent critical review;
 - major architecture/scientific decision;
-- completed large debugging episode;
-- long-running work as the only blocker;
-- human authorization, credential, or destructive action;
-- excessive context pressure.
-
-## Context Budget
-
-Target routine epochs around 20K–40K tokens, rotate around 50K–60K when practical, and treat routine contexts above 80K as a workflow failure unless explicitly justified.
+- closure of a large debugging episode;
+- material hypothesis or specification change;
+- context pressure beyond the workstream budget.
 
 ## Validation
 
-- `V0`: syntax, lint, exact targeted test;
-- `V1`: focused task checkpoint;
-- `V2`: one full relevant check at context-epoch or phase closure;
-- `V3`: fresh independent review for critical claims, releases, or major forks.
+- `V0`: syntax, lint, exact test during editing;
+- `V1`: focused task-checkpoint validation;
+- `V2`: one relevant epoch or phase closure;
+- `V3`: fresh independent review for critical work.
 
-Validation is a gate, not the product. Add validation only for observed threats to the current claim or explicit contracts.
+Validation is a gate, not the product. Add new validation only for an observed
+threat to the active claim or an explicit contract requirement.
 
-## Roles
+## Runtime Safety
 
-Builder may continue across adjacent engineering tasks. Reviewer, Runner, Analyst, and Decision roles start fresh unless a governing contract explicitly proves otherwise.
+- Do not enable dangerous sandbox/approval bypasses.
+- Do not infer authorization, credentials, privilege, or destructive consent.
+- Do not automatically retry failed formal or scientific runs.
+- Preserve failed evidence and consumed authorizations.
+- Ensure `ACTIVE.md` advances after every successful supervised turn.
+- Respect transition, turn, and token limits.
 
 ## Long-Running Work
 
-Do not busy-wait. Record job ID, revision, protocol/command, expected outputs, artifact path, completion condition, and next role, then stop when waiting is the only action.
+Do not busy-poll. Record the job/run ID, revision, configuration/protocol,
+expected artifacts, completion condition, and next action, then pause safely.
 
 ## Evidence Discipline
 
-Never rewrite measured evidence or hide failed results. Tests prove software behavior; they do not automatically prove scientific, product, or token-efficiency claims.
+Tests establish implementation behavior. Scientific and production claims need
+their own protocol, provenance, measured evidence, and interpretation boundary.
+
+Do not rewrite raw evidence or hide negative results.
 
 ## Git Safety
 
-Do not use destructive Git commands without explicit authorization. Do not commit secrets, caches, model weights, or unrelated artifacts.
+Do not use destructive Git commands or modify unrelated work without explicit
+authorization. Do not commit secrets, caches, model weights, or runtime logs.
 
-## Execution Verbosity
+## Handoff
 
-Keep routine narration low. Report decisions, evidence, blockers, validation, checkpoint state, and continuation outcome.
+Before a checkpoint, record:
+
+- current state;
+- evidence pointers;
+- blockers and human gates;
+- active and next task;
+- next exact action;
+- stop condition;
+- current and next role;
+- continuation decision.
+
+Keep routine narration low.

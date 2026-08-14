@@ -1,63 +1,66 @@
 # Architecture
 
-RSAW separates long-lived project state from bounded model context.
+RSAW separates durable authority, deterministic supervision, and replaceable
+model workers.
 
 ```mermaid
 flowchart TD
     P[AGENTS.md\nStable policy]
-    W[Workstream spec\nLong-range state machine]
-    A[ACTIVE.md\nTiny current frontier]
+    W[Workstream\nLong-range state machine]
+    A[ACTIVE.md\nCurrent frontier]
     T[Task spec\nBounded contract]
-    D[ADRs / protocols / decisions]
-    E[Tests / evidence / reports]
-    G[Git history]
+    E[Evidence / Git / reports]
 
-    B[Minimal bootstrap]
-    X[Context epoch]
-    K[Task checkpoint]
-    C{Continuation Gate}
-    N[Next adjacent task]
-    R[Fresh context]
-    H[Human / external gate]
+    S[RSAW Supervisor\nDeterministic]
+    C[Codex Context Epoch]
+    G{CONTINUE / ROTATE / PAUSE / COMPLETE}
 
-    P --> B
-    A --> B
-    T --> B
-    W -->|on demand| B
-    D -->|on demand| X
-    E -->|on demand| X
-    G -->|on demand| X
-    B --> X --> K --> C
-    C -->|CONTINUE| N --> X
-    C -->|ROTATE| R --> B
-    C -->|STOP| H
+    P --> S
+    W --> S
+    A --> S
+    T --> S
+    E -->|on demand| C
+    S --> C
+    C -->|durable checkpoint| A
+    A --> G
+    G -->|CONTINUE| C
+    G -->|ROTATE| S
+    G -->|PAUSE| S
+    G -->|COMPLETE| S
 ```
 
-## Information classes
+## Layers
 
-| Class | Canonical location | Fresh preload | Update frequency |
-|---|---|---:|---:|
-| Stable policy | `AGENTS.md` | Yes | Low |
-| Current frontier | `ACTIVE.md` | Yes | Every checkpoint |
-| Active task | `docs/tasks/` | Yes | Per task |
-| Workstream roadmap | `docs/workstreams/` | On demand | Per milestone |
-| Decisions / protocols | Project-defined | On demand | Major forks |
-| Evidence / reports | Project-defined | On demand | Per validation/run |
-| Historical handoffs | `docs/handoffs/archive/` | No | Occasionally |
-| Raw artifacts | Project-defined | Never by default | Per run |
+### Repository authority
 
-## Authority
+Markdown, schemas, tests, accepted decisions, Git, and evidence remain canonical.
 
-A typical authority chain is:
+### RSAW Core
 
-```text
-accepted contract / registered protocol / ADR
-→ executable schema and tests
-→ active task
-→ ACTIVE.md
-→ conversation history
-```
+Parses and verifies repository state, calculates context footprint, renders
+manual prompts, and derives runtime actions.
 
-## Design boundary
+### Runtime Supervisor
 
-RSAW is deliberately not an orchestration engine. It creates an inspectable state contract and deterministic checks. Humans or external tools may start fresh contexts, schedule agents, or integrate task trackers without transferring authority away from the repository.
+Owns the long-lived process, enforces limits, launches/resumes agent threads,
+checks state advancement, records usage, and handles pause/complete semantics.
+It contains no project reasoning.
+
+### Agent adapter
+
+The first adapter maps fresh/continued epochs to Codex CLI `exec` and `resume`
+and parses JSONL events. Adapters cannot change repository authority.
+
+## Failure boundaries
+
+- Invalid repository state: supervisor refuses to launch.
+- Agent failure: terminal, no automatic retry.
+- No state advancement: terminal failure.
+- Human gate: PAUSE, not ROTATE.
+- Context pressure: ROTATE, not PAUSE.
+- Workstream completion: explicit COMPLETE only.
+
+## Data separation
+
+Runtime telemetry is stored under `.rsaw/runtime` and ignored by default.
+Measured provider usage is not mixed with `chars/4` repository-context estimates.

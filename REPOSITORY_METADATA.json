@@ -2,18 +2,18 @@
   "name": "repository-state-agent-workflow",
   "owner": "hanklin9188",
   "visibility": "public",
-  "description": "Repository-backed persistent workstreams with bounded context epochs for reliable coding agents.",
+  "description": "Repository-backed workstreams with bounded context epochs and automatic Codex rotation.",
   "license": "MIT",
   "topics": [
     "coding-agents",
     "ai-agents",
     "agent-workflow",
-    "agents-md",
+    "repository-state",
     "context-engineering",
     "persistent-workstreams",
     "context-rotation",
+    "codex",
     "developer-tools",
-    "software-engineering",
     "research-tools"
   ],
   "social_preview": "docs/assets/social-preview.png"
