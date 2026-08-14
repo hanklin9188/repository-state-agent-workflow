@@ -1,0 +1,49 @@
+name: Validate and tag RSAW 0.5.0
+
+on:
+  push:
+    branches:
+      - ops/tag-v0.5.0
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Require validated RSAW 0.5 main
+        run: |
+          test -f docs/releases/rsaw-v5-validation.json
+          grep -q 'version = "0.5.0"' pyproject.toml
+          test -f src/repo_state_agent/runtime/context.py
+          test -f src/repo_state_agent/runtime/rotation.py
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw context . --strict
+          rsaw run . --dry-run
+          python scripts/check_markdown_links.py .
+      - name: Create immutable release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git rev-parse 'refs/tags/v0.5.0' >/dev/null 2>&1; then
+            test "$(git rev-list -n 1 v0.5.0)" = "$(git rev-parse HEAD)"
+            echo 'v0.5.0 already points to the validated main commit.'
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git tag -a v0.5.0 -m 'RSAW 0.5.0 — Cache-Aware Context Runtime'
+            git push origin v0.5.0
+          fi
