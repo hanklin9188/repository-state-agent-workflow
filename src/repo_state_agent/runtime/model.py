@@ -13,7 +13,7 @@ class TokenUsage:
     output_tokens: int = 0
     reasoning_output_tokens: int = 0
 
-    def __add__(self, other: "TokenUsage") -> "TokenUsage":
+    def __add__(self, other: TokenUsage) -> TokenUsage:
         return TokenUsage(
             input_tokens=self.input_tokens + other.input_tokens,
             cached_input_tokens=self.cached_input_tokens + other.cached_input_tokens,
