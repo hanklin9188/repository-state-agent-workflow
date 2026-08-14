@@ -11,6 +11,7 @@ TEMPLATE_MAP = {
     "docs/workstreams/W-000-bootstrap.md": "WORKSTREAM.md",
     "docs/tasks/T-000-bootstrap.md": "TASK.md",
     "docs/agents/repository-state-workflow.md": "WORKFLOW.md",
+    "docs/agents/context-policy.md": "CONTEXT_POLICY.md",
 }
 
 
@@ -23,7 +24,6 @@ def initialize_repository(root: Path, force: bool = False) -> tuple[list[Path], 
     root.mkdir(parents=True, exist_ok=True)
     created: list[Path] = []
     skipped: list[Path] = []
-
     for relative, template in TEMPLATE_MAP.items():
         target = root / relative
         if target.exists() and not force:
@@ -32,7 +32,6 @@ def initialize_repository(root: Path, force: bool = False) -> tuple[list[Path], 
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(_template_text(template), encoding="utf-8")
         created.append(target)
-
     (root / "docs/handoffs/archive").mkdir(parents=True, exist_ok=True)
     (root / "docs/checkpoints").mkdir(parents=True, exist_ok=True)
     (root / "docs/decisions").mkdir(parents=True, exist_ok=True)

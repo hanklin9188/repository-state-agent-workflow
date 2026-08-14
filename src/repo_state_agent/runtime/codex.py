@@ -194,9 +194,7 @@ class CodexAdapter:
                 text=True,
                 bufsize=1,
                 start_new_session=(os.name == "posix"),
-                creationflags=(
-                    subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-                ),
+                creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0),
             )
             assert process.stdin is not None
             assert process.stdout is not None
@@ -276,9 +274,7 @@ class CodexAdapter:
             error = "Codex JSON stream did not emit turn.completed"
 
         last_message = (
-            last_message_path.read_text(encoding="utf-8")
-            if last_message_path.is_file()
-            else ""
+            last_message_path.read_text(encoding="utf-8") if last_message_path.is_file() else ""
         )
         return AgentTurnResult(
             exit_code=exit_code,

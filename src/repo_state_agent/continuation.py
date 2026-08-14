@@ -61,9 +61,7 @@ def decide_continuation(state: ActiveState) -> ContinuationResult:
         reason = state.continuation_reason or "EXPLICIT_ROTATION"
         return ContinuationResult(ACTION_ROTATE, (reason,), declared)
     if declared not in VALID_CONTINUATIONS:
-        return ContinuationResult(
-            ACTION_ROTATE, ("INVALID_CONTINUATION_DECISION",), declared
-        )
+        return ContinuationResult(ACTION_ROTATE, ("INVALID_CONTINUATION_DECISION",), declared)
 
     if state.next_task_spec is None or not state.next_task_spec.is_file():
         return ContinuationResult(ACTION_ROTATE, ("NEXT_TASK_NOT_READY",), declared)

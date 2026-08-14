@@ -1,45 +1,28 @@
 # Roadmap
 
-## 0.4 — Live Runtime Console
+## 0.5 — Cache-Aware Context Runtime
 
-- [x] interactive VS Code/terminal Live TUI
-- [x] compact and expanded responsive layouts
-- [x] observable Codex activity projection without hidden reasoning
-- [x] checkpoint, action, gate, epoch, and runtime visibility
-- [x] input, cached, fresh, output, reuse, and context-pressure display
-- [x] restrained heartbeat, spinner, pressure, checkpoint, and rotation motion
-- [x] explicit PAUSED, FAILED, LIMIT_REACHED, and COMPLETE states
-- [x] non-TTY/CI/plain-output fallback
-- [x] `--tui`, `--no-tui`, and non-destructive `rsaw preview`
-- [x] presentation failure isolation and focused tests
-- [ ] prospective controlled adoption study
-- [ ] measured quality/non-inferiority analysis
+- [x] deterministic context plan and fingerprints
+- [x] fresh vs continued read contracts
+- [x] context budgets and `rsaw context`
+- [x] cache-aware deterministic rotation
+- [x] checkpoint-normalized context metrics
+- [x] updated Live Console visuals and documentation
+- [ ] controlled prospective matched study
+- [ ] calibrate defaults from measured workloads
 
-## 0.5 — Runtime Hardening and Interoperability
+## 0.6 candidates
 
-- detached/background supervisor service with explicit operator controls
-- crash-safe resume of supervisor metadata
-- attach/read-only observer for an existing runtime
-- optional signed runtime summaries
-- richer non-destructive pilot tooling
-- first additional agent adapter after Codex behavior is stable
-- monorepo and parallel-workstream governance
+- provider-tokenizer-backed plan estimates when available;
+- pluggable context-policy profiles;
+- read-only observer/attach mode for an active workstream;
+- richer long-running external-job telemetry;
+- additional agent adapters without weakening repository authority.
 
-## Research questions
+## Explicitly deferred
 
-- When does CONTINUE outperform ROTATE without increasing defects?
-- Which task, role, and repository properties predict useful context retention?
-- Can token-pressure rotation reduce cost while preserving closure quality?
-- How much human relay time does automatic rotation remove?
-- Are medium-reasoning models helped disproportionately by cleaner context?
-- What is the best metric: total tokens, tokens per closure, or quality-adjusted cost?
-- Does live operator visibility reduce unnecessary interruption or manual relay?
-
-## Explicit non-goals
-
-- replacing issue trackers, CI, code review, or access control
-- silently bypassing agent sandbox or approval systems
-- autonomous authorization of destructive/scientific actions
-- hiding failed evidence or automatically retrying formal runs
-- reproducing the full native Codex UI
-- claiming universal token or quality improvements without replication
+- web dashboard;
+- project-management platform behavior;
+- hidden-memory database;
+- unsafe autonomous approvals;
+- universal token-savings claims without matched evidence.

@@ -1,68 +1,31 @@
-# Publish This Repository
+# Publishing RSAW
 
-## Target
-
-- Repository: `hanklin9188/repository-state-agent-workflow`
-- Visibility: Public
-- License: MIT
-- Description: `Repository-backed agent workstreams with bounded context epochs, automatic Codex rotation, and a live terminal runtime console.`
-- Social preview: `docs/assets/social-preview.png`
-- Live console preview: `docs/assets/live-terminal-dashboard.svg`
-
-See [GitHub Presentation Guide](docs/github-presentation.md) and
-`REPOSITORY_METADATA.json`.
-
-## One-command publication
-
-The publication script validates the tree, creates a local commit if needed, creates
-the public GitHub repository, pushes `main`, and adds topics.
-
-```bash
-./scripts/publish_github.sh
-```
-
-Prerequisite:
-
-```bash
-gh auth login
-```
-
-The script refuses to overwrite an existing repository.
-
-## Manual GitHub CLI flow
-
-```bash
-git init -b main
-git add .
-git commit -m "Initial Repository-State Agent Workflow release"
-
-gh repo create hanklin9188/repository-state-agent-workflow \
-  --public \
-  --description "Repository-backed agent workstreams with bounded context epochs, automatic Codex rotation, and a live terminal runtime console." \
-  --source=. \
-  --remote=origin \
-  --push
-```
-
-## Validation before publication
+## Release validation
 
 ```bash
 python -m pip install -e '.[dev]'
 ruff check .
 pytest -q
 rsaw verify .
+rsaw context . --strict
 rsaw footprint . --max-tokens 15000
-rsaw preview .
+rsaw run . --dry-run
+rsaw report . --json
 python scripts/check_markdown_links.py .
 ```
 
-For non-interactive release automation, omit `rsaw preview .` and retain the full
-CI suite.
+Run `rsaw preview .` manually in a real terminal before publishing a UI release.
 
-## Repository settings after push
+## Repository presentation
 
-1. Upload `docs/assets/social-preview.png` as the social preview.
-2. Confirm the description and topics from `REPOSITORY_METADATA.json`.
-3. Keep the Live Console screenshot near the top of the README.
-4. Enable Discussions only after adoption traffic can support them.
-5. Require CI for pull requests once collaboration begins.
+- Description: repository-backed workstreams with cache-aware context planning,
+  automatic Codex rotation, and a live terminal runtime console.
+- Keep the architecture, context lifecycle, and terminal dashboard visuals near the
+  top of the README.
+- Update `REPOSITORY_METADATA.json`, `CITATION.cff`, changelog, roadmap, and version
+  together.
+
+## Claim discipline
+
+Do not describe approximate context counts as provider billing. Do not claim universal
+token or quality improvement before matched prospective evidence.

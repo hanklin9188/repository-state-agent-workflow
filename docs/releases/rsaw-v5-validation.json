@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "release": "0.5.0",
+  "status": "VALIDATED",
+  "checks": [
+    "compileall",
+    "ruff",
+    "pytest",
+    "rsaw_verify",
+    "strict_context_plan",
+    "footprint_gate",
+    "supervisor_dry_run",
+    "runtime_report",
+    "markdown_links",
+    "release_surface"
+  ]
+}

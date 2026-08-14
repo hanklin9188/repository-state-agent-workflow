@@ -25,8 +25,8 @@ def local_target(raw_target: str) -> str | None:
     if not target or target.startswith(IGNORED_PREFIXES):
         return None
     # Optional Markdown title: path "title"
-    if " \"" in target:
-        target = target.split(" \"", 1)[0]
+    if ' "' in target:
+        target = target.split(' "', 1)[0]
     target = unquote(target.split("#", 1)[0])
     return target or None
 
