@@ -5,6 +5,7 @@ import shutil
 import signal
 import subprocess
 import threading
+from contextlib import suppress
 from pathlib import Path
 
 from .events import CodexEventAccumulator
@@ -277,17 +278,13 @@ class CodexAdapter:
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
     if os.name == "posix":
-        try:
+        with suppress(ProcessLookupError):
             os.killpg(process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
         try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            try:
+            with suppress(ProcessLookupError):
                 os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
             process.wait(timeout=5)
         return
 
