@@ -2,54 +2,61 @@
 
 ## Repository
 
-Branch: main
+Branch: resolve with `git branch --show-current`
 HEAD: resolve with `git rev-parse HEAD`
-Status: RSAW 0.3 runtime-supervisor release candidate
+Status: RSAW 0.4 Live Runtime Console release candidate
 
 ## Workstream
 
-ID: W-003
-Spec: docs/workstreams/W-003-runtime-supervisor-release.md
+ID: W-004
+Spec: docs/workstreams/W-004-live-runtime-console.md
 
 ## Context Epoch
 
-ID: E-004-runtime-evaluation
+ID: E-006-live-console-review
 Role: Reviewer
 
 ## Active Task
 
-ID: T-004
-Spec: docs/tasks/T-004-runtime-supervisor-evaluation.md
+ID: T-006
+Spec: docs/tasks/T-006-live-runtime-console-validation.md
 
 ## Current State
 
-- RSAW 0.3 implements an optional Codex Runtime Supervisor.
-- CONTINUE reuses a thread; ROTATE starts a fresh thread automatically.
-- PAUSE is reserved for human/external gates; COMPLETE is terminal.
-- Runtime safety, token accounting, failure semantics, tests, and documentation are present.
-- Prospective adoption measurement remains the next evidence step.
+- RSAW 0.4 adds an interactive Live Terminal Console for VS Code and normal TTYs.
+- Codex remains a headless structured-event execution engine.
+- CONTINUE, ROTATE, PAUSE, COMPLETE, verification, token accounting, and safety
+  semantics remain unchanged.
+- Compact/expanded layouts, context pressure, token/cache telemetry, transitions,
+  terminal states, non-TTY fallback, and preview mode are implemented.
+- Presentation errors are isolated from agent execution and lifecycle decisions.
+- Prospective adoption measurement remains a separate evidence task.
 
 ## Evidence
 
-- Runtime implementation: `src/repo_state_agent/runtime/`
-- Runtime tests: `tests/test_runtime_supervisor.py`
-- Release notes: `docs/releases/rsaw-v3-runtime-supervisor.md`
-- Evaluation method: `docs/runtime-evaluation.md`
-- EdgeFlow replay: `docs/case-studies/edgeflow-rsaw-v1-v2.md`
+- TUI implementation: `src/repo_state_agent/runtime/tui/`
+- Runtime event integration: `src/repo_state_agent/runtime/supervisor.py`
+- Codex event integration: `src/repo_state_agent/runtime/codex.py`
+- CLI integration: `src/repo_state_agent/cli.py`
+- TUI tests: `tests/test_runtime_tui_model.py`, `tests/test_runtime_tui_renderer.py`
+- Observability isolation tests: `tests/test_codex_adapter_observability.py`,
+  `tests/test_runtime_supervisor_observability.py`
+- Product documentation: `README.md`, `docs/live-terminal-ui.md`
 
 ## Required Reads
 
 - AGENTS.md
 - ACTIVE.md
-- docs/tasks/T-004-runtime-supervisor-evaluation.md
+- docs/tasks/T-006-live-runtime-console-validation.md
+- docs/live-terminal-ui.md
 
 ## Do Not Preload
 
 - all historical release reports;
-- complete CI logs;
-- every example repository;
+- complete CI logs unless a check fails;
 - archived handoffs;
-- raw runtime event streams unless a test fails.
+- raw Codex event streams unless an observability test fails;
+- unrelated case-study data.
 
 ## Human Gate
 
@@ -57,7 +64,7 @@ None.
 
 ## Running or Pending External Work
 
-None.
+GitHub CI and operator TTY preview after the implementation commit.
 
 ## Blockers
 
@@ -65,27 +72,27 @@ None.
 
 ## Next Exact Action
 
-Run a controlled, non-destructive Codex supervisor pilot and record prospective
-turn, rotation, token, checkpoint, and quality outcomes.
+Run cross-version CI, inspect any failures, execute `rsaw preview .` in a VS Code
+Integrated Terminal, and review the final README/console presentation.
 
 ## Stop Condition
 
-The runtime release candidate is independently reviewed and the prospective
-measurement task is ready.
+Ruff, pytest, repository verification, link checks, non-TTY fallback, and the
+interactive console preview pass; the pull request is ready for merge review.
 
 ## Continuation Gate
 
 Decision: ROTATE_REQUIRED
-Reason: IMPLEMENTATION_TO_PROSPECTIVE_EVALUATION_BOUNDARY
+Reason: IMPLEMENTATION_TO_INDEPENDENT_VALIDATION_BOUNDARY
 
 ## Next Task
 
-ID: T-005
-Spec: docs/tasks/T-005-runtime-supervisor-prospective-study.md
+ID: T-007
+Spec: docs/tasks/T-007-live-runtime-console-pilot.md
 
 ## Next Session Role
 
-Analyst
+Runner
 
 ## Recommended Reasoning
 
@@ -93,4 +100,4 @@ Medium
 
 ## Last Updated
 
-2026-08-14 — RSAW 0.3 runtime-supervisor release candidate
+2026-08-14 — RSAW 0.4 Live Runtime Console release candidate

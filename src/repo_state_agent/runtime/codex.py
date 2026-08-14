@@ -5,11 +5,15 @@ import shutil
 import signal
 import subprocess
 import threading
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 from .events import CodexEventAccumulator
 from .model import AdapterDoctorResult, AgentTurnResult
+
+CodexEventSink = Callable[[dict[str, Any]], None]
 
 
 class CodexAdapter:
@@ -24,6 +28,7 @@ class CodexAdapter:
         sandbox: str = "workspace-write",
         approve_for_me: bool = False,
         quiet: bool = False,
+        event_sink: CodexEventSink | None = None,
         turn_timeout_seconds: float = 7_200.0,
         stdout_eof_grace_seconds: float = 10.0,
     ) -> None:
@@ -37,6 +42,7 @@ class CodexAdapter:
         self.sandbox = sandbox
         self.approve_for_me = approve_for_me
         self.quiet = quiet
+        self.event_sink = event_sink
         self.turn_timeout_seconds = turn_timeout_seconds
         self.stdout_eof_grace_seconds = stdout_eof_grace_seconds
 
@@ -202,8 +208,20 @@ class CodexAdapter:
                             events_file.write(line)
                             events_file.flush()
                             event = accumulator.feed(line)
-                            if not self.quiet and event is not None:
-                                _print_compact_event(event)
+                            if event is not None:
+                                _notify_event(self.event_sink, event)
+                                if not self.quiet:
+                                    _print_compact_event(event)
+                            else:
+                                diagnostic = line.strip()
+                                if diagnostic:
+                                    _notify_event(
+                                        self.event_sink,
+                                        {
+                                            "type": "codex.diagnostic",
+                                            "message": _truncate(diagnostic, 240),
+                                        },
+                                    )
                 except (OSError, ValueError) as exc:
                     reader_errors.append(str(exc))
 
@@ -276,6 +294,16 @@ class CodexAdapter:
         )
 
 
+def _notify_event(sink: CodexEventSink | None, event: dict[str, Any]) -> None:
+    if sink is None:
+        return
+    try:
+        sink(event)
+    except Exception:
+        # Observability is downstream from execution and must never break a turn.
+        return
+
+
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
     if os.name == "posix":
         with suppress(ProcessLookupError):
@@ -316,3 +344,10 @@ def _print_compact_event(event: dict[str, object]) -> None:
         print(f"[codex] turn complete usage={usage}")
     elif event_type in {"turn.failed", "error"}:
         print(f"[codex] {event_type}: {event.get('error') or event.get('message')}")
+
+
+def _truncate(value: str, limit: int) -> str:
+    value = " ".join(value.split())
+    if len(value) <= limit:
+        return value
+    return value[: max(0, limit - 1)].rstrip() + "…"

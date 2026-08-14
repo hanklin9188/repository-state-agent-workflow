@@ -1,8 +1,8 @@
 # Getting Started
 
-RSAW is usable before deep customization. No daemon, database, hosted memory, or
-API key is required for Core mode. Automatic Runtime mode uses an authenticated
-local Codex CLI.
+RSAW is usable before deep customization. Core mode needs no daemon, database,
+hosted memory, or API key. Automatic Runtime mode uses an authenticated local Codex
+CLI. Interactive terminals also receive the RSAW Live Runtime Console.
 
 ## Install
 
@@ -29,25 +29,44 @@ rsaw footprint .
 rsaw run . --dry-run
 ```
 
+## Preview the console
+
+```bash
+rsaw preview .
+```
+
+Preview is non-destructive: it does not launch Codex or mutate repository state.
+Use it to verify colors, responsive layout, and terminal compatibility before a
+long run.
+
 ## Choose a mode
 
-### Automatic Codex Runtime
+### Automatic Codex Runtime with Live TUI
 
 ```bash
 rsaw doctor . --agent codex
 rsaw run . --agent codex
 ```
 
-The supervisor continues or rotates automatically and pauses at human gates.
+The supervisor continues or rotates automatically, pauses at real human gates, and
+renders live state in an interactive terminal.
 
-### Manual Agent-neutral Core
+```bash
+# Plain log-oriented output
+rsaw run . --agent codex --no-tui
+```
+
+Non-TTY, CI, redirected, JSON, quiet, and dry-run execution automatically uses plain
+output.
+
+### Manual agent-neutral Core
 
 ```bash
 rsaw prompt .
 rsaw next .
 ```
 
-Copy the prompt to any agent and use the repository gate manually.
+Copy the prompt to any agent and apply the repository gate manually.
 
 ## First project setup
 
@@ -58,6 +77,10 @@ Customize four things:
 3. the first bounded task;
 4. current and next task, role, and gate in `ACTIVE.md`.
 
+A bounded `## State Machine`, `## Progress`, or `## Phases` section can be displayed
+in the console when RSAW can match the current phase unambiguously. RSAW does not
+invent phase completion or global percentages.
+
 ## First safe pilot
 
 Start with a non-destructive task stream:
@@ -66,11 +89,12 @@ Start with a non-destructive task stream:
 contract → implementation → focused test → fresh review → complete
 ```
 
-Use CONTINUE for the first three Builder tasks, ROTATE for the Reviewer, PAUSE
-only for a real gate, and COMPLETE after closure.
+Use CONTINUE for the first three Builder tasks, ROTATE for the Reviewer, PAUSE only
+for a real gate, and COMPLETE after closure.
 
 Inspect results:
 
 ```bash
 rsaw report .
+rsaw report . --json
 ```

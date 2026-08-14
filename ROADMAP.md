@@ -1,21 +1,25 @@
 # Roadmap
 
-## 0.3 — Runtime Supervisor
+## 0.4 — Live Runtime Console
 
-- [x] automatic Codex fresh-context rotation
-- [x] resume within bounded epochs
-- [x] human/external PAUSE semantics
-- [x] terminal COMPLETE state
-- [x] provider usage and transition accounting
-- [x] failure-safe runtime limits and lock
-- [x] manual agent-neutral mode retained
+- [x] interactive VS Code/terminal Live TUI
+- [x] compact and expanded responsive layouts
+- [x] observable Codex activity projection without hidden reasoning
+- [x] checkpoint, action, gate, epoch, and runtime visibility
+- [x] input, cached, fresh, output, reuse, and context-pressure display
+- [x] restrained heartbeat, spinner, pressure, checkpoint, and rotation motion
+- [x] explicit PAUSED, FAILED, LIMIT_REACHED, and COMPLETE states
+- [x] non-TTY/CI/plain-output fallback
+- [x] `--tui`, `--no-tui`, and non-destructive `rsaw preview`
+- [x] presentation failure isolation and focused tests
 - [ ] prospective controlled adoption study
 - [ ] measured quality/non-inferiority analysis
 
-## 0.4 — Runtime Hardening and Interoperability
+## 0.5 — Runtime Hardening and Interoperability
 
 - detached/background supervisor service with explicit operator controls
 - crash-safe resume of supervisor metadata
+- attach/read-only observer for an existing runtime
 - optional signed runtime summaries
 - richer non-destructive pilot tooling
 - first additional agent adapter after Codex behavior is stable
@@ -29,6 +33,7 @@
 - How much human relay time does automatic rotation remove?
 - Are medium-reasoning models helped disproportionately by cleaner context?
 - What is the best metric: total tokens, tokens per closure, or quality-adjusted cost?
+- Does live operator visibility reduce unnecessary interruption or manual relay?
 
 ## Explicit non-goals
 
@@ -36,4 +41,5 @@
 - silently bypassing agent sandbox or approval systems
 - autonomous authorization of destructive/scientific actions
 - hiding failed evidence or automatically retrying formal runs
+- reproducing the full native Codex UI
 - claiming universal token or quality improvements without replication
