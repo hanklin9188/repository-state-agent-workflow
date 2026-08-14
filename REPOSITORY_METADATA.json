@@ -2,7 +2,7 @@
   "name": "repository-state-agent-workflow",
   "owner": "hanklin9188",
   "visibility": "public",
-  "description": "Repository-backed agent workstreams with bounded context epochs, automatic Codex rotation, and a live terminal runtime console.",
+  "description": "Repository-backed agent workstreams with cache-aware context planning, automatic Codex rotation, and a live terminal runtime console.",
   "license": "MIT",
   "topics": [
     "coding-agents",
@@ -10,13 +10,15 @@
     "agent-workflow",
     "repository-state",
     "context-engineering",
+    "context-planning",
+    "cache-efficiency",
     "persistent-workstreams",
     "context-rotation",
-    "agent-observability",
-    "terminal-ui",
     "codex",
-    "developer-tools",
-    "research-tools"
+    "terminal-ui",
+    "developer-tools"
   ],
-  "social_preview": "docs/assets/social-preview.png"
+  "social_preview": "docs/assets/social-preview.png",
+  "live_console_preview": "docs/assets/live-terminal-dashboard.svg",
+  "architecture_preview": "docs/assets/runtime-architecture-v05.svg"
 }

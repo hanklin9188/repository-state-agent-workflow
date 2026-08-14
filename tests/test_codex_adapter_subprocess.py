@@ -1,7 +1,7 @@
 from repo_state_agent.runtime.codex import CodexAdapter
 
 
-FAKE_CODEX = r'''#!/usr/bin/env python3
+FAKE_CODEX = r"""#!/usr/bin/env python3
 import json
 import pathlib
 import sys
@@ -39,7 +39,7 @@ print(
     flush=True,
 )
 output_path.write_text("checkpoint complete", encoding="utf-8")
-'''
+"""
 
 
 def _fake_binary(tmp_path):

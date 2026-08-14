@@ -1,88 +1,60 @@
 # Architecture
 
-RSAW separates durable authority, deterministic supervision, replaceable model
-workers, and operator-facing observability.
+## Design invariant
 
-```mermaid
-flowchart TD
-    P[AGENTS.md\nStable policy]
-    W[Workstream\nLong-range state machine]
-    A[ACTIVE.md\nCurrent frontier]
-    T[Task spec\nBounded contract]
-    E[Evidence / Git / reports]
-
-    S[RSAW Supervisor\nDeterministic]
-    C[Codex Context Epoch]
-    G{CONTINUE / ROTATE / PAUSE / COMPLETE}
-    U[Live Terminal Console\nPresentation only]
-
-    P --> S
-    W --> S
-    A --> S
-    T --> S
-    E -->|on demand| C
-    S --> C
-    C -->|durable checkpoint| A
-    A --> G
-    G -->|CONTINUE| C
-    G -->|ROTATE| S
-    G -->|PAUSE| S
-    G -->|COMPLETE| S
-    C -. structured events .-> U
-    S -. lifecycle events .-> U
-    A -. durable state .-> U
+```text
+Repository authority > runtime state > model context > presentation
 ```
 
-## Layers
+RSAW 0.5 separates six layers:
 
-### Repository authority
+1. **Repository authority** — `AGENTS.md`, accepted decisions, `ACTIVE.md`, active task.
+2. **Context planner** — ordered, fingerprinted, budgeted read manifest.
+3. **Continuation engine** — CONTINUE / ROTATE / PAUSE / COMPLETE.
+4. **Runtime supervisor** — bounded Codex turns, verification, locks, limits.
+5. **Telemetry** — provider usage, checkpoints, transitions, evidence paths.
+6. **Live console** — non-authoritative operator presentation.
 
-Markdown, schemas, tests, accepted decisions, Git, and evidence remain canonical.
+![RSAW 0.5 architecture](assets/runtime-architecture-v05.svg)
 
-### RSAW Core
+## Data flow
 
-Parses and verifies repository state, calculates context footprint, renders manual
-prompts, and derives runtime actions.
+```text
+AGENTS + ACTIVE + task
+        ↓
+ContextPlan
+        ↓
+Fresh prompt or continuation delta
+        ↓
+Codex exec / resume
+        ↓
+Structured events + repository mutation
+        ↓
+Verification + checkpoint
+        ↓
+Deterministic rotation evaluation
+        ↓
+CONTINUE / ROTATE / PAUSE / COMPLETE
+```
 
-### Runtime Supervisor
+## Context-plan authority
 
-Owns the long-lived process, enforces limits, launches or resumes agent threads,
-checks state advancement, records usage, and handles pause/complete semantics. It
-contains no project reasoning.
+The planner does not decide project truth. It serializes the files already authorized
+by repository state, removes duplicates, verifies repository locality, records hashes,
+and checks an operating budget.
 
-### Agent adapter
+## Rotation authority
 
-The first adapter maps fresh and continued epochs to Codex CLI `exec` and `resume`,
-parses JSONL events, and forwards optional presentation events. Adapters cannot
-change repository authority.
+Mandatory role/scientific boundaries come from repository state. Runtime pressure is
+deterministic and uses configured thresholds plus provider-emitted usage. The model
+never chooses whether its own context should survive.
 
-### Presentation model
+## Presentation isolation
 
-A thread-safe `DashboardModel` projects repository state, Supervisor events, and
-Codex events into an immutable snapshot. It can observe lifecycle decisions but can
-never make them.
+Codex and supervisor event sinks are best-effort. Exceptions in the Live Console are
+caught and cannot alter the worker, checkpoint verification, or lifecycle result.
 
-### Terminal renderer
+## Compatibility
 
-A Rich Live renderer selects compact or expanded layouts from the current terminal
-size, renders in place, and applies restrained visual interpolation. Interactive
-gates temporarily suspend rendering so the existing exact input path remains
-authoritative.
-
-## Failure boundaries
-
-- Invalid repository state: Supervisor refuses to launch.
-- Agent failure: terminal, no automatic retry.
-- No state advancement: terminal failure.
-- Human gate: PAUSE, not ROTATE.
-- Context pressure: ROTATE, not PAUSE.
-- Workstream completion: explicit COMPLETE only.
-- TUI failure: ignored at the observability boundary; lifecycle continues.
-
-## Data separation
-
-Runtime telemetry is stored under `.rsaw/runtime` and ignored by default. Measured
-provider usage is not mixed with `chars/4` repository-context estimates.
-
-Dashboard strings remain local. They are not inserted into model prompts and do not
-create additional model turns.
+The 0.4 flat `rotate_input_tokens` field remains accepted. New repositories receive
+schema version 2 with explicit `context` and `rotation` sections.

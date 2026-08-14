@@ -71,9 +71,7 @@ class DashboardRenderable:
         self.model = model
         self._pressure = _AnimatedPressure()
 
-    def __rich_console__(
-        self, console: Console, options: ConsoleOptions
-    ) -> RenderResult:
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         now = monotonic()
         snapshot = self.model.snapshot()
         pressure = self._pressure.step(snapshot.context_pressure, now)
@@ -341,16 +339,25 @@ def _footer(snapshot: DashboardSnapshot, *, now: float):
 def _transition_view(snapshot: DashboardSnapshot, *, width: int, now: float):
     elapsed = now - (snapshot.transition_started or now)
     dots = "." * (1 + int(elapsed * 4) % 3)
-    origin = " · ".join(
-        value
-        for value in (snapshot.transition_from_role, snapshot.transition_from_epoch)
-        if value
-    ) or "Current context"
-    target = " · ".join(
-        value
-        for value in (snapshot.transition_to_role or snapshot.role, snapshot.transition_to_epoch)
-        if value
-    ) or "Fresh context"
+    origin = (
+        " · ".join(
+            value
+            for value in (snapshot.transition_from_role, snapshot.transition_from_epoch)
+            if value
+        )
+        or "Current context"
+    )
+    target = (
+        " · ".join(
+            value
+            for value in (
+                snapshot.transition_to_role or snapshot.role,
+                snapshot.transition_to_epoch,
+            )
+            if value
+        )
+        or "Fresh context"
+    )
     body = Group(
         Align.center(Text("↻", style="bold yellow")),
         Align.center(Text("ROTATING CONTEXT", style="bold yellow")),

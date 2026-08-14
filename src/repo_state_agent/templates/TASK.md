@@ -8,10 +8,6 @@ W-000 — Bootstrap
 
 Customize RSAW for this repository and define the first real task.
 
-## Why
-
-Long-lived project continuity belongs in the repository; model context should remain bounded.
-
 ## Role
 
 Builder
@@ -25,6 +21,13 @@ None.
 - existing repository documentation;
 - build and test commands;
 - current project priorities.
+
+## Context Budget
+
+- Stable authority: `AGENTS.md`.
+- Dynamic authority: `ACTIVE.md` and this task.
+- Additional reads must be justified by the active acceptance criterion.
+- Inspect with `rsaw context .` before a large checkpoint.
 
 ## In Scope
 
@@ -46,12 +49,14 @@ None.
 - workstream spec exists;
 - active task exists;
 - continuation decision is explicit;
-- `rsaw verify .` passes.
+- `rsaw verify .` passes;
+- `rsaw context .` is within the configured bootstrap budget.
 
 ## Targeted Validation
 
 ```bash
 rsaw verify .
+rsaw context . --strict
 rsaw status .
 rsaw next .
 ```
@@ -67,7 +72,3 @@ Rotate after bootstrap because the next task establishes real project work.
 ## Stop Condition
 
 The first real task is ready for a fresh builder context.
-
-## Next Dependency if Complete
-
-The first project task.

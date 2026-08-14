@@ -1,70 +1,46 @@
 # Runtime Evaluation
 
-RSAW 0.3 turns context rotation from a design estimate into an observable
-runtime process.
+## Question
 
-## Conditions to compare
+Does repository-backed, cache-aware context lifecycle improve long-running execution
+without reducing checkpoint quality or weakening governance?
 
-1. Chat-as-memory / long conversation
-2. RSAW 0.1 always-fresh tasks
-3. RSAW 0.2 bounded context epochs with manual rotation
-4. RSAW 0.3 automatic Runtime Supervisor
+## Matched conditions
 
-## Primary unit
+Hold constant:
 
-Use a matched task stream or workstream, not individual model calls. Turns
-inside one task are correlated.
-
-## Runtime metrics
-
-`rsaw report --json` supplies:
-
-- workstream and final status;
-- agent turns;
-- fresh and resumed turns;
-- runtime epochs;
-- checkpoints observed;
-- CONTINUE / ROTATE / PAUSE / COMPLETE counts;
-- provider-emitted token usage;
-- input tokens per successful checkpoint.
-
-Add project metrics:
-
-- task closure;
-- focused and closure validation;
-- reviewer findings;
-- escaped defects;
-- repeated investigation;
-- stale-state incidents;
-- human interventions;
-- elapsed time.
-
-## Important outcome
-
-The most useful cost measure is not minimum tokens in isolation:
-
-```text
-input tokens / successfully closed task
-```
-
-A workflow that uses fewer tokens but creates more defects is not an
-improvement.
-
-## Matched evaluation
-
-Pin:
-
-- repository revision;
-- task selection procedure;
-- Codex version and model;
-- sandbox and permissions;
-- validation policy;
+- repository revision and starting state;
+- model/profile;
+- task and permissions;
+- sandbox and human-gate policy;
+- validation oracle;
 - hardware and external services where relevant.
 
-Separate pilot tuning from untouched evaluation tasks.
+Compare conditions such as chat-as-memory, always-fresh execution, bounded epochs, and
+RSAW 0.5 cache-aware runtime.
+
+## Primary metrics
+
+1. attempted checkpoints;
+2. successful checkpoints and success rate;
+3. total input tokens;
+4. cached input tokens;
+5. fresh input tokens;
+6. input tokens per successful checkpoint;
+7. fresh input tokens per successful checkpoint;
+8. output tokens;
+9. context epochs and rotations;
+10. manual relays;
+11. true human gates;
+12. wall time per successful checkpoint.
+
+## Protocol discipline
+
+Freeze policy thresholds before formal comparison. Keep the validator independent from
+the runtime condition. Seal raw usage, event, checkpoint, and timing evidence before
+analysis.
 
 ## Claim boundary
 
-Runtime telemetry supports prospective token and transition accounting. It does
-not, by itself, establish causal quality improvement. Report quality and token
-outcomes separately, including failed and paused workstreams.
+Implementation tests establish behavior, not causal efficiency. A successful pilot does
+not establish universal gains. Report negative and neutral results.

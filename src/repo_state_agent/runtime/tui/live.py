@@ -30,9 +30,7 @@ class LiveDashboard:
         refresh_per_second: float = 8.0,
     ) -> None:
         self.root = root.resolve()
-        self.model = DashboardModel(
-            self.root, rotate_input_tokens=rotate_input_tokens
-        )
+        self.model = DashboardModel(self.root, rotate_input_tokens=rotate_input_tokens)
         self.console = console or Console(
             no_color=bool(os.environ.get("NO_COLOR")),
             soft_wrap=False,
@@ -210,16 +208,10 @@ def preview_dashboard(
                 },
             }
         )
-        dashboard.handle_supervisor_event(
-            {"type": "repository_verification_started"}
-        )
+        dashboard.handle_supervisor_event({"type": "repository_verification_started"})
         time.sleep(step)
-        dashboard.handle_supervisor_event(
-            {"type": "repository_verification_passed"}
-        )
-        dashboard.handle_supervisor_event(
-            {"type": "checkpoint_observed", "checkpoint": 6}
-        )
+        dashboard.handle_supervisor_event({"type": "repository_verification_passed"})
+        dashboard.handle_supervisor_event({"type": "checkpoint_observed", "checkpoint": 6})
         time.sleep(step)
         dashboard.handle_supervisor_event(
             {

@@ -23,9 +23,7 @@ Design → Implement → Validate → Run → Analyze
     (root / "docs/tasks/T-1.md").write_text(
         "# T-1 — GPU Observability Diagnostic\n", encoding="utf-8"
     )
-    (root / "docs/tasks/T-2.md").write_text(
-        "# T-2 — Formal Execution\n", encoding="utf-8"
-    )
+    (root / "docs/tasks/T-2.md").write_text("# T-2 — Formal Execution\n", encoding="utf-8")
     (root / "ACTIVE.md").write_text(
         f"""# Active Handoff
 
@@ -121,9 +119,7 @@ def test_dashboard_model_tracks_repository_activity_and_token_cost(tmp_path: Pat
             },
         }
     )
-    model.handle_supervisor_event(
-        {"type": "checkpoint_observed", "checkpoint": 6}
-    )
+    model.handle_supervisor_event({"type": "checkpoint_observed", "checkpoint": 6})
 
     snapshot = model.snapshot()
     assert snapshot.workstream_title == "Runtime Delivery"
