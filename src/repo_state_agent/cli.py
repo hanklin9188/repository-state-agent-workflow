@@ -5,6 +5,7 @@ import json
 import sys
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from .archive import archive_active
 from .continuation import decide_continuation
@@ -12,10 +13,11 @@ from .footprint import measure_bootstrap
 from .model import ActiveState
 from .parsing import parse_active
 from .prompts import VALID_MODES, VALID_ROLES, render_prompt
-from .runtime.codex import CodexAdapter
+from .runtime.codex import CodexAdapter, CodexEventSink
 from .runtime.config import RuntimeConfig, load_runtime_config
 from .runtime.report import efficiency_view, load_runtime_summary
 from .runtime.supervisor import options_from_config, supervise
+from .runtime.tui import LiveDashboard, preview_dashboard, should_use_tui
 from .scaffold import initialize_repository
 from .verify import verify_repository
 
@@ -181,14 +183,21 @@ def cmd_prompt(args: argparse.Namespace) -> int:
     return 0
 
 
-def _codex_adapter(args: argparse.Namespace, config: RuntimeConfig) -> CodexAdapter:
+def _codex_adapter(
+    args: argparse.Namespace,
+    config: RuntimeConfig,
+    *,
+    event_sink: CodexEventSink | None = None,
+    quiet_override: bool = False,
+) -> CodexAdapter:
     return CodexAdapter(
         binary=args.codex_bin or config.codex_binary,
         model=args.model if args.model is not None else config.model,
         profile=args.profile if args.profile is not None else config.profile,
         sandbox=args.sandbox or config.sandbox,
         approve_for_me=bool(args.approve_for_me or config.approve_for_me),
-        quiet=bool(getattr(args, "quiet", False)),
+        quiet=bool(getattr(args, "quiet", False) or quiet_override),
+        event_sink=event_sink,
     )
 
 
@@ -225,6 +234,15 @@ def _interactive_gate(state: ActiveState) -> str | None:
     return response
 
 
+def _load_summary_for_result(root: Path, run_id: str) -> dict[str, Any] | None:
+    if not run_id:
+        return None
+    try:
+        return load_runtime_summary(root, run_id)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     root = _root(args.path)
     config = load_runtime_config(root)
@@ -249,7 +267,6 @@ def cmd_run(args: argparse.Namespace) -> int:
         ),
         wait_on_pause=bool(args.wait_on_pause or config.wait_on_pause),
     )
-    adapter = _codex_adapter(args, config)
     options = options_from_config(config, dry_run=args.dry_run, quiet=args.quiet)
     interactive = (
         not args.no_interactive_gates
@@ -257,12 +274,58 @@ def cmd_run(args: argparse.Namespace) -> int:
         and sys.stdin.isatty()
         and not args.dry_run
     )
-    result = supervise(
-        root,
-        adapter,
-        options,
-        gate_resolver=_interactive_gate if interactive else None,
+    use_tui = should_use_tui(
+        force=bool(args.tui),
+        disable=bool(args.no_tui),
+        json_output=bool(args.json),
+        quiet=bool(args.quiet),
+        dry_run=bool(args.dry_run),
     )
+
+    dashboard: LiveDashboard | None = None
+    if use_tui:
+        dashboard = LiveDashboard(
+            root,
+            rotate_input_tokens=config.rotate_input_tokens,
+        )
+
+    adapter = _codex_adapter(
+        args,
+        config,
+        event_sink=dashboard.handle_codex_event if dashboard else None,
+        quiet_override=bool(dashboard),
+    )
+    gate_resolver = _interactive_gate if interactive else None
+    if dashboard and gate_resolver:
+        gate_resolver = dashboard.gate_resolver(gate_resolver)
+
+    if dashboard:
+        with dashboard:
+            result = supervise(
+                root,
+                adapter,
+                options,
+                gate_resolver=gate_resolver,
+                event_sink=dashboard.handle_supervisor_event,
+            )
+            summary = _load_summary_for_result(root, result.run_id)
+            dashboard.finalize(
+                status=result.status,
+                reason=result.reason,
+                summary_path=(
+                    str(result.summary_path.relative_to(root)) if result.summary_path else ""
+                ),
+                summary=summary,
+            )
+            dashboard.settle()
+    else:
+        result = supervise(
+            root,
+            adapter,
+            options,
+            gate_resolver=gate_resolver,
+        )
+
     payload = {
         "status": result.status,
         "reason": result.reason,
@@ -274,11 +337,27 @@ def cmd_run(args: argparse.Namespace) -> int:
     }
     if args.json:
         print(json.dumps(payload, indent=2))
-    else:
+    elif not dashboard:
         print(f"RSAW {result.status}: {result.reason}")
         if result.summary_path:
             print(f"Summary: {result.summary_path}")
     return result.exit_code
+
+
+def cmd_preview(args: argparse.Namespace) -> int:
+    root = _root(args.path)
+    verification = verify_repository(root)
+    if not verification.ok:
+        for error in verification.errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    config = load_runtime_config(root)
+    preview_dashboard(
+        root,
+        rotate_input_tokens=config.rotate_input_tokens,
+        seconds=args.seconds,
+    )
+    return 0
 
 
 def cmd_report(args: argparse.Namespace) -> int:
@@ -378,6 +457,17 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--json", action="store_true")
     run.add_argument("--quiet", action="store_true")
+    tui = run.add_mutually_exclusive_group()
+    tui.add_argument(
+        "--tui",
+        action="store_true",
+        help="Force the live terminal dashboard when stdout is interactive",
+    )
+    tui.add_argument(
+        "--no-tui",
+        action="store_true",
+        help="Use the plain log-oriented supervisor output",
+    )
     run.add_argument("--no-interactive-gates", action="store_true")
     run.add_argument("--wait-on-pause", action="store_true")
     run.add_argument("--max-transitions", type=int)
@@ -386,6 +476,14 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--max-total-input-tokens", type=int)
     _add_codex_options(run)
     run.set_defaults(func=cmd_run)
+
+    preview = sub.add_parser(
+        "preview",
+        help="Preview the live terminal dashboard without launching an agent",
+    )
+    preview.add_argument("path", nargs="?", default=".")
+    preview.add_argument("--seconds", type=float, default=6.0)
+    preview.set_defaults(func=cmd_preview)
 
     report = sub.add_parser("report", help="Report measured runtime token and transition data")
     report.add_argument("path", nargs="?", default=".")

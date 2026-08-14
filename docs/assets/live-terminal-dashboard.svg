@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">RSAW Live Terminal dashboard</title>
+  <desc id="desc">A terminal-native dashboard showing an active EdgeFlow workstream, current activity, lifecycle progress, context pressure, token reuse, and recent events.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#020617" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="760" fill="#020617"/>
+  <circle cx="1130" cy="90" r="210" fill="#0f766e" opacity="0.12"/>
+  <circle cx="120" cy="690" r="260" fill="#2563eb" opacity="0.1"/>
+  <rect x="54" y="44" width="1172" height="672" rx="24" fill="url(#bg)" stroke="#334155" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="54" y="44" width="1172" height="58" rx="24" fill="#0f172a"/>
+  <rect x="54" y="80" width="1172" height="22" fill="#0f172a"/>
+  <circle cx="88" cy="73" r="7" fill="#fb7185"/>
+  <circle cx="112" cy="73" r="7" fill="#facc15"/>
+  <circle cx="136" cy="73" r="7" fill="#4ade80"/>
+  <text x="640" y="80" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" text-anchor="middle">VS Code Integrated Terminal · rsaw run . --agent codex</text>
+
+  <text x="88" y="142" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="25" font-weight="700">RSAW · EdgeFlow Core</text>
+  <text x="1190" y="142" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" font-weight="700" text-anchor="end">● WORKING</text>
+  <text x="88" y="174" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">Builder · Runtime epoch 03 · EDGEFLOW_CORE_001</text>
+
+  <line x1="88" y1="198" x2="1192" y2="198" stroke="#334155"/>
+  <text x="88" y="237" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">NOW</text>
+  <text x="155" y="237" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22">⠹</text>
+  <text x="190" y="237" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" font-weight="700">Running focused validation</text>
+  <text x="190" y="269" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">pytest tests/runtime/test_gpu_observer.py</text>
+
+  <text x="88" y="325" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">PROGRESS</text>
+  <text x="190" y="325" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">E04</text>
+  <text x="245" y="325" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" font-weight="700">GPU Observability Diagnostic</text>
+  <text x="190" y="363" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">✓ Design</text>
+  <text x="315" y="363" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">✓ Implement</text>
+  <text x="465" y="363" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">● Validate</text>
+  <text x="605" y="363" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">○ Run</text>
+  <text x="700" y="363" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">○ Analyze</text>
+  <text x="190" y="402" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Accepted checkpoint</text>
+  <text x="410" y="402" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">6</text>
+  <text x="520" y="402" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Next</text>
+  <text x="590" y="402" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">CONTINUE · same context</text>
+
+  <text x="88" y="463" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">CONTEXT PRESSURE</text>
+  <text x="1190" y="463" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="700" text-anchor="end">GOOD</text>
+  <rect x="88" y="484" width="1104" height="18" rx="9" fill="#1e293b"/>
+  <rect x="88" y="484" width="751" height="18" rx="9" fill="url(#bar)"/>
+  <text x="850" y="501" fill="#e2e8f0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">68%</text>
+  <text x="88" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Input</text>
+  <text x="150" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">41.2k</text>
+  <text x="300" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Cached</text>
+  <text x="385" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">34.8k · 84%</text>
+  <text x="620" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Fresh</text>
+  <text x="690" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">6.4k</text>
+  <text x="870" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Rotate at</text>
+  <text x="972" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">60.0k</text>
+
+  <text x="88" y="598" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">RECENT</text>
+  <text x="190" y="598" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">✓ Checkpoint 6 accepted · 18 tests passed</text>
+  <text x="190" y="630" fill="#60a5fa" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">◆ Updated telemetry.py</text>
+  <text x="190" y="662" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">◇ Inspected gpu_observer.py</text>
+
+  <line x1="88" y1="680" x2="1192" y2="680" stroke="#334155"/>
+  <text x="88" y="704" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">Durable 3s ago</text>
+  <text x="640" y="704" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" text-anchor="middle">Gate NONE</text>
+  <text x="1192" y="704" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" text-anchor="end">Runtime 31m · RSAW 0.4</text>
+</svg>

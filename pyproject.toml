@@ -4,12 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repository-state-agent-workflow"
-version = "0.3.0"
-description = "Repository-backed workstreams with bounded context epochs and automatic agent rotation"
+version = "0.4.0"
+description = "Repository-backed workstreams, bounded context epochs, and live agent-runtime observability"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Hank" }]
+dependencies = [
+  "rich>=14.2,<16",
+]
 keywords = [
   "coding-agents",
   "ai-agents",
@@ -19,6 +22,8 @@ keywords = [
   "persistent-workstreams",
   "context-rotation",
   "runtime-supervisor",
+  "terminal-ui",
+  "agent-observability",
   "progressive-disclosure",
   "developer-tools",
   "software-engineering",

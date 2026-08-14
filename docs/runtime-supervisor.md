@@ -1,28 +1,31 @@
 # Runtime Supervisor
 
 RSAW Core decides whether repository work should continue, rotate, pause, or
-complete. The Runtime Supervisor executes that decision for a local agent.
+complete. The Runtime Supervisor executes that decision for a local agent. RSAW 0.4
+adds a Live Terminal Console downstream from the same deterministic lifecycle.
 
-## Why it exists
-
-RSAW 0.2 could generate a fresh prompt, but a human still had to create the next
-agent session. That made `ROTATE_REQUIRED` a manual relay even though the
-workstream itself was not blocked.
-
-RSAW 0.3 separates:
+## Separation of responsibility
 
 ```text
-Persistent supervisor   long-lived, deterministic, no conversational memory
-Agent thread             bounded, replaceable working context
-Repository               durable authority
+Repository                 durable authority
+Persistent supervisor      deterministic lifecycle owner
+Agent thread               bounded, replaceable working context
+Live Terminal Console      operator observability only
 ```
+
+The UI may observe runtime events. It never decides the next action or mutates
+repository authority.
 
 ## Start
 
 ```bash
 rsaw doctor . --agent codex
+rsaw preview .
 rsaw run . --agent codex
 ```
+
+Interactive terminals receive the live console. Use `--no-tui` for plain output.
+Non-TTY, CI, JSON, quiet, and dry-run execution falls back automatically.
 
 ## Runtime actions
 
@@ -30,7 +33,7 @@ rsaw run . --agent codex
 |---|---|---|---|
 | CONTINUE | running | resume current thread | none |
 | ROTATE | running | start fresh thread | none |
-| PAUSE | paused | close/wait | required |
+| PAUSE | paused | close or wait | required |
 | COMPLETE | terminal | close | none |
 
 Repository metadata remains backward compatible:
@@ -42,8 +45,8 @@ Repository metadata remains backward compatible:
 
 ## One checkpoint per turn
 
-The supervisor asks each model turn to complete one durable repository
-checkpoint. After the turn it verifies:
+The supervisor asks each model turn to complete one durable repository checkpoint.
+After the turn it verifies:
 
 1. Codex exited successfully;
 2. `ACTIVE.md` changed;
@@ -52,32 +55,44 @@ checkpoint. After the turn it verifies:
 
 A turn that returns success but leaves repository state unchanged fails closed.
 
+The supervisor emits presentation events before and after observable lifecycle
+steps, including turn start, repository verification, checkpoint acceptance,
+rotation scheduling, and terminal state. Those events are also stored in the normal
+runtime event log.
+
 ## Automatic rotation
 
-ROTATE starts a new `codex exec` thread. CONTINUE uses `codex exec resume` with
-the thread ID emitted by the preceding JSON event stream.
+ROTATE starts a new `codex exec` thread. CONTINUE uses `codex exec resume` with the
+thread ID emitted by the preceding JSON event stream.
 
 The supervisor also forces rotation when:
 
 - `max_turns_per_epoch` is reached;
-- the latest turn's input usage reaches `rotate_input_tokens`;
+- the latest turn's input reaches `rotate_input_tokens`;
 - a human gate was just resolved;
-- repository state requests a role/scientific boundary.
+- repository state requests a role, review, or scientific boundary.
+
+The Live Console briefly visualizes the transition, but does not delay or authorize
+it.
 
 ## Human gates
 
-In an interactive terminal, PAUSE prints the exact gate and accepts a human
-response. RSAW runs a fresh gate-resolution turn whose only job is to apply or
-reject the response through existing repository governance. The response is not
-stored in plaintext in runtime telemetry; only its SHA-256 is logged.
+In an interactive terminal, PAUSE displays the exact gate and accepts a human
+response. RSAW temporarily releases live rendering, then runs a fresh gate-resolution
+turn whose only job is to apply or reject the response through existing repository
+governance.
 
-Non-interactive mode exits with a PAUSED status instead of inventing approval.
+The response is not stored in plaintext in runtime telemetry; only its SHA-256 is
+logged. Non-interactive mode exits with PAUSED rather than inventing approval.
 
 ## Failure semantics
 
-RSAW does not automatically retry a failed agent turn. It records a terminal
-summary and leaves repository evidence untouched. The next action must come from
-repository governance or a human decision.
+RSAW does not automatically retry a failed agent turn. It records a terminal summary
+and leaves repository evidence untouched. The FAILED console state shows the concise
+reason and evidence path; it never hides or replaces the underlying failure.
+
+Presentation errors are isolated. A TUI event sink cannot cause an agent turn or
+supervisor transition to fail.
 
 ## Runtime files
 
@@ -91,8 +106,8 @@ repository governance or a human decision.
     └── turn-0001-last-message.txt
 ```
 
-These files are ignored by default. Runtime summaries contain usage and
-transition metadata, not hidden chain-of-thought.
+These files are ignored by default. Runtime summaries contain usage and transition
+metadata, not hidden chain-of-thought.
 
 ## Limits
 
@@ -106,5 +121,5 @@ rsaw run . \
   --max-total-input-tokens 2000000
 ```
 
-Limits protect the project from an unbounded controller loop; they are not
-claims about an optimal context size.
+Limits protect the project from an unbounded controller loop; they are not claims
+about an optimal context size.
