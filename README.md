@@ -10,7 +10,7 @@
 
 <p align="center">
   A Markdown-first operating model and small CLI for low-context, high-quality coding-agent work.<br/>
-  Move continuity out of hidden conversations and into versioned repository state.
+  Continuity lives in versioned repository files — not in a hidden, ever-growing chat history.
 </p>
 
 <p align="center">
@@ -21,57 +21,49 @@
 </p>
 
 <p align="center">
-  <a href="#five-minute-start">Quick start</a> ·
-  <a href="#measured-adoption-evidence">Adoption evidence</a> ·
+  <a href="#what-is-rsaw">What is RSAW</a> ·
   <a href="#how-it-works">How it works</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#measured-results">Measured results</a> ·
   <a href="docs/company-adoption.md">Company adoption</a> ·
   <a href="README.zh-TW.md">繁體中文</a>
 </p>
 
 ---
 
-## Why RSAW
+## What is RSAW?
 
-Long-running coding-agent conversations often become accidental state stores. They accumulate stale source snapshots, old logs, failed attempts, completed tasks, obsolete decisions, and repeated project explanations. Every later model call must reason through that mixture again.
+**RSAW (Repository-State Agent Workflow)** is a way of running coding agents — Claude Code, Cursor, Codex, aider, or any other — where the **Git repository itself is the agent's memory**.
 
-RSAW replaces hidden conversational continuity with a small, auditable repository contract:
+Instead of one endless conversation that slowly fills with stale code snippets, old logs, and forgotten decisions, every RSAW session:
 
-| Problem | RSAW response |
-|---|---|
-| Growing conversation history | Fresh, bounded sessions |
-| Hidden current state | Versioned `ACTIVE.md` handoff |
-| Broad mandatory preload | Three-file bootstrap plus progressive disclosure |
-| Repeated investigation | Durable evidence and explicit next action |
-| Validation weakened to save context | Staged V0–V3 evidence gates |
-| Builder history contaminates review | Fresh, role-separated reviewer sessions |
+1. **starts fresh** and reads only three small Markdown files (typically ~3K tokens, not ~30K+);
+2. **does exactly one bounded task**, pulling in extra files only when that task needs them;
+3. **validates the result** against explicit evidence gates;
+4. **writes the next state back into the repository** (`ACTIVE.md`) and stops.
+
+The next session — human or agent, today or next month, in any tool — picks up from the repository, not from a chat transcript.
 
 > **Repository state is authoritative. Conversation history is disposable.**
 
+The project ships as a methodology (Markdown templates and conventions), a small deterministic CLI (`rsaw`) that verifies and measures the setup, and worked examples for software, ML, data, and research repositories.
+
 ---
 
-## Measured adoption evidence
+## The problem
 
-### Desk Code Agent — preliminary V1 result
+Long-running agent conversations become accidental state stores. They accumulate stale source snapshots, failed attempts, completed tasks, obsolete decisions, and repeated project explanations — and every later model call must reason through that mixture again. The context is hidden, unversioned, and impossible to hand off.
 
-Desk Code Agent replaced a broad mandatory project bootstrap with the RSAW three-file contract: `AGENTS.md`, `ACTIVE.md`, and one active task specification.
+RSAW replaces that hidden continuity with a small, auditable repository contract:
 
-| Metric | Previous workflow | RSAW V1 | Change |
-|---|---:|---:|---:|
-| Fresh-session bootstrap estimate | 33,348 | **2,967** | **-30,381** |
-| Relative reduction | — | — | **91.10%** |
-
-| RSAW bootstrap component | Estimated tokens |
-|---|---:|
-| `AGENTS.md` | 1,639 |
-| `ACTIVE.md` | 432 |
-| Active task | 896 |
-| **Total** | **2,967** |
-
-`rsaw verify`: **PASS**
-
-> **Claim boundary:** this is a `BOOTSTRAP_CONTEXT_ESTIMATE`. It is not measured provider billing savings, cached-input savings, full-task context reduction, or evidence that engineering quality improved by 91.10%.
-
-V2 closure and task-level continuity/quality measurements remain pending. Read the [full case study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md), browse the [case-study index](docs/case-studies/README.md), or use the [machine-readable result](data/case-studies/desk-code-agent-rsaw-v1.json).
+| Problem with chat-as-memory | RSAW response |
+|---|---|
+| Growing conversation history | Fresh, bounded sessions |
+| Current state hidden in the chat | Versioned `ACTIVE.md` handoff |
+| Broad mandatory project preload | Three-file bootstrap + progressive disclosure |
+| Repeated investigation of the same things | Durable evidence and an explicit next action |
+| Validation weakened to save context | Staged V0–V3 evidence gates |
+| Reviewer contaminated by builder history | Fresh, role-separated reviewer sessions |
 
 ---
 
@@ -79,75 +71,52 @@ V2 closure and task-level continuity/quality measurements remain pending. Read t
 
 A session starts small, expands only when the active task requires evidence, validates the result, records the next state, and stops.
 
-```mermaid
-flowchart LR
-    subgraph BOOT["01 · Bootstrap"]
-        direction TB
-        R["📦 Repository state<br/>Git · ADRs · tests · evidence"]
-        S["✨ Fresh agent session"]
-        B["📖 Minimal context<br/>AGENTS.md · ACTIVE.md · active task"]
-        R --> S --> B
-    end
-
-    subgraph WORK["02 · Bounded work"]
-        direction TB
-        D{"Need more context?"}
-        X["🔎 Read one exact dependency"]
-        E["🛠️ Execute one bounded task"]
-        D -- "Yes" --> X --> E
-        D -- "No" --> E
-    end
-
-    subgraph VERIFY["03 · Validate"]
-        direction TB
-        V["🧪 Targeted validation"]
-        C["✅ Closure validation"]
-        V --> C
-    end
-
-    subgraph HANDOFF["04 · Handoff"]
-        direction TB
-        H["📝 Update ACTIVE.md"]
-        T["⏹ Stop"]
-        N["🔄 Next fresh session"]
-        H --> T --> N
-    end
-
-    B --> D
-    E --> V
-    C --> H
-    N -. "continuity lives in Git" .-> R
-
-    classDef source fill:#0f172a,stroke:#38bdf8,color:#f8fafc,stroke-width:2px;
-    classDef session fill:#ecfeff,stroke:#0891b2,color:#164e63,stroke-width:1.5px;
-    classDef decision fill:#fff7ed,stroke:#f97316,color:#7c2d12,stroke-width:1.5px;
-    classDef work fill:#f5f3ff,stroke:#8b5cf6,color:#4c1d95,stroke-width:1.5px;
-    classDef verify fill:#f0fdf4,stroke:#22c55e,color:#14532d,stroke-width:1.5px;
-    classDef handoff fill:#fdf2f8,stroke:#ec4899,color:#831843,stroke-width:1.5px;
-    classDef stop fill:#f8fafc,stroke:#64748b,color:#0f172a,stroke-width:1.5px;
-
-    class R source;
-    class S,B,N session;
-    class D decision;
-    class X,E work;
-    class V,C verify;
-    class H handoff;
-    class T stop;
-```
+<p align="center">
+  <img src="docs/assets/workflow.svg" alt="RSAW session loop: bootstrap, bounded work, validate, handoff — continuity lives in Git" width="100%" />
+</p>
 
 ### The three-file bootstrap
 
+Every fresh session reads exactly three artifacts — nothing else is preloaded:
+
 | Artifact | Responsibility | Update pattern |
 |---|---|---|
-| `AGENTS.md` | Stable policy, safety, build rules, validation, navigation | Rarely |
+| `AGENTS.md` | Stable policy: safety, build rules, validation, navigation | Rarely |
 | `ACTIVE.md` | Tiny current handoff: state, blocker, next action, stop condition | At meaningful boundaries |
 | `docs/tasks/<task>.md` | One bounded task and its acceptance criteria | Once per task |
 
-Git, ADRs, tests, reports, and artifacts remain durable evidence—but are read only when the active task needs them.
+Git history, ADRs, tests, reports, and artifacts remain durable evidence — read only when the active task needs them (**progressive disclosure**).
+
+### What a handoff looks like
+
+`ACTIVE.md` is deliberately tiny. A real handoff reads like this:
+
+```markdown
+# Active Handoff
+
+## Active Task
+ID: T-042
+Spec: docs/tasks/T-042-streaming-parser.md
+
+## Current State
+- Chunk boundary handling implemented and unit-tested.
+- Integration test for multi-frame input still failing.
+
+## Blockers
+None.
+
+## Next Exact Action
+Fix frame reassembly in src/parser/stream.py; rerun tests/test_stream.py.
+
+## Stop Condition
+All parser tests pass and ACTIVE.md points to the next task.
+```
+
+Any fresh session — in any tool — can pick this up and continue with zero conversation history.
 
 ---
 
-## Five-minute start
+## Quick start
 
 ### 1. Install
 
@@ -164,16 +133,18 @@ rsaw init /path/to/your-project
 cd /path/to/your-project
 ```
 
-The initializer is conservative: it creates missing workflow files and does not overwrite existing project state unless `--force` is explicitly used.
+The initializer is conservative: it creates missing workflow files and never overwrites existing project state unless `--force` is explicitly used.
 
-### 3. Verify the active handoff and footprint
+### 3. Verify the handoff and measure the footprint
 
 ```bash
-rsaw verify .
-rsaw footprint .
+rsaw verify .      # validate ACTIVE.md and task references
+rsaw footprint .   # estimate fresh-session bootstrap context
 ```
 
 ### 4. Start a fresh agent session
+
+Paste this into any coding agent:
 
 ```text
 Work in this repository.
@@ -197,6 +168,37 @@ rsaw prompt . --role builder
 
 ---
 
+## Measured results
+
+### Desk Code Agent — preliminary V1 result
+
+Desk Code Agent replaced a broad mandatory project bootstrap with the RSAW three-file contract (`AGENTS.md`, `ACTIVE.md`, and one active task specification):
+
+| Metric | Previous workflow | RSAW V1 | Change |
+|---|---:|---:|---:|
+| Fresh-session bootstrap estimate (tokens) | 33,348 | **2,967** | **−30,381** |
+| Relative reduction | — | — | **91.1%** |
+
+<details>
+<summary>Bootstrap component breakdown</summary>
+
+| RSAW bootstrap component | Estimated tokens |
+|---|---:|
+| `AGENTS.md` | 1,639 |
+| `ACTIVE.md` | 432 |
+| Active task | 896 |
+| **Total** | **2,967** |
+
+`rsaw verify`: **PASS**
+
+</details>
+
+> **Claim boundary:** this is a `BOOTSTRAP_CONTEXT_ESTIMATE`. It is not measured provider billing savings, cached-input savings, full-task context reduction, or evidence that engineering quality improved by 91.1%.
+
+V2 closure and task-level continuity/quality measurements remain pending. Read the [full case study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md), browse the [case-study index](docs/case-studies/README.md), or use the [machine-readable result](data/case-studies/desk-code-agent-rsaw-v1.json).
+
+---
+
 ## Operating model
 
 ### Core principles
@@ -205,7 +207,7 @@ rsaw prompt . --role builder
 2. **One substantial task per session** — stop at completion, closure, a major blocker, reviewer handoff, or decision boundary.
 3. **Progressive disclosure** — read exact source, tests, ADRs, reports, and logs only when the active task requires them.
 4. **Evidence-gated quality** — smaller context never justifies weaker validation.
-5. **Role separation** — builders, reviewers, and decision sessions use different, bounded context.
+5. **Role separation** — builder, reviewer, and decision sessions use different, bounded context.
 
 ### Validation tiers
 
@@ -234,13 +236,28 @@ For medium-reasoning models, major decisions use two passes: evidence decomposit
 rsaw init .                            # Add the workflow conservatively
 rsaw verify .                          # Validate ACTIVE and task references
 rsaw footprint .                       # Estimate fresh bootstrap context
-rsaw archive . --label T-042-complete # Archive a meaningful boundary
+rsaw archive . --label T-042-complete  # Archive a meaningful boundary
 rsaw prompt . --role builder           # Render a minimal builder prompt
 rsaw prompt . --role reviewer          # Render a fresh reviewer prompt
 rsaw prompt . --role decision          # Render a decision prompt
 ```
 
 The CLI is a deterministic guardrail, not an orchestration platform. Markdown and Git remain the canonical state.
+
+---
+
+## How RSAW compares
+
+| Approach | Strength | Limitation RSAW addresses |
+|---|---|---|
+| One long conversation | Rich immediate history | Hidden, growing, stale, difficult to hand off |
+| Conversation summary | Compact | Potentially lossy and not independently executable |
+| Vector/RAG memory | Flexible retrieval | Retrieval quality and staleness become hidden dependencies |
+| Issue tracker only | Strong planning and accountability | Usually lacks agent bootstrap, evidence pointers, and stop contract |
+| Agent orchestration framework | Automation and parallelism | Can become another opaque state owner |
+| **RSAW** | Explicit, versioned, tool-agnostic continuity | Requires disciplined maintenance of small repository artifacts |
+
+RSAW complements issue trackers, retrieval systems, and orchestrators; it does not require replacing them.
 
 ---
 
@@ -257,89 +274,35 @@ See the [Adoption Guide](docs/adoption-guide.md), [Company Adoption and Governan
 
 ---
 
-## Evaluation and research
-
-RSAW treats lower context as a hypothesis to test—not a quality result by itself. A credible study should measure:
-
-- bootstrap and routine working-set context;
-- cached and uncached inputs where provider accounting is available;
-- task completion and closure validation;
-- repeated work and stale-state errors;
-- fresh-session handoff success;
-- independent review findings and escaped defects;
-- elapsed time and human intervention.
-
-The primary unit should normally be a task or matched task stream, not an individual model call.
-
-Start with:
-
-- [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)
-- [Case Studies Index](docs/case-studies/README.md)
-- [Evaluation](docs/evaluation.md)
-- [Research Methodology](docs/research-methodology.md)
-- [Case Study Template](docs/case-study-template.md)
-- [Token Economics](docs/token-economics.md)
-
-The illustrative token-economics examples are not pricing guarantees, and one repository must not be generalized to all models, agents, or organizations.
-
----
-
-## How RSAW differs
-
-| Approach | Strength | Limitation RSAW addresses |
-|---|---|---|
-| One long conversation | Rich immediate history | Hidden, growing, stale, difficult to hand off |
-| Conversation summary | Compact | Potentially lossy and not independently executable |
-| Vector/RAG memory | Flexible retrieval | Retrieval quality and staleness become hidden dependencies |
-| Issue tracker only | Strong planning and accountability | Usually lacks agent bootstrap, evidence pointers, and stop contract |
-| Agent orchestration framework | Automation and parallelism | Can become another opaque state owner |
-| **RSAW** | Explicit, versioned, tool-agnostic continuity | Requires disciplined maintenance of small repository artifacts |
-
-RSAW complements issue trackers, retrieval systems, and orchestrators; it does not require replacing them.
-
----
-
 ## Examples
+
+Each example is a self-contained mini-repository with its own `AGENTS.md`, `ACTIVE.md`, and active task:
 
 - [Software feature](examples/software-project/) — streaming parser implementation
 - [ML experiment](examples/ml-experiment/) — frozen holdout execution
 - [Data pipeline](examples/data-pipeline/) — dual-write migration
 - [Research repository](examples/research-repo/) — bounded scientific ticket
 
-Each example contains its own `AGENTS.md`, `ACTIVE.md`, and active task.
+---
+
+## Evaluation and research
+
+RSAW treats lower context as a hypothesis to test — not a quality result by itself. A credible study should measure bootstrap and routine working-set context; cached and uncached inputs where provider accounting is available; task completion and closure validation; repeated work and stale-state errors; fresh-session handoff success; independent review findings and escaped defects; and elapsed time and human intervention. The primary unit should normally be a task or matched task stream, not an individual model call.
+
+Start with the [Desk Code Agent V1 case study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md), the [Evaluation guide](docs/evaluation.md), the [Research Methodology](docs/research-methodology.md), and the [Case Study Template](docs/case-study-template.md). The illustrative [token-economics](docs/token-economics.md) examples are not pricing guarantees, and one repository must not be generalized to all models, agents, or organizations.
 
 ---
 
 ## Documentation
 
-### Start here
-
-- [Concepts](docs/concepts.md)
-- [Architecture](docs/architecture.md)
-- [Adoption Guide](docs/adoption-guide.md)
-- [Company Adoption and Governance](docs/company-adoption.md)
-- [Migration Playbook](docs/migration-playbook.md)
-
-### Operate the workflow
-
-- [Session Lifecycle](docs/session-lifecycle.md)
-- [Progressive Disclosure](docs/progressive-disclosure.md)
-- [Validation Tiers](docs/validation-tiers.md)
-- [Agent Roles](docs/agent-roles.md)
-- [Long-Running Work](docs/long-running-work.md)
-- [Scientific and ML Workflows](docs/scientific-and-ml-workflows.md)
-
-### Evaluate and extend
-
-- [Desk Code Agent V1 Case Study](docs/case-studies/desk-code-agent-rsaw-v1-bootstrap.md)
-- [Case Studies Index](docs/case-studies/README.md)
-- [Evaluation](docs/evaluation.md)
-- [Research Methodology](docs/research-methodology.md)
-- [Token Economics](docs/token-economics.md)
-- [Case Study Template](docs/case-study-template.md)
-- [Anti-Patterns](docs/anti-patterns.md)
-- [FAQ](docs/faq.md)
-- [References](docs/references.md)
+| Start here | Operate the workflow | Evaluate and extend |
+|---|---|---|
+| [Concepts](docs/concepts.md) | [Session Lifecycle](docs/session-lifecycle.md) | [Case Studies Index](docs/case-studies/README.md) |
+| [Architecture](docs/architecture.md) | [Progressive Disclosure](docs/progressive-disclosure.md) | [Evaluation](docs/evaluation.md) |
+| [Adoption Guide](docs/adoption-guide.md) | [Validation Tiers](docs/validation-tiers.md) | [Research Methodology](docs/research-methodology.md) |
+| [Company Adoption](docs/company-adoption.md) | [Agent Roles](docs/agent-roles.md) | [Token Economics](docs/token-economics.md) |
+| [Migration Playbook](docs/migration-playbook.md) | [Long-Running Work](docs/long-running-work.md) | [Anti-Patterns](docs/anti-patterns.md) |
+| | [Scientific & ML Workflows](docs/scientific-and-ml-workflows.md) | [FAQ](docs/faq.md) · [References](docs/references.md) |
 
 ---
 
@@ -347,15 +310,7 @@ Each example contains its own `AGENTS.md`, `ACTIVE.md`, and active task.
 
 **Status:** Alpha reference implementation. The methodology, templates, examples, verifier, footprint estimator, archive helper, and prompt renderer are usable; broader empirical validation remains open.
 
-RSAW is deliberately **not**:
-
-- an autonomous project manager;
-- a model vendor wrapper;
-- a replacement for GitHub Issues, Linear, Jira, retrieval, or orchestration;
-- an automatic conversation summarizer;
-- a database of private conversations;
-- a claim that every task fits in one session;
-- a reason to weaken tests or human review.
+RSAW is deliberately **not**: an autonomous project manager; a model vendor wrapper; a replacement for GitHub Issues, Linear, Jira, retrieval, or orchestration; an automatic conversation summarizer; a database of private conversations; a claim that every task fits in one session; or a reason to weaken tests or human review.
 
 The design stays inspectable: Markdown, Git, deterministic checks, and project-owned evidence.
 
