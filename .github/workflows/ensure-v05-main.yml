@@ -1,0 +1,101 @@
+name: Ensure validated RSAW 0.5 reaches main
+
+on:
+  push:
+    branches:
+      - ops/ensure-v05-main
+
+permissions:
+  contents: write
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/token-efficient-runtime-v5-clean
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Require validated release receipt
+        run: |
+          test -f docs/releases/rsaw-v5-validation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('docs/releases/rsaw-v5-validation.json').read_text())
+          assert p['release']=='0.5.0' and p['status']=='VALIDATED'
+          PY
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check .
+      - run: pytest -q
+      - run: rsaw verify .
+      - run: rsaw context . --strict
+      - run: rsaw footprint . --max-tokens 15000
+      - run: rsaw run . --dry-run
+      - run: rsaw report . --json
+      - run: python scripts/check_markdown_links.py .
+
+  publish:
+    needs: compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fetch validated release candidate
+        run: git fetch origin feat/token-efficient-runtime-v5-clean:refs/remotes/origin/feat/token-efficient-runtime-v5-clean
+      - name: Replace main tree with the validated product tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout origin/feat/token-efficient-runtime-v5-clean -- .
+          rm -f .github/workflows/apply-v05-upgrade.yml
+          rm -f .github/workflows/finalize-v05-upgrade.yml
+          rm -f .github/workflows/release-v05-upgrade.yml
+          rm -f .github/workflows/build-v05-clean.yml
+          rm -f .github/workflows/merge-v05-clean.yml
+          rm -f .github/workflows/ensure-v05-main.yml
+          rm -f scripts/apply_v05_core.py scripts/apply_v05_docs.py scripts/apply_v05_fixes.py
+          test -f docs/releases/rsaw-v5-validation.json
+          grep -q 'version = "0.5.0"' pyproject.toml
+          test -f src/repo_state_agent/runtime/context.py
+          test -f src/repo_state_agent/runtime/rotation.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Final validation before publishing main
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw context . --strict
+          rsaw footprint . --max-tokens 15000
+          rsaw run . --dry-run
+          rsaw report . --json
+          python scripts/check_markdown_links.py .
+      - name: Commit only when main differs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'Main already contains the validated RSAW 0.5 tree.'
+          else
+            git diff --cached --stat
+            git commit -m 'feat: add cache-aware context runtime'
+            git push origin HEAD:main
+          fi
