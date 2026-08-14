@@ -1,9 +1,28 @@
 # Repository-State Workflow
 
-1. Read `AGENTS.md`, `ACTIVE.md`, and the active task.
-2. Execute one durable task checkpoint with progressive disclosure.
-3. Use V0/V1 during work and V2 once at epoch closure.
-4. Update `ACTIVE.md` with evidence and the next transition.
-5. Let the RSAW supervisor apply `CONTINUE`, `ROTATE`, `PAUSE`, or `COMPLETE`.
+## Authority
 
-Run manually with `rsaw prompt .`, or supervise Codex automatically with `rsaw run . --agent codex`.
+`AGENTS.md`, `ACTIVE.md`, the active task, accepted decisions, schemas, tests, and raw
+evidence are durable repository authority. Conversation history is not.
+
+## Context Plan
+
+Use `rsaw context .` to inspect the ordered bootstrap:
+
+```text
+stable prefix → dynamic authority → bounded required reads
+```
+
+Fresh epochs read the full minimal plan. Continued epochs reread dynamic authority and
+reuse stable policy only while its fingerprint is unchanged.
+
+## Runtime
+
+Every supervised turn closes one durable checkpoint. Verification then derives
+CONTINUE, ROTATE, PAUSE, or COMPLETE. Runtime pressure may force a fresh context, but
+must never weaken human, review, or scientific boundaries.
+
+## Measurement
+
+Track total input, cached input, fresh input, output, checkpoints, epochs, rotations,
+and wall time. Prefer fresh input per successful checkpoint over cache hit rate alone.

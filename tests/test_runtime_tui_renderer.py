@@ -25,9 +25,7 @@ Design → Implement → Validate → Run → Analyze
     (root / "docs/tasks/T-1.md").write_text(
         "# T-1 — GPU Observability Diagnostic\n", encoding="utf-8"
     )
-    (root / "docs/tasks/T-2.md").write_text(
-        "# T-2 — Formal Execution\n", encoding="utf-8"
-    )
+    (root / "docs/tasks/T-2.md").write_text("# T-2 — Formal Execution\n", encoding="utf-8")
     (root / "ACTIVE.md").write_text(
         """# Active Handoff
 
@@ -81,9 +79,7 @@ def _working_model(root: Path) -> DashboardModel:
     model.handle_supervisor_event(
         {"type": "runtime_epoch_started", "runtime_epoch": 3, "reason": "test"}
     )
-    model.handle_supervisor_event(
-        {"type": "agent_turn_started", "turn": 6, "mode": "continue"}
-    )
+    model.handle_supervisor_event({"type": "agent_turn_started", "turn": 6, "mode": "continue"})
     model.handle_codex_event(
         {
             "type": "item.started",
@@ -119,16 +115,12 @@ def _working_model(root: Path) -> DashboardModel:
             },
         }
     )
-    model.handle_supervisor_event(
-        {"type": "checkpoint_observed", "checkpoint": 6}
-    )
+    model.handle_supervisor_event({"type": "checkpoint_observed", "checkpoint": 6})
     return model
 
 
 def test_expanded_dashboard_answers_operator_questions(tmp_path: Path) -> None:
-    text = render_dashboard_text(
-        _working_model(tmp_path).snapshot(), width=110, compact=False
-    )
+    text = render_dashboard_text(_working_model(tmp_path).snapshot(), width=110, compact=False)
     assert "RSAW · EdgeFlow Core" in text
     assert "GPU Observability Diagnostic" in text
     assert "Validate" in text
@@ -142,9 +134,7 @@ def test_expanded_dashboard_answers_operator_questions(tmp_path: Path) -> None:
 
 
 def test_compact_dashboard_survives_narrow_terminal(tmp_path: Path) -> None:
-    text = render_dashboard_text(
-        _working_model(tmp_path).snapshot(), width=72, compact=True
-    )
+    text = render_dashboard_text(_working_model(tmp_path).snapshot(), width=72, compact=True)
     assert "NOW" in text
     assert "Checkpoint 6" in text
     assert "Fresh 6.4k" in text

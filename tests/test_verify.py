@@ -14,10 +14,14 @@ def _valid_repo(root: Path, *, continue_allowed: bool = False, role_change: bool
     (root / "docs/workstreams/W-1.md").write_text("# Workstream\n", encoding="utf-8")
     decision = "CONTINUE_ALLOWED" if continue_allowed else "ROTATE_REQUIRED"
     next_role = "Reviewer" if role_change else "Builder"
-    next_task = """## Next Task
+    next_task = (
+        """## Next Task
 ID: T-2
 Spec: docs/tasks/T-2.md
-""" if continue_allowed else "## Next Task\n\nNone.\n"
+"""
+        if continue_allowed
+        else "## Next Task\n\nNone.\n"
+    )
     (root / "ACTIVE.md").write_text(
         f"""# Active Handoff
 

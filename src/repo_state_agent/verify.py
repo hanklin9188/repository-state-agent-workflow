@@ -87,8 +87,7 @@ def verify_repository(
 
     if state.current_role and _role(state.current_role) not in VALID_ROLES:
         result.errors.append(
-            f"Context Epoch Role must be one of {sorted(VALID_ROLES)}; "
-            f"got {state.current_role!r}"
+            f"Context Epoch Role must be one of {sorted(VALID_ROLES)}; got {state.current_role!r}"
         )
 
     if state.reasoning.lower() not in VALID_REASONING:

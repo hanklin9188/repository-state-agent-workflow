@@ -21,9 +21,7 @@ class TokenUsage:
                 self.cache_write_input_tokens + other.cache_write_input_tokens
             ),
             output_tokens=self.output_tokens + other.output_tokens,
-            reasoning_output_tokens=(
-                self.reasoning_output_tokens + other.reasoning_output_tokens
-            ),
+            reasoning_output_tokens=(self.reasoning_output_tokens + other.reasoning_output_tokens),
         )
 
     def to_dict(self) -> dict[str, int]:

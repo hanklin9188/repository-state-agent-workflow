@@ -5,7 +5,7 @@ from pathlib import Path
 
 from repo_state_agent.runtime.codex import CodexAdapter
 
-SCRIPT = r'''import json
+SCRIPT = r"""import json
 import sys
 
 args = sys.argv[1:]
@@ -42,16 +42,14 @@ print(
     ),
     flush=True,
 )
-'''
+"""
 
 
 def _script(tmp_path: Path) -> Path:
     path = tmp_path / "fake_codex.py"
     path.write_text(SCRIPT, encoding="utf-8")
     wrapper = tmp_path / "codex-fake"
-    wrapper.write_text(
-        f'#!/bin/sh\nexec {sys.executable} {path} "$@"\n', encoding="utf-8"
-    )
+    wrapper.write_text(f'#!/bin/sh\nexec {sys.executable} {path} "$@"\n', encoding="utf-8")
     wrapper.chmod(0o755)
     return wrapper
 

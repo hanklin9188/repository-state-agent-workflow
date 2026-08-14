@@ -22,9 +22,7 @@ def utc_now() -> str:
 def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(temporary, path)
 
 
@@ -74,9 +72,7 @@ class RuntimeLock(AbstractContextManager["RuntimeLock"]):
                 self.path.unlink(missing_ok=True)
                 descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             else:
-                raise RuntimeLockError(
-                    f"Another RSAW supervisor owns {self.path}"
-                ) from None
+                raise RuntimeLockError(f"Another RSAW supervisor owns {self.path}") from None
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
             handle.write("\n")

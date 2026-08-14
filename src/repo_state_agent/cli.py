@@ -15,6 +15,7 @@ from .parsing import parse_active
 from .prompts import VALID_MODES, VALID_ROLES, render_prompt
 from .runtime.codex import CodexAdapter, CodexEventSink
 from .runtime.config import RuntimeConfig, load_runtime_config
+from .runtime.context import build_context_plan
 from .runtime.report import efficiency_view, load_runtime_summary
 from .runtime.supervisor import options_from_config, supervise
 from .runtime.tui import LiveDashboard, preview_dashboard, should_use_tui
@@ -84,14 +85,45 @@ def cmd_footprint(args: argparse.Namespace) -> int:
             rel = str(row.path.relative_to(root))
             print(f"{rel:50} {row.lines:7d} {row.bytes:9d} {row.approx_tokens:9d}")
         print("-" * 79)
-        print(
-            f"{'TOTAL':50} {total['lines']:7d} {total['bytes']:9d} "
-            f"{total['approx_tokens']:9d}"
-        )
+        print(f"{'TOTAL':50} {total['lines']:7d} {total['bytes']:9d} {total['approx_tokens']:9d}")
         print("Token estimate is approximate: UTF-8 text characters / 4.")
     if args.max_tokens is not None and total["approx_tokens"] > args.max_tokens:
         return 1
     return 0
+
+
+def cmd_context(args: argparse.Namespace) -> int:
+    root = _root(args.path)
+    config = load_runtime_config(root)
+    plan = build_context_plan(
+        root,
+        budget_tokens=config.bootstrap_token_budget,
+        max_files=config.max_context_files,
+        max_file_bytes=config.max_context_file_bytes,
+        include_workstream_spec=config.include_workstream_spec,
+    )
+    payload = plan.to_dict()
+    if args.json:
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"{'CATEGORY':10} {'TOKENS~':>9} {'BYTES':>9}  PATH")
+        for document in plan.documents:
+            print(
+                f"{document.category:10} {document.approx_tokens:9d} "
+                f"{document.bytes:9d}  {document.path}"
+            )
+        print("-" * 80)
+        print(f"TOTAL       {plan.total_tokens:9d} / {plan.budget_tokens} tokens")
+        print(f"STABLE      {plan.stable_tokens:9d} tokens")
+        print(f"DYNAMIC     {plan.dynamic_tokens:9d} tokens")
+        print(f"PREFIX      {plan.stable_fingerprint[:16]}")
+        print(f"DYNAMIC     {plan.dynamic_fingerprint[:16]}")
+        print(f"STATUS      {'PASS' if plan.ok else 'REVIEW'}")
+        for warning in plan.warnings:
+            print(f"WARNING: {warning}")
+        for error in plan.errors:
+            print(f"ERROR: {error}")
+    return 1 if args.strict and not plan.ok else 0
 
 
 def cmd_archive(args: argparse.Namespace) -> int:
@@ -154,8 +186,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 
 def cmd_next(args: argparse.Namespace) -> int:
-    root = _root(args.path)
-    payload = _state_payload(root)
+    payload = _state_payload(_root(args.path))
     result = {
         "action": payload["runtime_action"],
         "declared_decision": payload["declared_continuation"],
@@ -204,8 +235,7 @@ def _codex_adapter(
 def cmd_doctor(args: argparse.Namespace) -> int:
     root = _root(args.path)
     config = load_runtime_config(root)
-    adapter = _codex_adapter(args, config)
-    result = adapter.doctor()
+    result = _codex_adapter(args, config).doctor()
     if args.json:
         print(json.dumps(result.to_dict(), indent=2))
     else:
@@ -229,9 +259,7 @@ def _interactive_gate(state: ActiveState) -> str | None:
     print("Enter the exact human response for the repository gate.")
     print("Use :quit to leave the supervisor without changing repository state.")
     response = input("rsaw> ").strip()
-    if not response or response == ":quit":
-        return None
-    return response
+    return None if not response or response == ":quit" else response
 
 
 def _load_summary_for_result(root: Path, run_id: str) -> dict[str, Any] | None:
@@ -260,12 +288,32 @@ def cmd_run(args: argparse.Namespace) -> int:
             if args.rotate_input_tokens is not None
             else config.rotate_input_tokens
         ),
+        rotation_soft_input_tokens=(
+            args.rotation_soft_input_tokens
+            if args.rotation_soft_input_tokens is not None
+            else (
+                min(config.rotation_soft_input_tokens, int(args.rotate_input_tokens * 0.8))
+                if args.rotate_input_tokens is not None and args.rotate_input_tokens > 0
+                else config.rotation_soft_input_tokens
+            )
+        ),
+        max_fresh_input_tokens=(
+            args.max_fresh_input_tokens
+            if args.max_fresh_input_tokens is not None
+            else config.max_fresh_input_tokens
+        ),
+        min_cache_reuse_ratio=(
+            args.min_cache_reuse_ratio
+            if args.min_cache_reuse_ratio is not None
+            else config.min_cache_reuse_ratio
+        ),
         max_total_input_tokens=(
             args.max_total_input_tokens
             if args.max_total_input_tokens is not None
             else config.max_total_input_tokens
         ),
         wait_on_pause=bool(args.wait_on_pause or config.wait_on_pause),
+        enforce_context_budget=bool(args.enforce_context_budget or config.enforce_context_budget),
     )
     options = options_from_config(config, dry_run=args.dry_run, quiet=args.quiet)
     interactive = (
@@ -281,14 +329,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         quiet=bool(args.quiet),
         dry_run=bool(args.dry_run),
     )
-
-    dashboard: LiveDashboard | None = None
-    if use_tui:
-        dashboard = LiveDashboard(
-            root,
-            rotate_input_tokens=config.rotate_input_tokens,
-        )
-
+    dashboard = (
+        LiveDashboard(root, rotate_input_tokens=config.rotate_input_tokens) if use_tui else None
+    )
     adapter = _codex_adapter(
         args,
         config,
@@ -308,23 +351,17 @@ def cmd_run(args: argparse.Namespace) -> int:
                 gate_resolver=gate_resolver,
                 event_sink=dashboard.handle_supervisor_event,
             )
-            summary = _load_summary_for_result(root, result.run_id)
             dashboard.finalize(
                 status=result.status,
                 reason=result.reason,
                 summary_path=(
                     str(result.summary_path.relative_to(root)) if result.summary_path else ""
                 ),
-                summary=summary,
+                summary=_load_summary_for_result(root, result.run_id),
             )
             dashboard.settle()
     else:
-        result = supervise(
-            root,
-            adapter,
-            options,
-            gate_resolver=gate_resolver,
-        )
+        result = supervise(root, adapter, options, gate_resolver=gate_resolver)
 
     payload = {
         "status": result.status,
@@ -352,11 +389,7 @@ def cmd_preview(args: argparse.Namespace) -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
     config = load_runtime_config(root)
-    preview_dashboard(
-        root,
-        rotate_input_tokens=config.rotate_input_tokens,
-        seconds=args.seconds,
-    )
+    preview_dashboard(root, rotate_input_tokens=config.rotate_input_tokens, seconds=args.seconds)
     return 0
 
 
@@ -371,17 +404,20 @@ def cmd_report(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(view, indent=2))
     else:
-        print(f"RUN          {view['run_id']}")
-        print(f"STATUS       {view['status']} ({view['reason']})")
-        print(f"WORKSTREAM   {view['workstream']}")
-        print(f"TURNS        {view['agent_turns']}")
-        print(f"EPOCHS       {view['runtime_epochs']}")
-        print(f"FRESH/RESUME {view['fresh_turns']}/{view['resumed_turns']}")
-        print(f"CHECKPOINTS  {view['checkpoints_observed']}")
-        print(f"INPUT TOKENS {view['usage'].get('input_tokens', 0)}")
-        print(f"CACHED INPUT {view['usage'].get('cached_input_tokens', 0)}")
-        print(f"OUTPUT       {view['usage'].get('output_tokens', 0)}")
-        print(f"TOKENS/CLOSE {view['input_tokens_per_checkpoint']}")
+        print(f"RUN             {view['run_id']}")
+        print(f"STATUS          {view['status']} ({view['reason']})")
+        print(f"WORKSTREAM      {view['workstream']}")
+        print(f"TURNS           {view['agent_turns']}")
+        print(f"EPOCHS          {view['runtime_epochs']}")
+        print(f"FRESH/RESUME    {view['fresh_turns']}/{view['resumed_turns']}")
+        print(f"CHECKPOINTS     {view['checkpoints_observed']}")
+        print(f"INPUT TOKENS    {view['usage'].get('input_tokens', 0)}")
+        print(f"CACHED INPUT    {view['usage'].get('cached_input_tokens', 0)}")
+        print(f"FRESH INPUT     {view['fresh_input_tokens']}")
+        print(f"CACHE REUSE     {view['cache_reuse_ratio']}")
+        print(f"INPUT/CHECK     {view['input_tokens_per_checkpoint']}")
+        print(f"FRESH/CHECK     {view['fresh_input_tokens_per_checkpoint']}")
+        print(f"OUTPUT          {view['usage'].get('output_tokens', 0)}")
     return 0
 
 
@@ -394,9 +430,7 @@ def _add_codex_options(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="rsaw", description="Repository-State Agent Workflow"
-    )
+    parser = argparse.ArgumentParser(prog="rsaw", description="Repository-State Agent Workflow")
     sub = parser.add_subparsers(dest="command", required=True)
 
     init = sub.add_parser("init", help="Initialize a plug-and-play RSAW workstream")
@@ -428,6 +462,12 @@ def build_parser() -> argparse.ArgumentParser:
     footprint.add_argument("--json", action="store_true")
     footprint.set_defaults(func=cmd_footprint)
 
+    context = sub.add_parser("context", help="Inspect the ordered cache-aware context plan")
+    context.add_argument("path", nargs="?", default=".")
+    context.add_argument("--json", action="store_true")
+    context.add_argument("--strict", action="store_true")
+    context.set_defaults(func=cmd_context)
+
     archive = sub.add_parser("archive", help="Archive ACTIVE.md")
     archive.add_argument("path", nargs="?", default=".")
     archive.add_argument("--label", required=True)
@@ -458,34 +498,29 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--json", action="store_true")
     run.add_argument("--quiet", action="store_true")
     tui = run.add_mutually_exclusive_group()
-    tui.add_argument(
-        "--tui",
-        action="store_true",
-        help="Force the live terminal dashboard when stdout is interactive",
-    )
-    tui.add_argument(
-        "--no-tui",
-        action="store_true",
-        help="Use the plain log-oriented supervisor output",
-    )
+    tui.add_argument("--tui", action="store_true", help="Force the live terminal dashboard")
+    tui.add_argument("--no-tui", action="store_true", help="Use plain log output")
     run.add_argument("--no-interactive-gates", action="store_true")
     run.add_argument("--wait-on-pause", action="store_true")
     run.add_argument("--max-transitions", type=int)
     run.add_argument("--max-turns-per-epoch", type=int)
     run.add_argument("--rotate-input-tokens", type=int)
+    run.add_argument("--rotation-soft-input-tokens", type=int)
+    run.add_argument("--max-fresh-input-tokens", type=int)
+    run.add_argument("--min-cache-reuse-ratio", type=float)
     run.add_argument("--max-total-input-tokens", type=int)
+    run.add_argument("--enforce-context-budget", action="store_true")
     _add_codex_options(run)
     run.set_defaults(func=cmd_run)
 
     preview = sub.add_parser(
-        "preview",
-        help="Preview the live terminal dashboard without launching an agent",
+        "preview", help="Preview the live terminal dashboard without launching an agent"
     )
     preview.add_argument("path", nargs="?", default=".")
     preview.add_argument("--seconds", type=float, default=6.0)
     preview.set_defaults(func=cmd_preview)
 
-    report = sub.add_parser("report", help="Report measured runtime token and transition data")
+    report = sub.add_parser("report", help="Report runtime context and transition efficiency")
     report.add_argument("path", nargs="?", default=".")
     report.add_argument("--run-id")
     report.add_argument("--json", action="store_true")
@@ -495,10 +530,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    args = build_parser().parse_args(argv)
     return int(args.func(args))
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     sys.exit(main())

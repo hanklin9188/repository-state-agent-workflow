@@ -4,59 +4,59 @@
 
 Branch: resolve with `git branch --show-current`
 HEAD: resolve with `git rev-parse HEAD`
-Status: RSAW 0.4 Live Runtime Console release candidate
+Status: RSAW 0.5 cache-aware runtime release candidate
 
 ## Workstream
 
-ID: W-004
-Spec: docs/workstreams/W-004-live-runtime-console.md
+ID: W-005
+Spec: docs/workstreams/W-005-token-efficient-runtime.md
 
 ## Context Epoch
 
-ID: E-006-live-console-review
+ID: E-008-token-runtime-review
 Role: Reviewer
 
 ## Active Task
 
-ID: T-006
-Spec: docs/tasks/T-006-live-runtime-console-validation.md
+ID: T-008
+Spec: docs/tasks/T-008-token-efficient-runtime-validation.md
 
 ## Current State
 
-- RSAW 0.4 adds an interactive Live Terminal Console for VS Code and normal TTYs.
-- Codex remains a headless structured-event execution engine.
-- CONTINUE, ROTATE, PAUSE, COMPLETE, verification, token accounting, and safety
-  semantics remain unchanged.
-- Compact/expanded layouts, context pressure, token/cache telemetry, transitions,
-  terminal states, non-TTY fallback, and preview mode are implemented.
-- Presentation errors are isolated from agent execution and lifecycle decisions.
-- Prospective adoption measurement remains a separate evidence task.
+- Ordered context manifests and stable/dynamic fingerprints are implemented.
+- Fresh and continued prompts use different read contracts.
+- Deterministic rotation includes hard, fresh-input, and low-cache-reuse pressure.
+- Runtime reports expose fresh input and checkpoint-normalized efficiency.
+- Live Console visuals and public documentation reflect the 0.5 architecture.
+- Causal token and quality claims remain unpromoted pending matched evaluation.
 
 ## Evidence
 
-- TUI implementation: `src/repo_state_agent/runtime/tui/`
-- Runtime event integration: `src/repo_state_agent/runtime/supervisor.py`
-- Codex event integration: `src/repo_state_agent/runtime/codex.py`
-- CLI integration: `src/repo_state_agent/cli.py`
-- TUI tests: `tests/test_runtime_tui_model.py`, `tests/test_runtime_tui_renderer.py`
-- Observability isolation tests: `tests/test_codex_adapter_observability.py`,
-  `tests/test_runtime_supervisor_observability.py`
-- Product documentation: `README.md`, `docs/live-terminal-ui.md`
+- Context planner: `src/repo_state_agent/runtime/context.py`
+- Rotation policy: `src/repo_state_agent/runtime/rotation.py`
+- Supervisor integration: `src/repo_state_agent/runtime/supervisor.py`
+- CLI/report integration: `src/repo_state_agent/cli.py`, `src/repo_state_agent/runtime/report.py`
+- Tests: `tests/test_context_plan.py`, `tests/test_rotation_policy.py`
+- Design: `docs/token-efficient-runtime.md`
 
 ## Required Reads
 
 - AGENTS.md
 - ACTIVE.md
-- docs/tasks/T-006-live-runtime-console-validation.md
-- docs/live-terminal-ui.md
+- docs/tasks/T-008-token-efficient-runtime-validation.md
+
+## Context Contract
+
+Mode: BOUNDED
+Stable Prefix: AGENTS.md
+Budget: `.rsaw/config.json`
 
 ## Do Not Preload
 
-- all historical release reports;
-- complete CI logs unless a check fails;
-- archived handoffs;
-- raw Codex event streams unless an observability test fails;
-- unrelated case-study data.
+- archived release reports;
+- raw CI logs unless a check fails;
+- all case-study data;
+- full Codex event streams.
 
 ## Human Gate
 
@@ -64,7 +64,7 @@ None.
 
 ## Running or Pending External Work
 
-GitHub CI and operator TTY preview after the implementation commit.
+GitHub CI and operator preview after the implementation commit.
 
 ## Blockers
 
@@ -72,13 +72,13 @@ None.
 
 ## Next Exact Action
 
-Run cross-version CI, inspect any failures, execute `rsaw preview .` in a VS Code
-Integrated Terminal, and review the final README/console presentation.
+Run cross-version CI, inspect failures, preview the console in a real VS Code Terminal,
+and review context/rotation defaults without making causal efficiency claims.
 
 ## Stop Condition
 
-Ruff, pytest, repository verification, link checks, non-TTY fallback, and the
-interactive console preview pass; the pull request is ready for merge review.
+Ruff, pytest, repository verification, strict context plan, dry-run, report, and link
+checks pass; the release candidate is ready for an operator pilot.
 
 ## Continuation Gate
 
@@ -87,8 +87,8 @@ Reason: IMPLEMENTATION_TO_INDEPENDENT_VALIDATION_BOUNDARY
 
 ## Next Task
 
-ID: T-007
-Spec: docs/tasks/T-007-live-runtime-console-pilot.md
+ID: T-009
+Spec: docs/tasks/T-009-token-efficient-runtime-prospective-study.md
 
 ## Next Session Role
 
@@ -100,4 +100,4 @@ Medium
 
 ## Last Updated
 
-2026-08-14 — RSAW 0.4 Live Runtime Console release candidate
+2026-08-15 — RSAW 0.5 cache-aware runtime release candidate

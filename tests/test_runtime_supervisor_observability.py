@@ -16,9 +16,7 @@ def _write_repo(root: Path, *, continuation: str, task: str, next_task: str) -> 
     (root / "AGENTS.md").write_text("# Policy\n", encoding="utf-8")
     (root / "docs/workstreams/W-1.md").write_text("# W-1 — Demo\n", encoding="utf-8")
     (root / f"docs/tasks/{task}.md").write_text(f"# {task}\n", encoding="utf-8")
-    (root / f"docs/tasks/{next_task}.md").write_text(
-        f"# {next_task}\n", encoding="utf-8"
-    )
+    (root / f"docs/tasks/{next_task}.md").write_text(f"# {next_task}\n", encoding="utf-8")
     (root / "ACTIVE.md").write_text(
         f"""# Active Handoff
 

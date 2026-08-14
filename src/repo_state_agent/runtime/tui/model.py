@@ -149,6 +149,46 @@ class DashboardModel:
         event_type = str(event.get("type") or "")
         now = monotonic()
         with self._lock:
+            if event_type == "context_plan":
+                total = _integer(event.get("total_tokens"))
+                stable = _integer(event.get("stable_tokens"))
+                dynamic = _integer(event.get("dynamic_tokens"))
+                budget = _integer(event.get("budget_tokens"))
+                within = bool(event.get("within_budget", True))
+                detail = f"stable {stable} · dynamic {dynamic} · budget {budget}"
+                self._push_recent(
+                    "context",
+                    f"Context plan {'accepted' if within else 'requires review'} · {total} tokens",
+                    detail,
+                    "success" if within else "warning",
+                )
+                return
+
+            if event_type in {"rotation_evaluated", "rotation_scheduled"}:
+                reason = _string(event.get("reason"))
+                rotate = bool(event.get("rotate"))
+                fresh = _integer(event.get("fresh_input_tokens"))
+                ratio_value = event.get("cache_reuse_ratio")
+                ratio = (
+                    f"{float(ratio_value) * 100:.0f}%"
+                    if isinstance(ratio_value, int | float)
+                    else "unknown"
+                )
+                self._next_reason = reason
+                title = "Context rotation scheduled" if rotate else "Cache locality acceptable"
+                detail = f"fresh {fresh} · cache reuse {ratio} · {reason}"
+                self._push_recent(
+                    "rotate" if rotate else "context",
+                    title,
+                    detail,
+                    "warning" if rotate else "success",
+                )
+                if rotate:
+                    self._current_activity = Activity(
+                        "rotate", "Preparing a fresh Codex context", reason
+                    )
+                return
+
             if event_type == "supervisor_started":
                 self._run_id = _string(event.get("run_id"))
                 self._status = "STARTING"
@@ -211,9 +251,7 @@ class DashboardModel:
                 return
 
             if event_type == "runtime_epoch_started":
-                self._runtime_epoch = max(
-                    self._runtime_epoch, _integer(event.get("runtime_epoch"))
-                )
+                self._runtime_epoch = max(self._runtime_epoch, _integer(event.get("runtime_epoch")))
                 self._status = "WORKING"
                 self._transition_to_role = self._role
                 self._transition_to_epoch = str(self._runtime_epoch)
@@ -412,11 +450,7 @@ class DashboardModel:
         self._stages = stages
         self._current_stage = _match_stage(
             stages,
-            " ".join(
-                part
-                for part in (self._task_title, state.next_action, self._role)
-                if part
-            ),
+            " ".join(part for part in (self._task_title, state.next_action, self._role) if part),
         )
 
     def _refresh_repository_state_locked(self) -> None:
@@ -446,17 +480,13 @@ class DashboardModel:
 
     def _set_terminal_activity(self) -> None:
         if self._status == "COMPLETE":
-            self._current_activity = Activity(
-                "complete", "Workstream complete", self._task_title
-            )
+            self._current_activity = Activity("complete", "Workstream complete", self._task_title)
         elif self._status == "PAUSED":
             self._current_activity = Activity(
                 "pause", "Operator action required", self._human_gate or self._reason
             )
         elif self._status in {"FAILED", "LIMIT_REACHED"}:
-            self._current_activity = Activity(
-                "error", "Supervisor stopped", self._reason
-            )
+            self._current_activity = Activity("error", "Supervisor stopped", self._reason)
 
 
 def _usage(value: Any) -> TokenUsage:

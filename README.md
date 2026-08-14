@@ -5,31 +5,33 @@
 <h1 align="center">Repository-State Agent Workflow</h1>
 
 <p align="center">
-  <strong>Persistent workstreams. Replaceable contexts. Live operator visibility.</strong>
+  <strong>Persistent workstreams. Cache-aware contexts. Live operator visibility.</strong>
 </p>
 
 <p align="center">
-  RSAW keeps durable agent state in the repository, reuses context only while it
-  remains useful, rotates Codex automatically at real boundaries, and presents
-  the whole run in a clear terminal-native console.
+  RSAW keeps durable project memory in the repository, builds an explicit minimal
+  context plan, reuses a Codex thread only while cache locality remains useful,
+  rotates automatically at real boundaries, and shows the entire run in a clear
+  terminal-native console.
 </p>
 
 <p align="center">
   <a href="https://github.com/hanklin9188/repository-state-agent-workflow/actions/workflows/ci.yml"><img src="https://github.com/hanklin9188/repository-state-agent-workflow/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f766e" alt="MIT License" /></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-2563eb" alt="Python 3.10+" /></a>
-  <img src="https://img.shields.io/badge/version-0.4.0-7c3aed" alt="Version 0.4.0" />
+  <img src="https://img.shields.io/badge/version-0.5.0-7c3aed" alt="Version 0.5.0" />
   <img src="https://img.shields.io/badge/runtime-Codex_CLI-111827" alt="Codex CLI runtime" />
-  <img src="https://img.shields.io/badge/UI-live_terminal-0891b2" alt="Live terminal UI" />
+  <img src="https://img.shields.io/badge/context-cache_aware-0891b2" alt="Cache-aware context" />
+  <img src="https://img.shields.io/badge/UI-live_terminal-0f766e" alt="Live terminal UI" />
 </p>
 
 <p align="center">
   <a href="#two-minute-start">Start</a> ·
-  <a href="#the-live-runtime-console">Live console</a> ·
-  <a href="#runtime-state-machine">State machine</a> ·
-  <a href="#context-and-token-discipline">Context discipline</a> ·
+  <a href="#the-operating-model">Operating model</a> ·
+  <a href="#cache-aware-context-planning">Context planning</a> ·
+  <a href="#deterministic-rotation-policy">Rotation</a> ·
+  <a href="#live-runtime-console">Live console</a> ·
   <a href="#evidence-and-claim-boundaries">Evidence</a> ·
-  <a href="#documentation">Documentation</a> ·
   <a href="README.zh-TW.md">繁體中文</a>
 </p>
 
@@ -40,34 +42,28 @@
 **RSAW is a repository-first operating model and runtime supervisor for long-running
 coding and research agents.**
 
-The repository stores durable project memory. Agent contexts are temporary workers.
-The supervisor decides whether the next checkpoint should:
+The repository stores durable memory. Agent contexts are bounded, replaceable workers.
+For every verified checkpoint, RSAW deterministically chooses one action:
 
-- **CONTINUE** in the same Codex thread;
-- **ROTATE** into a fresh context;
-- **PAUSE** at a real human or external gate; or
-- **COMPLETE** the workstream.
+- **CONTINUE** — reuse the current thread for tightly coupled work;
+- **ROTATE** — start a fresh context while the workstream keeps running;
+- **PAUSE** — stop at a genuine human or external gate;
+- **COMPLETE** — close the workstream.
 
-Version 0.4 adds the missing operator layer: an in-place Live Terminal console that
-shows what the agent is doing, how the workstream is advancing, when context is
-being reused or replaced, and whether human intervention is required.
+Version 0.5 adds a cache-aware context planner and a deterministic rotation policy on
+top of the 0.4 Live Runtime Console.
 
-> **The workstream persists. The model context remains bounded and replaceable.**
+> **The workstream persists. Context is planned, measured, and replaceable.**
 
 <p align="center">
-  <img src="docs/assets/live-terminal-dashboard.svg" alt="RSAW Live Terminal dashboard" width="100%" />
+  <img src="docs/assets/runtime-architecture-v05.svg" alt="RSAW 0.5 architecture" width="100%" />
 </p>
-
-The dashboard is designed for normal terminals, including the **VS Code Integrated
-Terminal**. Codex continues to execute through structured JSON events in the
-background; RSAW turns those events into an operator-facing runtime view instead of
-printing raw JSONL.
 
 ---
 
 ## The problem
 
-A long agent conversation quietly becomes an accidental state database:
+A long agent chat quietly becomes an accidental project database:
 
 ```text
 old source snapshots
@@ -78,21 +74,27 @@ old source snapshots
 + current work
 ```
 
-Keeping that conversation forever creates stale-context pressure. Starting fresh
-after every task avoids staleness, but repeatedly reconstructs the repository,
-re-reads the same files, and replays handoffs.
+Keeping everything forever increases stale-context traffic. Starting fresh after every
+step avoids staleness but repeatedly rereads policy, reconstructs the repository, and
+throws away useful prefix/cache locality.
 
 RSAW separates four lifetimes:
 
 | Layer | Typical lifetime | Responsibility |
 |---|---:|---|
-| `AGENTS.md` | months | stable policy, authority, and safety |
-| Workstream | days–weeks | long-range project state machine |
-| Task checkpoint | hours–days | one durable, verifiable unit of work |
-| Context epoch | bounded | one or more tightly coupled agent turns |
+| `AGENTS.md` | months | stable policy, authority, safety |
+| Workstream | days–weeks | long-range state machine |
+| Task checkpoint | hours–days | one durable, verifiable unit |
+| Context epoch | bounded | tightly coupled model turns |
 
-This lets RSAW preserve useful prefix/cache locality inside a bounded epoch, while
-removing obsolete context at role, scientific, review, or token-pressure boundaries.
+The optimization target is not “maximize cached tokens” or “always start fresh.” It is:
+
+```text
+useful cache reuse
++ low stale-context carryover
++ small fresh bootstrap after rotation
++ verified progress per token
+```
 
 ---
 
@@ -101,38 +103,41 @@ removing obsolete context at role, scientific, review, or token-pressure boundar
 ### 1. Install
 
 ```bash
-python -m pip install \
-  git+https://github.com/hanklin9188/repository-state-agent-workflow.git
+python -m pip install   git+https://github.com/hanklin9188/repository-state-agent-workflow.git
 ```
 
 Automatic mode also requires an authenticated local Codex CLI.
 
-### 2. Initialize a Git repository
+### 2. Initialize a repository
 
 ```bash
 cd /path/to/your-project
 rsaw init .
 ```
 
-Initialization is additive by default. Existing `AGENTS.md`, `ACTIVE.md`, and task
-systems are not overwritten unless `--force` is explicit.
+Initialization is additive. Existing `AGENTS.md`, `ACTIVE.md`, task files, and project
+logic are not overwritten unless `--force` is explicit.
 
-### 3. Verify authority and runtime compatibility
+### 3. Verify authority and inspect the context plan
 
 ```bash
 rsaw verify .
+rsaw context .
 rsaw doctor . --agent codex
 rsaw status .
 ```
 
-### 4. Preview the interface without launching Codex
+Use a budget gate when the repository has adopted a reviewed budget:
 
 ```bash
-rsaw preview .
+rsaw context . --strict
 ```
 
-The preview is deterministic and non-destructive. It does not modify repository
-state or start an agent.
+### 4. Preview the operator UI without launching Codex
+
+```bash
+rsaw preview . --seconds 6
+```
 
 ### 5. Run the workstream
 
@@ -140,378 +145,269 @@ state or start an agent.
 rsaw run . --agent codex
 ```
 
-In an interactive terminal, RSAW opens the Live Runtime Console. In CI, redirected
-output, JSON mode, quiet mode, and other non-TTY environments, it automatically
-falls back to plain log-oriented output.
+Interactive terminals, including the VS Code Integrated Terminal, receive the Live
+Runtime Console. CI, redirected output, JSON mode, quiet mode, and non-TTY execution
+fall back to plain logs.
 
 ```bash
-# Explicit plain output for debugging or automation
-rsaw run . --agent codex --no-tui
-
-# Force the dashboard when terminal detection is unusual
-rsaw run . --agent codex --tui
+rsaw run . --agent codex --no-tui   # explicit plain output
+rsaw run . --agent codex --tui      # force the dashboard
 ```
 
 ---
 
-## The Live Runtime Console
-
-The default console is structured around five operator questions:
-
-1. **What is happening now?**
-2. **How far has the current work advanced?**
-3. **What will RSAW do next?**
-4. **Is context/cache pressure healthy?**
-5. **Does the human need to intervene?**
-
-### What it shows
-
-| Area | Meaning |
-|---|---|
-| **NOW** | observable Codex activity such as reading, editing, commands, tools, and validation |
-| **PROGRESS** | active task, inferred workstream phase when trustworthy, accepted checkpoints, and next lifecycle action |
-| **CONTEXT PRESSURE** | latest-turn input relative to RSAW's configured rotation threshold |
-| **TOKEN COST** | input, cached input, fresh/uncached input, output, and cache-reuse ratio |
-| **RECENT** | the most useful recent validation, edit, command, checkpoint, transition, or failure events |
-| **FOOTER** | last durable state, human-gate status, and elapsed runtime |
-
-The UI never displays hidden chain-of-thought. Reasoning events are reduced to a
-neutral observable status such as `Analyzing repository state`.
-
-### Responsive layouts
-
-The renderer selects an expanded or compact layout from the current terminal size.
-Resizing the VS Code terminal does not change lifecycle state and should not produce
-scrolling dashboard frames.
-
-### Restrained motion
-
-Animation communicates state rather than decorating it:
-
-- a subtle heartbeat shows that the supervisor is alive;
-- one spinner identifies active work;
-- context pressure interpolates smoothly;
-- accepted checkpoints become visible immediately;
-- ROTATE briefly shows the old and new context epochs;
-- PAUSE, FAILED, and COMPLETE switch to unambiguous terminal states.
-
-The presentation layer is downstream from execution. If rendering fails, the
-supervisor and Codex turn continue under existing fail-closed lifecycle rules.
-
----
-
-## Runtime state machine
+## The operating model
 
 ```mermaid
-flowchart TD
-    W[Persistent Workstream]
-    S[Repository Authority\nAGENTS + ACTIVE + task]
-    A[Bounded Codex Turn]
-    C[Durable Checkpoint]
-    V[Repository Verification]
-    G{Runtime Action}
-    K[Resume Current Thread]
-    R[Start Fresh Thread]
-    P[Human / External Gate]
-    D[Workstream Complete]
-    U[Live Runtime Console]
-
-    W --> S --> A --> C --> V --> G
-    A -. structured events .-> U
-    V -. durable state .-> U
-    G -. transition .-> U
-    G -->|CONTINUE| K --> A
-    G -->|ROTATE| R --> S
-    G -->|PAUSE| P
-    P -->|resolved| R
-    G -->|COMPLETE| D
+flowchart LR
+    A[Repository authority] --> P[Context planner]
+    P --> S[RSAW supervisor]
+    S --> C[Codex bounded turn]
+    C --> E[Durable checkpoint]
+    E --> V[Verification]
+    V --> D{Next action}
+    D -->|CONTINUE| C
+    D -->|ROTATE| P
+    D -->|PAUSE| H[Human or external gate]
+    D -->|COMPLETE| X[Terminal summary]
+    C -. structured events .-> U[Live Runtime Console]
+    S -. lifecycle + token telemetry .-> U
 ```
 
-### `CONTINUE`
-
-Use the same Codex thread when the next checkpoint has the same role, objective,
-subsystem, evidence domain, and safety boundary.
-
-Typical bounded Builder epoch:
-
-```text
-design → implementation → focused validation → local repair
-```
-
-### `ROTATE`
-
-Keep the workstream active, but replace the model context. Rotation is mandatory at
-role changes, formal execution/analysis boundaries, fresh review, major decision
-boundaries, or configured context pressure.
-
-### `PAUSE`
-
-Stop only for a genuine gate:
-
-- formal authorization;
-- credentials or interactive privilege;
-- destructive or irreversible action;
-- unresolved scientific or architecture decision;
-- external work that must complete first.
-
-RSAW never infers approval. In an interactive terminal, the dashboard temporarily
-releases the screen so the exact gate response can be entered through the existing
-supervisor flow.
-
-### `COMPLETE`
-
-The workstream is terminal only when repository state explicitly declares
-`COMPLETE`. The console then shows a final summary of available checkpoints, epochs,
-turns, token totals, and runtime.
+The planner and UI are observers/supporting layers. Repository verification and the
+continuation state machine remain authoritative.
 
 ---
 
-## Context and token discipline
+## Cache-aware context planning
 
-RSAW does **not** optimize for the smallest number of cached tokens. Cached input can
-be useful when the prefix still belongs to the current task. The target is:
+`rsaw context .` builds a deterministic manifest from repository authority:
 
-```text
-useful cache reuse
-+ low stale-context carryover
-+ small fresh bootstrap after rotation
-```
+1. stable prefix — normally `AGENTS.md` and optional stable workstream authority;
+2. dynamic authority — `ACTIVE.md` and the active task;
+3. bounded required reads — only explicit files, deduplicated and repository-local.
 
-The Codex adapter records provider-emitted usage:
+<p align="center">
+  <img src="docs/assets/context-lifecycle.svg" alt="RSAW cache-aware context lifecycle" width="100%" />
+</p>
 
-- input tokens;
-- cached input tokens;
-- cache-write input tokens;
-- output tokens;
-- reasoning-output tokens.
+Each document records:
 
-The dashboard derives:
+- repository-relative path;
+- category;
+- bytes and approximate tokens;
+- SHA-256 content hash.
 
-```text
-fresh input = max(0, input - cached input)
-context pressure = latest-turn input / configured rotation threshold
-```
+The plan exposes separate stable and dynamic fingerprints. A continued thread is told
+to reread dynamic authority but not reload the stable prefix unless its fingerprint
+changed. A fresh epoch receives the full ordered bootstrap.
 
-`Context pressure` is **not** presented as the model's total context-window
-utilization. It is an RSAW operating signal against the configured rotation policy.
-
-Default limits remain conservative and configurable:
+Default planning controls:
 
 ```json
 {
   "runtime": {
-    "max_turns_per_epoch": 6,
-    "rotate_input_tokens": 60000,
-    "max_total_input_tokens": 5000000,
-    "max_transitions": 100
+    "context": {
+      "bootstrap_token_budget": 15000,
+      "max_files": 12,
+      "max_file_bytes": 262144,
+      "include_workstream_spec": false,
+      "enforce_budget": false
+    }
   }
 }
 ```
 
-Inspect measured runs with:
+Budget enforcement is opt-in for compatibility. Inspection is always available.
+See [Context Planning](docs/context-planning.md).
+
+---
+
+## Deterministic rotation policy
+
+RSAW preserves mandatory role/scientific boundaries, then evaluates runtime pressure
+without asking a model to decide its own context lifetime.
+
+Rotation reasons include:
+
+| Reason | Meaning |
+|---|---|
+| `MAX_TURNS_PER_RUNTIME_EPOCH` | bounded turn count reached |
+| `HARD_INPUT_TOKEN_PRESSURE` | latest input reached the hard threshold |
+| `FRESH_INPUT_TOKEN_PRESSURE` | uncached/fresh input exceeded its budget |
+| `LOW_CACHE_REUSE_AT_SOFT_LIMIT` | input crossed the soft threshold while reuse quality was poor |
+| role/scientific boundary | repository state requires independence |
+
+```json
+{
+  "runtime": {
+    "rotation": {
+      "soft_input_tokens": 48000,
+      "hard_input_tokens": 60000,
+      "max_fresh_input_tokens": 18000,
+      "min_cache_reuse_ratio": 0.5
+    }
+  }
+}
+```
+
+The policy uses provider-emitted usage only. It does not claim to measure the model's
+complete context window. See [Cache-Aware Rotation](docs/cache-aware-rotation.md).
+
+---
+
+## Live Runtime Console
+
+<p align="center">
+  <img src="docs/assets/live-terminal-dashboard.svg" alt="RSAW Live Runtime Console" width="100%" />
+</p>
+
+The console answers five operator questions:
+
+1. What is happening now?
+2. How far has the current task advanced?
+3. What will RSAW do next?
+4. Is context/cache pressure healthy?
+5. Does a human need to intervene?
+
+| Area | Meaning |
+|---|---|
+| **NOW** | observable Codex file, command, tool, and validation activity |
+| **PROGRESS** | workstream, task, role, epoch, checkpoint, next action |
+| **CONTEXT** | hard/soft pressure, cache reuse, fresh-input pressure |
+| **TOKEN COST** | input, cached, fresh, output, and per-checkpoint efficiency |
+| **RECENT** | high-value events rather than raw JSONL |
+| **FOOTER** | durable state, gate, runtime, and terminal status |
+
+The UI never displays hidden chain-of-thought. Rendering failures are isolated and
+cannot alter execution or lifecycle decisions. See [Live Terminal UI](docs/live-terminal-ui.md).
+
+---
+
+## Context and token metrics
+
+The Codex adapter records provider-emitted:
+
+- input tokens;
+- cached input tokens;
+- cache-write input tokens when provided;
+- output tokens;
+- reasoning-output tokens.
+
+RSAW derives:
+
+```text
+fresh input = max(0, input - cached input)
+cache reuse ratio = cached input / input
+input per checkpoint = total input / accepted checkpoints
+fresh input per checkpoint = fresh input / accepted checkpoints
+```
+
+Inspect the active plan and completed runs:
 
 ```bash
+rsaw context . --json
 rsaw report .
 rsaw report . --json
 ```
 
-### Zero intentional model-token overhead
-
-The Live Runtime Console consumes existing repository state and runtime events
-locally. Dashboard text is never appended to Codex prompts and does not intentionally
-add model input, output, bootstrap, or context epochs.
+The dashboard and reports are local observability. They do not add dashboard text to
+model prompts or create extra model turns.
 
 > **More observability for the human; less unnecessary context for the model.**
 
 ---
 
-## Repository contract
+## Runtime safety
 
-`rsaw init .` creates only missing files:
+Automatic continuation does not weaken governance:
 
-```text
-AGENTS.md
-ACTIVE.md
-.rsaw/
-├── config.json
-└── .gitignore
-docs/
-├── agents/
-│   └── repository-state-workflow.md
-├── workstreams/
-│   └── W-000-bootstrap.md
-├── tasks/
-│   └── T-000-bootstrap.md
-├── checkpoints/
-├── decisions/
-└── handoffs/
-    └── archive/
-```
-
-Runtime logs live under `.rsaw/runtime/` and remain ignored by default.
+- verification runs before and after every supervised turn;
+- successful turns must advance `ACTIVE.md`;
+- single-supervisor locking prevents concurrent workstream ownership;
+- human gates never infer approval;
+- failed agent or formal runs are not silently retried;
+- role and scientific boundaries stay fresh;
+- turn, transition, context, and total-token limits bound execution;
+- runtime logs remain ignored by default.
 
 ---
 
-## Quality and safety
-
-Automatic continuation must not become automatic carelessness.
-
-| Guardrail | Effect |
-|---|---|
-| Verification before and after every turn | malformed authority stops the supervisor |
-| `ACTIVE.md` must advance | a successful-looking but state-free turn fails closed |
-| Safe Codex sandbox by default | RSAW never enables dangerous bypass automatically |
-| Explicit human gates | credentials, authorization, and irreversible choices are never inferred |
-| No silent retry | failed evidence is not replaced automatically |
-| Single-supervisor lock | prevents two runtimes racing one repository |
-| Turn, token, and transition limits | prevents unbounded controller loops |
-| Fresh role/scientific boundaries | preserves review and evidence independence |
-| Presentation isolation | UI failure cannot change lifecycle semantics |
-| Non-TTY fallback | logs and CI remain stable and free of live-render control sequences |
-
-Validation tiers remain:
-
-- **V0** — syntax, lint, and exact tests during editing;
-- **V1** — focused task-checkpoint validation;
-- **V2** — relevant epoch or phase closure;
-- **V3** — fresh independent review for critical claims.
-
-> **Validation is a gate, not the product.**
-
----
-
-## CLI
+## CLI reference
 
 | Command | Purpose |
 |---|---|
-| `rsaw init .` | initialize missing repository-state files and runtime config |
-| `rsaw verify .` | validate `ACTIVE.md` and referenced authority |
-| `rsaw status .` | show workstream, task, role, gate, and next action |
-| `rsaw next .` | deterministically derive CONTINUE / ROTATE / PAUSE / COMPLETE |
+| `rsaw init .` | add missing repository-state scaffolding |
+| `rsaw verify .` | validate active authority and references |
+| `rsaw context .` | inspect ordered context, fingerprints, and budget |
+| `rsaw status .` | show active workstream and derived action |
+| `rsaw next .` | derive CONTINUE / ROTATE / PAUSE / COMPLETE |
 | `rsaw prompt .` | render a minimal manual-mode prompt |
-| `rsaw checkpoint .` | archive the active handoff |
-| `rsaw footprint .` | estimate repository bootstrap context |
-| `rsaw doctor . --agent codex` | verify the local Codex adapter |
-| `rsaw preview .` | preview the Live Runtime Console without launching Codex |
-| `rsaw run . --agent codex` | supervise the workstream with live TTY observability |
-| `rsaw run . --no-tui` | use plain log-oriented output |
-| `rsaw run . --dry-run` | inspect the next action without launching Codex |
-| `rsaw report .` | summarize measured transitions and token usage |
+| `rsaw doctor . --agent codex` | verify the Codex adapter |
+| `rsaw preview .` | preview the Live Console without an agent |
+| `rsaw run . --agent codex` | supervise the workstream |
+| `rsaw report .` | report context and checkpoint efficiency |
 
-Manual, agent-neutral mode remains available to any tool that can read a repository:
+---
 
-```bash
-rsaw prompt .
-rsaw next .
-```
+## Configuration
+
+The complete `.rsaw/config.json` remains intentionally small. The 0.4 flat
+`rotate_input_tokens` field remains accepted for backward compatibility, while 0.5
+uses explicit `rotation` and `context` sections in new repositories.
+
+See [Migration 0.4 → 0.5](docs/migration-v4-to-v5.md).
 
 ---
 
 ## Evidence and claim boundaries
 
-### RSAW 0.1 bootstrap case study
+Documented evidence currently includes:
 
-A documented Desk Code Agent migration changed the deterministic fresh-session
-bootstrap estimate from **33,348** to **2,967** tokens: an estimated **91.1%**
-reduction.
+- cross-version CI and focused runtime/TUI tests;
+- deterministic context-plan and rotation-policy tests;
+- a Desk Code Agent bootstrap-footprint case study;
+- an EdgeFlow RSAW 0.1/0.2 retrospective matched replay;
+- prospective runtime telemetry support.
 
-**Boundary:** this is a `BOOTSTRAP_CONTEXT_ESTIMATE`, not provider billing, total task
-cost, or causal quality evidence.
+Claim boundaries:
 
-### EdgeFlow RSAW 0.1 vs 0.2 matched replay
+- token estimates based on characters/4 are estimates, not billing;
+- the Live Console itself does not save model tokens;
+- a deterministic policy is not automatically an optimal policy;
+- cache reuse is useful only while the carried context remains relevant;
+- universal cost or quality improvements require matched prospective evaluation.
 
-A retrospective matched replay over five real EdgeFlow tasks estimated:
-
-| Metric | RSAW 0.1 | RSAW 0.2 |
-|---|---:|---:|
-| Fresh sessions / context epochs | 5 | 2 |
-| Repository-context traffic | 53,444 | 20,972 conservative |
-| Delta-only traffic | — | 19,848 |
-| Estimated reduction | — | **60.8%–62.9%** |
-| Repeated-read reduction | — | **98.1%–99.0%** |
-
-The structured v2 handoff was 20.1% larger. Quality non-inferiority and provider
-billing savings were not causally evaluated.
-
-Read the [EdgeFlow case study](docs/case-studies/edgeflow-rsaw-v1-v2.md).
-
-### RSAW 0.3/0.4 prospective status
-
-The automatic runtime records real Codex usage, fresh/resumed turns, epochs,
-checkpoints, transitions, gates, and wall-clock outcomes. Version 0.4 makes those
-signals visible; it does not alter their meaning.
-
-No universal token, billing, wall-time, or quality improvement is claimed before a
-matched prospective study.
-
----
-
-## Where RSAW fits
-
-RSAW complements rather than replaces:
-
-- GitHub Issues, Linear, Jira, or internal trackers;
-- CI/CD and code review;
-- architecture decision records;
-- access control, secrets management, and sandboxing;
-- experiment schedulers and cluster systems;
-- incident management.
-
-Use your existing tracker for planning. Use RSAW as the repository-local continuity,
-context-lifecycle, and runtime-observability contract for the active workstream.
-
----
-
-## Scientific and ML work
-
-RSAW preserves fresh boundaries even with automatic rotation:
-
-```text
-Preregistration
-→ ROTATE
-Formal execution
-→ ROTATE
-Scientific analysis
-→ ROTATE
-Independent review
-```
-
-The supervisor automates context replacement. It does not merge roles, infer formal
-authorization, or weaken evidence independence.
-
-See [Scientific and ML Workflows](docs/scientific-and-ml-workflows.md).
+See [Runtime Evaluation](docs/runtime-evaluation.md) and the
+[Token-Efficient Runtime design](docs/token-efficient-runtime.md).
 
 ---
 
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
+- [Architecture](docs/architecture.md)
+- [Context Planning](docs/context-planning.md)
+- [Cache-Aware Rotation](docs/cache-aware-rotation.md)
+- [Token-Efficient Runtime](docs/token-efficient-runtime.md)
 - [Live Terminal UI](docs/live-terminal-ui.md)
 - [Runtime Supervisor](docs/runtime-supervisor.md)
 - [Codex Adapter](docs/codex-adapter.md)
-- [Continuation Gate](docs/continuation-gate.md)
-- [Architecture](docs/architecture.md)
-- [Migration 0.2 → 0.3](docs/migration-v2-to-v3.md)
-- [Runtime Evaluation](docs/runtime-evaluation.md)
-- [Company Adoption](docs/company-adoption.md)
+- [Migration 0.4 → 0.5](docs/migration-v4-to-v5.md)
 - [Research Methodology](docs/research-methodology.md)
-- [FAQ](docs/faq.md)
+- [Company Adoption](docs/company-adoption.md)
 
 ---
 
 ## Current limitations
 
-- Automatic execution currently targets the local Codex CLI; the core/manual
-  workflow remains agent-neutral.
-- The Live Runtime Console presents observable structured events, not every detail of
-  the native Codex TUI.
-- Phase visualization is shown only when a workstream exposes a trustworthy bounded
-  phase list and the current phase can be matched unambiguously.
-- RSAW cannot create a new ChatGPT web conversation.
-- A paused supervisor cannot invent credentials, privilege, authorization, or a
-  scientific decision.
-- Token thresholds are operating guardrails, not universal optima.
-- Existing case studies do not establish universal cost or quality gains.
+- automatic execution currently targets the local Codex CLI;
+- provider usage fields depend on the installed Codex version;
+- context token counts are approximate until provider tokenization is available;
+- cache-aware defaults are operating policies, not universal optima;
+- strict budgets require project-specific calibration;
+- a fresh read-only Codex session can inspect repository state, but concurrent writers
+  must not modify the same workstream.
 
 ---
 
@@ -524,10 +420,9 @@ python -m pip install -e '.[dev]'
 ruff check .
 pytest -q
 rsaw verify .
-rsaw preview .
+rsaw context . --strict
 rsaw run . --dry-run
 ```
 
-The project is MIT licensed and intentionally repository-first: Markdown and Git
-remain the authority; the runtime and console are optional execution and
-observability layers rather than a project-management platform.
+RSAW is MIT licensed. Markdown and Git remain the durable authority; the runtime,
+context planner, and console are replaceable execution layers.

@@ -1,50 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
-  <title id="title">Repository-State Agent Workflow</title>
-  <desc id="desc">Run the workstream. Rotate the context.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="340" viewBox="0 0 1400 340">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#06101f"/>
-      <stop offset="0.55" stop-color="#0b2034"/>
-      <stop offset="1" stop-color="#123f4b"/>
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.55" stop-color="#0b2130"/>
+      <stop offset="1" stop-color="#0f3d3e"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#5eead4"/>
-      <stop offset="0.55" stop-color="#60a5fa"/>
-      <stop offset="1" stop-color="#c084fc"/>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#34d399"/>
     </linearGradient>
-    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="10" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
-  <rect width="1280" height="360" rx="24" fill="url(#bg)"/>
-  <circle cx="1110" cy="30" r="190" fill="#2563eb" opacity="0.12"/>
-  <circle cx="1210" cy="325" r="230" fill="#14b8a6" opacity="0.10"/>
-
-  <g transform="translate(64 62)">
-    <rect x="0" y="0" width="220" height="236" rx="28" fill="#0d263b" stroke="#5eead4" stroke-width="2.5"/>
-    <rect x="22" y="25" width="112" height="38" rx="9" fill="#123a4a" stroke="#60a5fa" stroke-width="2"/>
-    <rect x="22" y="99" width="112" height="38" rx="9" fill="#123a4a" stroke="#5eead4" stroke-width="2"/>
-    <rect x="22" y="173" width="112" height="38" rx="9" fill="#123a4a" stroke="#c084fc" stroke-width="2"/>
-    <text x="42" y="50" fill="#dbeafe" font-family="Arial, sans-serif" font-size="15" font-weight="700">TASK A</text>
-    <text x="42" y="124" fill="#ccfbf1" font-family="Arial, sans-serif" font-size="15" font-weight="700">TASK B</text>
-    <text x="42" y="198" fill="#f3e8ff" font-family="Arial, sans-serif" font-size="15" font-weight="700">TASK C</text>
-    <path d="M134 44 H172 Q194 44 194 66 V87 Q194 118 165 118 H134" fill="none" stroke="#5eead4" stroke-width="4" stroke-linecap="round"/>
-    <path d="M134 118 H172 Q194 118 194 140 V161 Q194 192 165 192 H134" fill="none" stroke="#60a5fa" stroke-width="4" stroke-linecap="round"/>
-    <circle cx="194" cy="118" r="12" fill="#5eead4" filter="url(#glow)"/>
-    <path d="M188 118 L194 124 L205 109" fill="none" stroke="#052e2b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="1400" height="340" rx="28" fill="url(#bg)"/>
+  <g opacity="0.18" stroke="#67e8f9">
+    <path d="M0 82H1400M0 170H1400M0 258H1400"/>
+    <path d="M140 0V340M350 0V340M560 0V340M770 0V340M980 0V340M1190 0V340"/>
   </g>
-
-  <g transform="translate(345 66)">
-    <text x="0" y="0" dominant-baseline="hanging" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="51" font-weight="700">Repository-State</text>
-    <text x="0" y="61" dominant-baseline="hanging" fill="#f8fafc" font-family="Arial, Helvetica, sans-serif" font-size="51" font-weight="700">Agent Workflow</text>
-    <rect x="0" y="137" width="610" height="4" rx="2" fill="url(#accent)"/>
-    <text x="0" y="164" dominant-baseline="hanging" fill="#dbeafe" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700">Run the workstream. Rotate the context.</text>
-    <text x="0" y="211" dominant-baseline="hanging" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="18">Repository memory · Bounded epochs · Automatic Codex rotation · Evidence-gated quality</text>
-  </g>
-
-  <g transform="translate(1055 253)">
-    <rect width="147" height="48" rx="24" fill="#172554" stroke="#818cf8" stroke-width="1.5"/>
-    <text x="73.5" y="30" text-anchor="middle" fill="#e0e7ff" font-family="Arial, sans-serif" font-size="17" font-weight="700">RSAW 0.3</text>
+  <rect x="80" y="72" width="150" height="150" rx="34" fill="#0d2c3a" stroke="url(#line)" stroke-width="4"/>
+  <path d="M119 132h72M119 165h72M119 198h50" stroke="#67e8f9" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="191" cy="198" r="12" fill="#34d399"/>
+  <text x="270" y="135" fill="#f8fafc" font-family="Inter,Segoe UI,sans-serif" font-size="58" font-weight="700">Repository-State Agent Workflow</text>
+  <text x="272" y="190" fill="#a5f3fc" font-family="Inter,Segoe UI,sans-serif" font-size="28">Persistent workstreams · Cache-aware contexts · Live operator visibility</text>
+  <path d="M272 232H1120" stroke="url(#line)" stroke-width="6" stroke-linecap="round"/>
+  <g font-family="Inter,Segoe UI,sans-serif" font-size="22" font-weight="600">
+    <text x="272" y="278" fill="#5eead4">CONTEXT PLAN</text>
+    <text x="520" y="278" fill="#67e8f9">CONTINUE</text>
+    <text x="700" y="278" fill="#fbbf24">ROTATE</text>
+    <text x="858" y="278" fill="#fde68a">PAUSE</text>
+    <text x="1000" y="278" fill="#86efac">COMPLETE</text>
   </g>
 </svg>

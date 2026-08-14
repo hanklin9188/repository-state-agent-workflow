@@ -96,9 +96,7 @@ class FakeAdapter:
     def doctor(self) -> AdapterDoctorResult:
         return AdapterDoctorResult(True, "fake", "fake", "1")
 
-    def run_turn(
-        self, *, thread_id: str | None, turn_index: int, **_: object
-    ) -> AgentTurnResult:
+    def run_turn(self, *, thread_id: str | None, turn_index: int, **_: object) -> AgentTurnResult:
         self.calls.append(thread_id)
         if self.fail_at == turn_index:
             return AgentTurnResult(exit_code=1, thread_id=thread_id, error="boom")
@@ -169,9 +167,7 @@ def test_interactive_gate_resolution_then_rotation(tmp_path: Path) -> None:
         ],
     )
     responses = iter(["APPROVE"])
-    result = supervise(
-        tmp_path, adapter, _options(), gate_resolver=lambda _: next(responses)
-    )
+    result = supervise(tmp_path, adapter, _options(), gate_resolver=lambda _: next(responses))
     assert result.status == "COMPLETE"
     assert adapter.calls == [None, None]
 

@@ -2,93 +2,53 @@
 
 All notable changes to the public reference implementation are documented here.
 
-## 0.4.0 — Live Runtime Console
+## 0.5.0 — Cache-Aware Context Runtime
 
 ### Added
 
-- an in-place RSAW Live Terminal dashboard for interactive TTYs, including the
-  VS Code Integrated Terminal;
-- responsive compact and expanded layouts;
-- observable current activity derived from Codex JSON events without exposing
-  hidden chain-of-thought;
-- workstream, task, role, epoch, checkpoint, transition, human-gate, and runtime
-  status in one operator-facing view;
-- context-pressure, input, cached-input, fresh-input, output, cache-reuse, and
-  rotation-threshold telemetry;
-- restrained motion for heartbeat, active work, context-pressure interpolation,
-  checkpoint acceptance, and context rotation;
-- explicit PAUSED, FAILED, LIMIT_REACHED, and COMPLETE terminal states;
-- automatic plain-output fallback for non-TTY, CI, redirected, JSON, quiet, and
-  dry-run execution;
-- `--tui`, `--no-tui`, and the non-destructive `rsaw preview` command;
-- presentation event hooks between the Supervisor, Codex adapter, and TUI;
-- focused TUI model, renderer, responsiveness, fallback, and event-isolation
-  tests;
-- a redesigned README and dedicated Live Terminal UI documentation.
+- deterministic ordered context manifests with stable/dynamic fingerprints;
+- `rsaw context` inspection and optional strict budget gate;
+- repository-local path, file-count, byte, and approximate-token validation;
+- continuation prompts that avoid rereading unchanged stable policy;
+- nested `runtime.context` and `runtime.rotation` configuration;
+- deterministic rotation on hard pressure, fresh-input pressure, and low cache reuse;
+- fresh-input, cache-reuse, and checkpoint-normalized runtime reports;
+- context-planning, rotation-policy, CLI, compatibility, and prompt tests;
+- revised terminal visuals, architecture diagrams, README, and migration docs.
 
 ### Preserved
 
-- `CONTINUE`, `ROTATE`, `PAUSE`, and `COMPLETE` lifecycle semantics;
-- repository state as the only durable authority;
-- existing Codex `exec --json` execution and token accounting;
-- bounded context epochs, automatic fresh-thread rotation, human gates,
-  single-supervisor locking, and fail-closed verification;
-- plain log-oriented behavior for automation and troubleshooting;
-- zero intentional model-token overhead from the dashboard itself.
+- CONTINUE / ROTATE / PAUSE / COMPLETE semantics;
+- mandatory role, review, and scientific boundaries;
+- repository state as durable authority;
+- Codex `exec --json`, sandbox policy, locks, and fail-closed verification;
+- Live Console as a non-authoritative local presentation layer;
+- backward compatibility for the 0.4 flat rotation threshold.
 
 ### Claim boundary
 
-The Live Runtime Console is a local observability layer. It does not itself
-cause token savings. RSAW's context-lifecycle policy remains the proposed source
-of context-efficiency gains, and causal token/quality claims still require
+Context budgets use approximate token counts. Cache-aware defaults are operating
+policies, not universal optima. Causal token or quality improvement still requires a
 matched prospective evaluation.
+
+## 0.4.0 — Live Runtime Console
+
+- in-place interactive terminal dashboard;
+- compact/expanded responsive layouts;
+- NOW, progress, context pressure, recent events, gates, and terminal states;
+- `rsaw preview`, `--tui`, `--no-tui`, and non-TTY fallback;
+- isolated Codex/supervisor event hooks and presentation tests.
 
 ## 0.3.0 — Automatic Workstream Runtime
 
-### Added
-
-- `rsaw run . --agent codex` Runtime Supervisor
-- automatic CONTINUE and fresh-context ROTATE execution
-- explicit PAUSE and COMPLETE semantics
-- interactive human-gate resolution without prompt relay
-- Codex JSONL thread and token accounting
-- `rsaw doctor` compatibility checks
-- `rsaw report` runtime-efficiency summaries
-- turn, token, transition, and single-supervisor limits
-- no-retry failure semantics and repository-state advancement checks
-- runtime, Codex adapter, migration, evaluation, and release documentation
-- EdgeFlow RSAW v1/v2 matched-replay case study
-
-### Preserved
-
-- Markdown/Git repository authority
-- manual and agent-neutral prompt mode
-- mandatory fresh scientific/review boundaries
-- explicit authorization and destructive-action gates
-- immutable failed evidence
-
-### Claim boundary
-
-RSAW 0.3 is implementation- and CI-validated. Prospective token savings and
-quality effects remain evaluation questions.
+- automatic Codex CONTINUE and ROTATE;
+- explicit PAUSE and COMPLETE;
+- token telemetry, runtime reports, locks, limits, and fail-closed state advancement.
 
 ## 0.2.0 — Persistent Workstreams and Context Epochs
 
-### Added
-
-- persistent workstream roadmaps
-- bounded context epochs
-- durable task checkpoints
-- continuation and rotation gates
-- role-specific prompts for Builder, Runner, Analyst, Reviewer, and Decision
-- matched evaluation methodology
+- durable workstreams, bounded context epochs, task checkpoints, and role-specific prompts.
 
 ## 0.1.0 — Initial Public Release
 
-### Added
-
-- repository-state methodology
-- stable policy, active state, task, review, and experiment templates
-- `init`, `verify`, `footprint`, `archive`, and `prompt`
-- software, ML, data, and research examples
-- initial Desk Code Agent bootstrap case study
+- repository-state methodology, templates, CLI verification, and bootstrap case study.

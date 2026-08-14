@@ -1,52 +1,35 @@
 # FAQ
 
-## Does a workstream still stop at every rotation?
+## Does the Live Console save tokens?
 
-No. In 0.3, ROTATE means the workstream stays running while the supervisor
-starts a fresh Codex thread. PAUSE is the only ordinary human/external stop.
+No. It is local presentation. Context efficiency comes from repository-backed state,
+minimal ordered reads, bounded epochs, continuation discipline, and rotation.
 
-## Does RSAW create a new ChatGPT web conversation?
+## Is more cached input always better?
 
-No. Automatic runtime mode controls local Codex CLI threads through
-`codex exec`. Manual prompt mode remains available for web or other agents.
+No. Cached context is useful only while it remains relevant. RSAW balances cache reuse
+against stale-context carryover and fresh-input pressure.
 
-## Must every task use a fresh context?
+## What does Context Pressure mean?
 
-No. Closely coupled same-role tasks may share one bounded epoch. Every task still
-writes a durable checkpoint.
+It is latest-turn input relative to RSAW's configured hard rotation threshold. It is
+not the model's complete context-window utilization.
 
-## Will the supervisor approve commands or experiments for me?
+## Why use both stable and dynamic fingerprints?
 
-No. Human gates remain explicit. RSAW never invents authorization, credentials,
-privilege, destructive consent, or scientific judgment.
+They let a continued thread avoid reloading unchanged policy while still refreshing
+`ACTIVE.md`, the active task, and bounded evidence.
 
-## Is automatic approval enabled by default?
+## Will 0.5 break a 0.4 config?
 
-No. The Codex adapter defaults to `workspace-write` sandboxing. `--approve-for-me`
-is an explicit opt-in. Dangerous sandbox/approval bypass is never enabled by
-RSAW.
+The flat `rotate_input_tokens` field remains supported. New nested configuration is
+recommended but not mandatory.
 
-## What happens if an agent fails?
+## Should strict context budgets be enabled immediately?
 
-The supervisor records a terminal failure and does not retry automatically. The
-repository or a human must authorize the next action.
+No. Inspect real task plans first, calibrate the budget, then enable strict enforcement.
 
-## How is context bounded?
+## Can two Codex sessions use the same repository?
 
-Repository rotation rules, maximum turns per epoch, per-turn input pressure,
-maximum total input, and transition limits all constrain the runtime.
-
-## Is runtime telemetry committed?
-
-No. `.rsaw/runtime/` is ignored by default. Publish only intentionally selected,
-reviewed aggregate results.
-
-## Does 0.3 prove more token savings than 0.2?
-
-Not yet. It records prospective provider usage needed to evaluate that question.
-Existing v1/v2 numbers remain scoped case-study estimates.
-
-## Does RSAW replace an issue tracker or CI?
-
-No. It is a repository-local continuity and runtime contract that complements
-planning, review, CI, access control, and experiment infrastructure.
+Read-only inspection is possible, but only one supervisor/writer should own the active
+workstream. The runtime lock prevents a second supervisor.

@@ -36,6 +36,12 @@ Spec: docs/tasks/T-000-bootstrap.md
 - ACTIVE.md
 - docs/tasks/T-000-bootstrap.md
 
+## Context Contract
+
+Mode: BOUNDED
+Stable Prefix: AGENTS.md
+Budget: inherit `.rsaw/config.json`
+
 ## Do Not Preload
 
 - full repository tree;

@@ -1,74 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
-  <title id="title">RSAW Live Terminal dashboard</title>
-  <desc id="desc">A terminal-native dashboard showing an active EdgeFlow workstream, current activity, lifecycle progress, context pressure, token reuse, and recent events.</desc>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#07111f"/>
-      <stop offset="1" stop-color="#111827"/>
-    </linearGradient>
-    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#22c55e"/>
-      <stop offset="1" stop-color="#2dd4bf"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#020617" flood-opacity="0.55"/>
-    </filter>
-  </defs>
-  <rect width="1280" height="760" fill="#020617"/>
-  <circle cx="1130" cy="90" r="210" fill="#0f766e" opacity="0.12"/>
-  <circle cx="120" cy="690" r="260" fill="#2563eb" opacity="0.1"/>
-  <rect x="54" y="44" width="1172" height="672" rx="24" fill="url(#bg)" stroke="#334155" stroke-width="2" filter="url(#shadow)"/>
-  <rect x="54" y="44" width="1172" height="58" rx="24" fill="#0f172a"/>
-  <rect x="54" y="80" width="1172" height="22" fill="#0f172a"/>
-  <circle cx="88" cy="73" r="7" fill="#fb7185"/>
-  <circle cx="112" cy="73" r="7" fill="#facc15"/>
-  <circle cx="136" cy="73" r="7" fill="#4ade80"/>
-  <text x="640" y="80" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" text-anchor="middle">VS Code Integrated Terminal · rsaw run . --agent codex</text>
-
-  <text x="88" y="142" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="25" font-weight="700">RSAW · EdgeFlow Core</text>
-  <text x="1190" y="142" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" font-weight="700" text-anchor="end">● WORKING</text>
-  <text x="88" y="174" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">Builder · Runtime epoch 03 · EDGEFLOW_CORE_001</text>
-
-  <line x1="88" y1="198" x2="1192" y2="198" stroke="#334155"/>
-  <text x="88" y="237" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">NOW</text>
-  <text x="155" y="237" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22">⠹</text>
-  <text x="190" y="237" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" font-weight="700">Running focused validation</text>
-  <text x="190" y="269" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">pytest tests/runtime/test_gpu_observer.py</text>
-
-  <text x="88" y="325" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">PROGRESS</text>
-  <text x="190" y="325" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">E04</text>
-  <text x="245" y="325" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" font-weight="700">GPU Observability Diagnostic</text>
-  <text x="190" y="363" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">✓ Design</text>
-  <text x="315" y="363" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">✓ Implement</text>
-  <text x="465" y="363" fill="#22d3ee" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">● Validate</text>
-  <text x="605" y="363" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">○ Run</text>
-  <text x="700" y="363" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">○ Analyze</text>
-  <text x="190" y="402" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Accepted checkpoint</text>
-  <text x="410" y="402" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">6</text>
-  <text x="520" y="402" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Next</text>
-  <text x="590" y="402" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">CONTINUE · same context</text>
-
-  <text x="88" y="463" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">CONTEXT PRESSURE</text>
-  <text x="1190" y="463" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="700" text-anchor="end">GOOD</text>
-  <rect x="88" y="484" width="1104" height="18" rx="9" fill="#1e293b"/>
-  <rect x="88" y="484" width="751" height="18" rx="9" fill="url(#bar)"/>
-  <text x="850" y="501" fill="#e2e8f0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">68%</text>
-  <text x="88" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Input</text>
-  <text x="150" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">41.2k</text>
-  <text x="300" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Cached</text>
-  <text x="385" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">34.8k · 84%</text>
-  <text x="620" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Fresh</text>
-  <text x="690" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">6.4k</text>
-  <text x="870" y="540" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17">Rotate at</text>
-  <text x="972" y="540" fill="#f8fafc" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">60.0k</text>
-
-  <text x="88" y="598" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" font-weight="700">RECENT</text>
-  <text x="190" y="598" fill="#4ade80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">✓ Checkpoint 6 accepted · 18 tests passed</text>
-  <text x="190" y="630" fill="#60a5fa" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">◆ Updated telemetry.py</text>
-  <text x="190" y="662" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">◇ Inspected gpu_observer.py</text>
-
-  <line x1="88" y1="680" x2="1192" y2="680" stroke="#334155"/>
-  <text x="88" y="704" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">Durable 3s ago</text>
-  <text x="640" y="704" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" text-anchor="middle">Gate NONE</text>
-  <text x="1192" y="704" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" text-anchor="end">Runtime 31m · RSAW 0.4</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="860" viewBox="0 0 1500 860">
+  <rect width="1500" height="860" rx="30" fill="#070d16"/>
+  <rect x="45" y="45" width="1410" height="770" rx="22" fill="#0b1420" stroke="#22d3ee" stroke-width="3"/>
+  <g font-family="ui-monospace,SFMono-Regular,Consolas,monospace">
+    <text x="80" y="92" fill="#67e8f9" font-size="25" font-weight="700">RSAW · EdgeFlow</text><text x="1260" y="92" fill="#34d399" font-size="23">● WORKING</text>
+    <text x="80" y="130" fill="#94a3b8" font-size="19">Builder · Runtime epoch 3 · Context plan PASS</text>
+    <text x="80" y="185" fill="#64748b" font-size="18" font-weight="700">NOW</text><text x="170" y="185" fill="#f8fafc" font-size="22">Running focused validation</text><text x="170" y="218" fill="#94a3b8" font-size="18">pytest tests/runtime/test_gpu_observer.py</text>
+    <text x="80" y="278" fill="#64748b" font-size="18" font-weight="700">PROGRESS</text><text x="215" y="278" fill="#67e8f9" font-size="20" font-weight="700">E04 · GPU Observability</text>
+    <text x="215" y="320" fill="#34d399" font-size="19">✓ Design   ✓ Implement</text><text x="510" y="320" fill="#67e8f9" font-size="19">● Validate</text><text x="655" y="320" fill="#64748b" font-size="19">○ Run   ○ Analyze</text>
+    <text x="215" y="360" fill="#cbd5e1" font-size="18">Checkpoint 6</text><text x="490" y="360" fill="#34d399" font-size="18">Next CONTINUE · same context</text>
+    <text x="80" y="425" fill="#64748b" font-size="18" font-weight="700">CONTEXT</text><text x="215" y="425" fill="#34d399" font-size="19" font-weight="700">GOOD</text><text x="330" y="425" fill="#94a3b8" font-size="17">soft 48k · hard 60k · fresh limit 18k</text>
+    <rect x="215" y="452" width="900" height="22" rx="11" fill="#172334"/><rect x="215" y="452" width="618" height="22" rx="11" fill="#22d3ee"/><text x="1140" y="470" fill="#e2e8f0" font-size="18">68%</text>
+    <text x="215" y="520" fill="#cbd5e1" font-size="18">Input 41.2k</text><text x="455" y="520" fill="#5eead4" font-size="18">Cached 34.8k · 84%</text><text x="765" y="520" fill="#fde68a" font-size="18">Fresh 6.4k</text><text x="990" y="520" fill="#c4b5fd" font-size="18">Fresh/checkpoint 1.1k</text>
+    <text x="80" y="585" fill="#64748b" font-size="18" font-weight="700">CONTEXT PLAN</text><text x="245" y="585" fill="#e2e8f0" font-size="18">Stable 1.2k · Dynamic 3.6k · Budget 15k · Prefix a81f…93c0</text>
+    <text x="80" y="650" fill="#64748b" font-size="18" font-weight="700">RECENT</text><text x="215" y="650" fill="#34d399" font-size="18">✓ Validation passed · 18/18</text><text x="215" y="686" fill="#e2e8f0" font-size="18">◆ Updated telemetry.py</text><text x="215" y="722" fill="#e2e8f0" font-size="18">↻ Rotation evaluation · cache locality acceptable</text>
+    <line x1="80" y1="760" x2="1420" y2="760" stroke="#243447"/><text x="80" y="793" fill="#94a3b8" font-size="17">Durable 3s ago</text><text x="410" y="793" fill="#94a3b8" font-size="17">Gate NONE</text><text x="710" y="793" fill="#94a3b8" font-size="17">Runtime 31m</text><text x="1120" y="793" fill="#67e8f9" font-size="17">RSAW 0.5</text>
+  </g>
 </svg>

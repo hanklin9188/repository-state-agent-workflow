@@ -20,7 +20,9 @@ from ..prompts import render_prompt
 from ..verify import verify_repository
 from .adapter import AgentAdapter
 from .config import RuntimeConfig
+from .context import ContextPlan, build_context_plan
 from .model import RuntimeSummary
+from .rotation import evaluate_rotation
 from .store import RuntimeLock, RuntimeLockError, RuntimeStore, utc_now
 
 STATUS_COMPLETE = "COMPLETE"
@@ -38,7 +40,15 @@ class SupervisorOptions:
     max_transitions: int = 100
     max_turns_per_epoch: int = 6
     rotate_input_tokens: int = 60_000
+    rotation_soft_input_tokens: int = 48_000
+    max_fresh_input_tokens: int = 18_000
+    min_cache_reuse_ratio: float = 0.50
     max_total_input_tokens: int = 5_000_000
+    bootstrap_token_budget: int = 15_000
+    max_context_files: int = 12
+    max_context_file_bytes: int = 262_144
+    include_workstream_spec: bool = False
+    enforce_context_budget: bool = False
     quiet: bool = False
 
 
@@ -65,7 +75,15 @@ def options_from_config(
         max_transitions=config.max_transitions,
         max_turns_per_epoch=config.max_turns_per_epoch,
         rotate_input_tokens=config.rotate_input_tokens,
+        rotation_soft_input_tokens=config.rotation_soft_input_tokens,
+        max_fresh_input_tokens=config.max_fresh_input_tokens,
+        min_cache_reuse_ratio=config.min_cache_reuse_ratio,
         max_total_input_tokens=config.max_total_input_tokens,
+        bootstrap_token_budget=config.bootstrap_token_budget,
+        max_context_files=config.max_context_files,
+        max_context_file_bytes=config.max_context_file_bytes,
+        include_workstream_spec=config.include_workstream_spec,
+        enforce_context_budget=config.enforce_context_budget,
         quiet=quiet,
     )
 
@@ -83,10 +101,7 @@ def supervise(
     if not initial_verification.ok:
         _notify_event(
             event_sink,
-            {
-                "type": "repository_verification_failed",
-                "errors": list(initial_verification.errors),
-            },
+            {"type": "repository_verification_failed", "errors": list(initial_verification.errors)},
         )
         return SupervisorResult(
             status=STATUS_FAILED,
@@ -121,6 +136,8 @@ def supervise(
             "epoch": initial_state.epoch_id,
             "role": initial_state.current_role,
             "rotate_input_tokens": options.rotate_input_tokens,
+            "rotation_soft_input_tokens": options.rotation_soft_input_tokens,
+            "max_fresh_input_tokens": options.max_fresh_input_tokens,
             "max_turns_per_epoch": options.max_turns_per_epoch,
             "max_transitions": options.max_transitions,
         },
@@ -142,6 +159,12 @@ def supervise(
             event_sink=event_sink,
         )
 
+    initial_plan = _context_plan(root, options, initial_state)
+    _record_context_plan(store, event_sink, initial_plan, scope="initial")
+    _append_plan_warnings(summary, initial_plan)
+    if options.enforce_context_budget and not initial_plan.ok:
+        return finish(initial_state, STATUS_FAILED, _context_failure(initial_plan), 27)
+
     if options.dry_run:
         decision = decide_continuation(initial_state)
         summary.status = STATUS_DRY_RUN
@@ -152,11 +175,7 @@ def supervise(
         _record_event(
             store,
             event_sink,
-            {
-                "type": "dry_run",
-                "action": decision.action,
-                "reasons": list(decision.reasons),
-            },
+            {"type": "dry_run", "action": decision.action, "reasons": list(decision.reasons)},
         )
         store.save_summary(summary)
         return SupervisorResult(STATUS_DRY_RUN, summary.reason, store.summary_path, run_id, 0)
@@ -190,12 +209,7 @@ def supervise(
                 )
 
                 if decision.action == ACTION_COMPLETE:
-                    return finish(
-                        state,
-                        STATUS_COMPLETE,
-                        "WORKSTREAM_COMPLETE",
-                        0,
-                    )
+                    return finish(state, STATUS_COMPLETE, "WORKSTREAM_COMPLETE", 0)
 
                 if decision.action == ACTION_PAUSE:
                     response = gate_resolver(state) if gate_resolver else None
@@ -236,8 +250,7 @@ def supervise(
                             return finish(
                                 state,
                                 STATUS_FAILED,
-                                "GATE_RESOLUTION_STATE_INVALID: "
-                                + "; ".join(verification.errors),
+                                "GATE_RESOLUTION_STATE_INVALID: " + "; ".join(verification.errors),
                                 23,
                             )
                         _record_event(
@@ -275,12 +288,7 @@ def supervise(
                             root, last_active_signature, options.poll_seconds
                         )
                         if not changed:
-                            return finish(
-                                state,
-                                STATUS_PAUSED,
-                                "PAUSE_INTERRUPTED",
-                                20,
-                            )
+                            return finish(state, STATUS_PAUSED, "PAUSE_INTERRUPTED", 20)
                         last_active_signature = _active_signature(root)
                         thread_id = None
                         thread_turns = 0
@@ -335,6 +343,12 @@ def supervise(
                 if doctor_failure:
                     return doctor_failure
 
+                plan = _context_plan(root, options, state)
+                _record_context_plan(store, event_sink, plan, scope="turn")
+                _append_plan_warnings(summary, plan)
+                if options.enforce_context_budget and not plan.ok:
+                    return finish(state, STATUS_FAILED, _context_failure(plan), 27)
+
                 prompt = _supervised_prompt(root, mode)
                 before_signature = _active_signature(root)
                 summary.agent_turns += 1
@@ -345,6 +359,7 @@ def supervise(
                     "RSAW_RUNTIME_EPOCH": str(summary.runtime_epochs),
                     "RSAW_TASK_ID": state.task_id,
                     "RSAW_ROLE": state.current_role or state.next_role,
+                    "RSAW_STABLE_PREFIX": plan.stable_fingerprint,
                 }
                 _record_event(
                     store,
@@ -423,12 +438,7 @@ def supervise(
 
                 after_signature = _active_signature(root)
                 if after_signature == before_signature:
-                    return finish(
-                        state,
-                        STATUS_FAILED,
-                        "ACTIVE_STATE_NOT_ADVANCED",
-                        21,
-                    )
+                    return finish(state, STATUS_FAILED, "ACTIVE_STATE_NOT_ADVANCED", 21)
                 summary.checkpoints_observed += 1
                 last_active_signature = after_signature
                 thread_id = result.thread_id
@@ -455,28 +465,27 @@ def supervise(
                         "MAX_TOTAL_INPUT_TOKENS",
                         24,
                     )
-                if thread_turns >= options.max_turns_per_epoch:
-                    force_rotate_reason = "MAX_TURNS_PER_RUNTIME_EPOCH"
+
+                rotation = evaluate_rotation(
+                    usage=result.latest_turn_usage,
+                    thread_turns=thread_turns,
+                    max_turns_per_epoch=options.max_turns_per_epoch,
+                    hard_input_tokens=options.rotate_input_tokens,
+                    soft_input_tokens=options.rotation_soft_input_tokens,
+                    max_fresh_input_tokens=options.max_fresh_input_tokens,
+                    min_cache_reuse_ratio=options.min_cache_reuse_ratio,
+                )
+                _record_event(
+                    store,
+                    event_sink,
+                    {"type": "rotation_evaluated", **rotation.to_dict()},
+                )
+                if rotation.rotate:
+                    force_rotate_reason = rotation.reason
                     _record_event(
                         store,
                         event_sink,
-                        {
-                            "type": "rotation_scheduled",
-                            "reason": force_rotate_reason,
-                        },
-                    )
-                elif (
-                    options.rotate_input_tokens
-                    and result.latest_turn_usage.input_tokens >= options.rotate_input_tokens
-                ):
-                    force_rotate_reason = "TURN_INPUT_TOKEN_PRESSURE"
-                    _record_event(
-                        store,
-                        event_sink,
-                        {
-                            "type": "rotation_scheduled",
-                            "reason": force_rotate_reason,
-                        },
+                        {"type": "rotation_scheduled", **rotation.to_dict()},
                     )
 
             return finish(
@@ -499,13 +508,47 @@ def supervise(
             "SUPERVISOR_INTERRUPTED",
             20,
         )
-    except Exception as exc:  # pragma: no cover - final fail-closed boundary
+    except Exception as exc:  # pragma: no cover
         return finish(
             _safe_state(root, initial_state),
             STATUS_FAILED,
             f"SUPERVISOR_EXCEPTION: {type(exc).__name__}: {exc}",
             26,
         )
+
+
+def _context_plan(root: Path, options: SupervisorOptions, state: ActiveState) -> ContextPlan:
+    return build_context_plan(
+        root,
+        budget_tokens=options.bootstrap_token_budget,
+        max_files=options.max_context_files,
+        max_file_bytes=options.max_context_file_bytes,
+        include_workstream_spec=options.include_workstream_spec,
+        state=state,
+    )
+
+
+def _record_context_plan(
+    store: RuntimeStore,
+    event_sink: RuntimeEventSink | None,
+    plan: ContextPlan,
+    *,
+    scope: str,
+) -> None:
+    _record_event(store, event_sink, {"type": "context_plan", "scope": scope, **plan.to_dict()})
+
+
+def _append_plan_warnings(summary: RuntimeSummary, plan: ContextPlan) -> None:
+    for warning in (*plan.errors, *plan.warnings):
+        if warning not in summary.warnings:
+            summary.warnings.append(warning)
+
+
+def _context_failure(plan: ContextPlan) -> str:
+    details = list(plan.errors)
+    if not plan.within_budget:
+        details.append(f"BOOTSTRAP_TOKEN_BUDGET_EXCEEDED: {plan.total_tokens}>{plan.budget_tokens}")
+    return "CONTEXT_PLAN_INVALID: " + "; ".join(details)
 
 
 def _check_adapter_once(
@@ -528,15 +571,9 @@ def _check_adapter_once(
     store.save_summary(summary)
     _notify_event(
         event_sink,
-        {
-            "type": "supervisor_terminal",
-            "status": STATUS_FAILED,
-            "reason": summary.reason,
-        },
+        {"type": "supervisor_terminal", "status": STATUS_FAILED, "reason": summary.reason},
     )
-    return SupervisorResult(
-        STATUS_FAILED, summary.reason, store.summary_path, summary.run_id, 22
-    )
+    return SupervisorResult(STATUS_FAILED, summary.reason, store.summary_path, summary.run_id, 22)
 
 
 def _run_gate_resolution(
@@ -608,9 +645,7 @@ RSAW supervisor will rotate automatically.
         str(result.events_path.relative_to(root)) if result.events_path else ""
     )
     summary.last_message_path = (
-        str(result.last_message_path.relative_to(root))
-        if result.last_message_path
-        else ""
+        str(result.last_message_path.relative_to(root)) if result.last_message_path else ""
     )
     _record_event(
         store,
@@ -629,7 +664,9 @@ RSAW supervisor will rotate automatically.
 
 
 def _supervised_prompt(root: Path, mode: str) -> str:
-    return render_prompt(root, role=None, mode=mode) + """
+    return (
+        render_prompt(root, role=None, mode=mode)
+        + """
 
 RSAW RUNTIME SUPERVISOR IS ACTIVE
 
@@ -640,11 +677,11 @@ rotate, pause, or complete the workstream after verifying repository state.
 If human or external action is required, record a Human Gate and PAUSE/STOP
 metadata rather than busy-waiting or bypassing authority.
 """
+    )
 
 
 def _active_signature(root: Path) -> str:
-    active = root / "ACTIVE.md"
-    return hashlib.sha256(active.read_bytes()).hexdigest()
+    return hashlib.sha256((root / "ACTIVE.md").read_bytes()).hexdigest()
 
 
 def _safe_state(root: Path, fallback: ActiveState) -> ActiveState:
@@ -703,14 +740,10 @@ def _record_event(
     _notify_event(event_sink, event)
 
 
-def _notify_event(
-    event_sink: RuntimeEventSink | None,
-    event: dict[str, Any],
-) -> None:
+def _notify_event(event_sink: RuntimeEventSink | None, event: dict[str, Any]) -> None:
     if event_sink is None:
         return
     try:
         event_sink(event)
     except Exception:
-        # The presentation layer is never allowed to alter lifecycle semantics.
         return
