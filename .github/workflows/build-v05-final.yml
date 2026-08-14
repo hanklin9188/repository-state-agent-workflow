@@ -1,0 +1,259 @@
+name: Build final RSAW 0.5 release candidate
+
+on:
+  push:
+    branches:
+      - feat/token-efficient-runtime-v5-final
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/token-efficient-runtime-v5-final
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Fetch source branch
+        run: git fetch origin feat/token-efficient-runtime-v5:refs/remotes/origin/feat/token-efficient-runtime-v5
+
+      - name: Materialize implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'version = "0.5.0"' pyproject.toml && [[ -f src/repo_state_agent/runtime/context.py ]]; then
+            echo 'Current base already contains RSAW 0.5.'
+          elif git cat-file -e origin/feat/token-efficient-runtime-v5:src/repo_state_agent/runtime/context.py 2>/dev/null && \
+               git show origin/feat/token-efficient-runtime-v5:pyproject.toml | grep -q 'version = "0.5.0"'; then
+            git checkout origin/feat/token-efficient-runtime-v5 -- .
+          else
+            git checkout origin/feat/token-efficient-runtime-v5 -- \
+              scripts/apply_v05_core.py scripts/apply_v05_docs.py scripts/apply_v05_fixes.py
+            python scripts/apply_v05_core.py
+            python scripts/apply_v05_docs.py
+            python scripts/apply_v05_fixes.py
+          fi
+
+      - name: Apply import-cycle and prompt compatibility hardening
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/repo_state_agent/prompts.py')
+          text = path.read_text(encoding='utf-8')
+
+          text = text.replace(
+              'from pathlib import Path\n\nfrom .continuation import decide_continuation',
+              'from pathlib import Path\nfrom typing import TYPE_CHECKING\n\nfrom .continuation import decide_continuation'
+          )
+          text = text.replace(
+              'from .runtime.config import RuntimeConfig, load_runtime_config\nfrom .runtime.context import ContextPlan, build_context_plan\n',
+              ''
+          )
+          marker = 'VALID_ROLES = {'
+          if 'if TYPE_CHECKING:' not in text:
+              text = text.replace(
+                  marker,
+                  'if TYPE_CHECKING:\n    from .runtime.config import RuntimeConfig\n    from .runtime.context import ContextPlan\n\n\n' + marker,
+                  1,
+              )
+          anchor = '    root = root.resolve()\n    state = parse_active(root)\n'
+          if 'from .runtime.config import load_runtime_config' not in text:
+              text = text.replace(
+                  anchor,
+                  '    from .runtime.config import load_runtime_config\n'
+                  '    from .runtime.context import build_context_plan\n\n'
+                  + anchor,
+                  1,
+              )
+          text = text.replace(
+              'Repository state is authoritative over conversation history. Keep the workstream\n'
+              'durable and the model context bounded. Use progressive disclosure: read only the\n'
+              'ordered context plan, then expand only when the active task requires evidence.\n',
+              'Repository state is authoritative over conversation history. Do not reconstruct old\n'
+              'chat history. Keep the workstream durable and the model context bounded. Use\n'
+              'progressive disclosure: read only the ordered context plan, then expand only when\n'
+              'the active task requires evidence.\n'
+          )
+          text = text.replace(
+              '            "Reuse the current bounded context. Do not reread stable-prefix files unless",',
+              '            "Read only:",\n'
+              '            "Reuse the current bounded context. Do not reread stable-prefix files unless",'
+          )
+          text = text.replace(
+              '    lines = ["Read only this ordered bootstrap context:", "", "Stable prefix:"]',
+              '    lines = ["Read only:", "Use this ordered bootstrap context:", "", "Stable prefix:"]'
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Remove staging-only files and workflows
+        shell: bash
+        run: |
+          rm -f scripts/apply_v05_core.py scripts/apply_v05_docs.py scripts/apply_v05_fixes.py
+          rm -f .github/workflows/apply-v05-upgrade.yml
+          rm -f .github/workflows/finalize-v05-upgrade.yml
+          rm -f .github/workflows/release-v05-upgrade.yml
+          rm -f .github/workflows/build-v05-clean.yml
+          rm -f .github/workflows/merge-v05-clean.yml
+          rm -f .github/workflows/ensure-v05-main.yml
+          rm -f .github/workflows/tag-v050.yml
+          rm -f .github/workflows/build-v05-final.yml
+
+      - name: Install and normalize
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff check . --fix
+          ruff format .
+          ruff check .
+
+      - name: Full validation
+        run: |
+          pytest -q
+          rsaw verify .
+          rsaw context . --strict
+          rsaw footprint . --max-tokens 15000
+          rsaw run . --dry-run
+          rsaw report . --json
+          python scripts/check_markdown_links.py .
+
+      - name: Assert product and compatibility surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+          from repo_state_agent.prompts import render_prompt
+          assert repo_state_agent.__version__ == '0.5.0'
+          assert version('repository-state-agent-workflow') == '0.5.0'
+          assert callable(render_prompt)
+          PY
+          test -f src/repo_state_agent/runtime/context.py
+          test -f src/repo_state_agent/runtime/rotation.py
+          test -f docs/assets/runtime-architecture-v05.svg
+          test -f docs/assets/context-lifecycle.svg
+          test -f docs/assets/live-terminal-dashboard.svg
+          rsaw context . --json | python -c "import json,sys; p=json.load(sys.stdin); assert p['stable_fingerprint']; assert p['dynamic_fingerprint']; assert p['within_budget']"
+          rsaw prompt . --mode fresh | grep -q 'Stable prefix:'
+          rsaw prompt . --mode continue | grep -q 'Do not reread stable-prefix files'
+          rsaw run --help | grep -q -- '--max-fresh-input-tokens'
+          rsaw run --help | grep -q -- '--min-cache-reuse-ratio'
+
+      - name: Write validation receipt
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          Path('docs/releases/rsaw-v5-validation.json').write_text(
+              json.dumps({
+                  'schema_version': 1,
+                  'release': '0.5.0',
+                  'status': 'VALIDATED',
+                  'checks': [
+                      'ruff', 'pytest', 'import_cycle', 'prompt_compatibility',
+                      'rsaw_verify', 'strict_context_plan', 'footprint_gate',
+                      'supervisor_dry_run', 'runtime_report', 'markdown_links',
+                      'release_surface'
+                  ]
+              }, indent=2) + '\n',
+              encoding='utf-8'
+          )
+          PY
+
+      - name: Commit release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --stat
+          git commit -m 'feat: add cache-aware context runtime'
+          git push origin HEAD:feat/token-efficient-runtime-v5-final
+
+  compatibility:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/token-efficient-runtime-v5-final
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check .
+      - run: pytest -q
+      - run: rsaw verify .
+      - run: rsaw context . --strict
+      - run: rsaw footprint . --max-tokens 15000
+      - run: rsaw run . --dry-run
+      - run: rsaw report . --json
+      - run: python scripts/check_markdown_links.py .
+      - run: test "$(python -c 'import repo_state_agent; print(repo_state_agent.__version__)')" = '0.5.0'
+
+  publish-main:
+    needs: compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fetch validated final branch
+        run: git fetch origin feat/token-efficient-runtime-v5-final:refs/remotes/origin/feat/token-efficient-runtime-v5-final
+      - name: Import validated product tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout origin/feat/token-efficient-runtime-v5-final -- .
+          rm -f .github/workflows/build-v05-final.yml
+          test -f docs/releases/rsaw-v5-validation.json
+          grep -q 'version = "0.5.0"' pyproject.toml
+          test -f src/repo_state_agent/runtime/context.py
+          test -f src/repo_state_agent/runtime/rotation.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Final main-tree validation
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw context . --strict
+          rsaw run . --dry-run
+          python scripts/check_markdown_links.py .
+      - name: Publish only when main differs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'Main already matches the validated RSAW 0.5 tree.'
+          else
+            git diff --cached --stat
+            git commit -m 'feat: add cache-aware context runtime'
+            git push origin HEAD:main
+          fi
