@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="384" viewBox="0 0 1280 384" role="img" aria-labelledby="wtitle wdesc" font-family="Segoe UI, Noto Sans TC, PingFang TC, Microsoft JhengHei, Helvetica, Arial, sans-serif">
+  <title id="wtitle">RSAW Session 循環</title>
+  <desc id="wdesc">Bootstrap、Bounded Work、Validate、Handoff — Continuity 留在 Git,而不是聊天記錄裡。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.55" stop-color="#0b1f33"/>
+      <stop offset="1" stop-color="#123a4a"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5eead4"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="384" rx="24" fill="url(#bg)"/>
+  <circle cx="1130" cy="40" r="170" fill="#2563eb" opacity="0.10"/>
+  <circle cx="120" cy="330" r="190" fill="#14b8a6" opacity="0.08"/>
+
+  <!-- 01 Bootstrap -->
+  <g>
+    <rect x="48" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#5eead4" stroke-width="2.5"/>
+    <circle cx="82" cy="98" r="15" fill="#5eead4"/>
+    <text x="82" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">01</text>
+    <text x="106" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Bootstrap</text>
+    <line x1="70" y1="124" x2="276" y2="124" stroke="#5eead4" stroke-opacity="0.25" stroke-width="1.5"/>
+    <text x="72" y="156" font-size="14.5" fill="#cbd5e1">Fresh Session 啟動</text>
+    <text x="72" y="182" font-size="14.5" fill="#cbd5e1">只讀三個檔案:</text>
+    <text x="72" y="208" font-size="14.5" fill="#cbd5e1">AGENTS.md · ACTIVE.md</text>
+    <text x="72" y="240" font-size="13" fill="#5eead4">+ Active Task,約 3K tokens</text>
+  </g>
+
+  <!-- 02 Bounded work -->
+  <g>
+    <rect x="358" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#60a5fa" stroke-width="2.5"/>
+    <circle cx="392" cy="98" r="15" fill="#60a5fa"/>
+    <text x="392" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">02</text>
+    <text x="416" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Bounded Work</text>
+    <line x1="380" y1="124" x2="586" y2="124" stroke="#60a5fa" stroke-opacity="0.25" stroke-width="1.5"/>
+    <text x="382" y="156" font-size="14.5" fill="#cbd5e1">只執行一個 Bounded</text>
+    <text x="382" y="182" font-size="14.5" fill="#cbd5e1">Task,需要時才讀取</text>
+    <text x="382" y="208" font-size="14.5" fill="#cbd5e1">精確的額外依賴</text>
+    <text x="382" y="240" font-size="13" fill="#60a5fa">Progressive Disclosure</text>
+  </g>
+
+  <!-- 03 Validate -->
+  <g>
+    <rect x="668" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#4ade80" stroke-width="2.5"/>
+    <circle cx="702" cy="98" r="15" fill="#4ade80"/>
+    <text x="702" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">03</text>
+    <text x="726" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Validate</text>
+    <line x1="690" y1="124" x2="896" y2="124" stroke="#4ade80" stroke-opacity="0.25" stroke-width="1.5"/>
+    <text x="692" y="156" font-size="14.5" fill="#cbd5e1">迭代中跑 Targeted</text>
+    <text x="692" y="182" font-size="14.5" fill="#cbd5e1">Validation,穩定後跑</text>
+    <text x="692" y="208" font-size="14.5" fill="#cbd5e1">Closure Validation</text>
+    <text x="692" y="240" font-size="13" fill="#4ade80">Evidence Gate V0–V3</text>
+  </g>
+
+  <!-- 04 Handoff -->
+  <g>
+    <rect x="978" y="64" width="250" height="220" rx="18" fill="#0f2940" stroke="#f472b6" stroke-width="2.5"/>
+    <circle cx="1012" cy="98" r="15" fill="#f472b6"/>
+    <text x="1012" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#07111f">04</text>
+    <text x="1036" y="104" font-size="17" font-weight="700" fill="#f1f5f9">Handoff</text>
+    <line x1="1000" y1="124" x2="1206" y2="124" stroke="#f472b6" stroke-opacity="0.25" stroke-width="1.5"/>
+    <text x="1002" y="156" font-size="14.5" fill="#cbd5e1">把下一步狀態寫回</text>
+    <text x="1002" y="182" font-size="14.5" fill="#cbd5e1">ACTIVE.md,然後</text>
+    <text x="1002" y="208" font-size="14.5" fill="#cbd5e1">停止這個 Session</text>
+    <text x="1002" y="240" font-size="13" fill="#f472b6">下一個 Session 全新接手</text>
+  </g>
+
+  <!-- forward arrows -->
+  <line x1="302" y1="174" x2="350" y2="174" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <line x1="612" y1="174" x2="660" y2="174" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <line x1="922" y1="174" x2="970" y2="174" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowTeal)"/>
+
+  <!-- return loop -->
+  <path d="M1103 288 V348 H173 V296" fill="none" stroke="#5eead4" stroke-width="2.5" stroke-dasharray="7 6" stroke-opacity="0.75" marker-end="url(#arrowTeal)"/>
+  <text x="640" y="336" text-anchor="middle" font-size="13.5" fill="#94a3b8">Continuity 留在 Git — 而不是聊天記錄裡</text>
+</svg>
