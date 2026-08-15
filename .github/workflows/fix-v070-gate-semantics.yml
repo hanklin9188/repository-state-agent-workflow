@@ -1,0 +1,81 @@
+name: Align v0.7 gate-clear and TUI semantics
+
+on:
+  push:
+    branches: ["feat/v0.7.0-operator-hardening"]
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/v0.7.0-operator-hardening
+          fetch-depth: 0
+      - name: Patch role-aware gate clear and tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          cli = Path("src/repo_state_agent/v7_cli.py")
+          text = cli.read_text(encoding="utf-8")
+          old = '''    text = replace_section(before, "Human Gate", "None.")
+    text = replace_section(
+        text,
+        "Continuation Gate",
+        "Decision: CONTINUE_ALLOWED\\n"
+        f"Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",
+    )
+'''
+          new = '''    text = replace_section(before, "Human Gate", "None.")
+    current_role = (state.current_role or "").strip().lower()
+    next_role = (state.next_role or state.current_role or "").strip().lower()
+    continuation = (
+        "ROTATE_REQUIRED"
+        if current_role and next_role and current_role != next_role
+        else "CONTINUE_ALLOWED"
+    )
+    text = replace_section(
+        text,
+        "Continuation Gate",
+        f"Decision: {continuation}\\n"
+        f"Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",
+    )
+'''
+          if old not in text:
+              raise SystemExit("gate-clear anchor not found")
+          cli.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          tui_test = Path("tests/test_v6_tui.py")
+          text = tui_test.read_text(encoding="utf-8")
+          if 'assert "RSAW 0.6" in text' not in text:
+              raise SystemExit("legacy TUI version assertion not found")
+          tui_test.write_text(
+              text.replace(
+                  'assert "RSAW 0.6" in text',
+                  'assert "RSAW 0.7" in text',
+                  1,
+              ),
+              encoding="utf-8",
+          )
+
+          hardening = Path("tests/test_v7_hardening.py")
+          text = hardening.read_text(encoding="utf-8")
+          old = '    assert state.continuation == "CONTINUE_ALLOWED"\n'
+          new = '    assert state.continuation == "ROTATE_REQUIRED"\n'
+          if old not in text:
+              raise SystemExit("gate-clear test assertion not found")
+          hardening.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+      - name: Commit alignment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-v070-gate-semantics.yml
+          git add src/repo_state_agent/v7_cli.py tests/test_v6_tui.py tests/test_v7_hardening.py
+          git commit -m "fix: make gate clear role-aware"
+          git push origin HEAD:feat/v0.7.0-operator-hardening
