@@ -1,0 +1,201 @@
+name: v0.6.1 evidence-binding hotfix
+
+on:
+  push:
+    branches: ["fix/v0.6.1-supervisor-evidence-binding"]
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.6.1-supervisor-evidence-binding
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply v0.6.1 evidence ownership fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path("src/repo_state_agent/runtime/v6.py")
+          s = p.read_text(encoding="utf-8")
+
+          old = '''        incoming_refs = _str_list(delta.get("evidenceRefs")) + evidence_refs
+          self.evidence_refs = list(dict.fromkeys([*self.evidence_refs, *incoming_refs]))[-64:]
+'''
+          new = '''        # Evidence binding is supervisor-owned because authoritative EV-* handles
+        # are created only after the agent turn has completed and repository changes
+        # have been observed. Model-provided source labels must never become durable
+        # evidence authority.
+        incoming_refs = evidence_refs
+        self.evidence_refs = list(dict.fromkeys([*self.evidence_refs, *incoming_refs]))[-64:]
+'''
+          if old not in s:
+              raise SystemExit("semantic capsule evidence anchor not found")
+          s = s.replace(old, new, 1)
+
+          old = '''    refs = set(_str_list(result.capsule_delta.get("evidenceRefs")))
+    unknown = refs - evidence_ids
+    if unknown:
+        errors.append("UNKNOWN_EVIDENCE_REFS:" + ",".join(sorted(unknown)))
+'''
+          new = '''    # The supervisor creates authoritative content-addressed EV-* handles only
+    # after the turn, so the model cannot be required to predict those identifiers.
+    # Human-readable/path-like refs are ignored as non-authoritative hints. If a model
+    # explicitly claims an EV-* handle, however, it must exist in this turn's observed
+    # evidence set.
+    refs = set(_str_list(result.capsule_delta.get("evidenceRefs")))
+    claimed_handles = {ref for ref in refs if ref.startswith("EV-")}
+    unknown_handles = claimed_handles - evidence_ids
+    if unknown_handles:
+        errors.append("UNKNOWN_EVIDENCE_REFS:" + ",".join(sorted(unknown_handles)))
+    if refs - claimed_handles:
+        warnings.append("MODEL_SOURCE_REFS_IGNORED:SUPERVISOR_OWNS_EVIDENCE_BINDING")
+'''
+          if old not in s:
+              raise SystemExit("deterministic gate evidence anchor not found")
+          s = s.replace(old, new, 1)
+
+          old = '''- Do not expose hidden chain-of-thought.\n- Your FINAL MESSAGE must be exactly one JSON object matching rsaw.checkpoint-result.v1.\n'''
+          new = '''- Do not expose hidden chain-of-thought.\n- semanticCapsuleDelta.evidenceRefs MUST be [] because evidence handles are bound by the supervisor after the turn.\n- Your FINAL MESSAGE must be exactly one JSON object matching rsaw.checkpoint-result.v1.\n'''
+          if old not in s:
+              raise SystemExit("v6 prompt hard-rule anchor not found")
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding="utf-8")
+
+          pyproject = Path("pyproject.toml")
+          text = pyproject.read_text(encoding="utf-8")
+          text = text.replace('version = "0.6.0"', 'version = "0.6.1"', 1)
+          pyproject.write_text(text, encoding="utf-8")
+
+          init = Path("src/repo_state_agent/__init__.py")
+          text = init.read_text(encoding="utf-8")
+          text = text.replace('__version__ = "0.6.0"', '__version__ = "0.6.1"', 1)
+          init.write_text(text, encoding="utf-8")
+
+          t = Path("tests/test_v6_runtime.py")
+          text = t.read_text(encoding="utf-8")
+          addition = r'''
+
+
+def test_model_source_evidence_refs_do_not_cause_gate_reject(tmp_path: Path) -> None:
+    _repo(tmp_path)
+    state = ActiveState(
+        root=tmp_path,
+        active_path=tmp_path / "ACTIVE.md",
+        task_id="T1",
+        task_spec=tmp_path / "docs/tasks/T1.md",
+        required_reads=(),
+        next_action="implement",
+        stop_condition="pass",
+        next_role="Reviewer",
+        reasoning="Medium",
+        workstream_id="W",
+        epoch_id="E-1",
+        current_role="Builder",
+    )
+    before = hashlib.sha256((tmp_path / "ACTIVE.md").read_bytes()).hexdigest()
+    delta = {
+        "observedFacts": [],
+        "decisions": [],
+        "excludedHypotheses": [],
+        "evidenceRefs": ["ACTIVE.md", "docs/tasks/T1.md"],
+        "unresolvedRisks": [],
+        "codeRelations": [],
+        "validationStatus": [],
+        "nextAction": "review",
+    }
+    gate = deterministic_gate(
+        tmp_path,
+        state=state,
+        result=_result(changedFiles=[], semanticCapsuleDelta=delta),
+        active_sha_before=before,
+        changed_files=(),
+        event_info={"commands": [{"command": "python -m pytest -q", "eventType": "item.completed", "exitCode": 0}]},
+        evidence_ids=set(),
+    )
+    assert gate.accepted is True
+    assert "MODEL_SOURCE_REFS_IGNORED:SUPERVISOR_OWNS_EVIDENCE_BINDING" in gate.warnings
+
+
+def test_claimed_ev_handle_must_be_observed(tmp_path: Path) -> None:
+    _repo(tmp_path)
+    state = ActiveState(
+        root=tmp_path,
+        active_path=tmp_path / "ACTIVE.md",
+        task_id="T1",
+        task_spec=tmp_path / "docs/tasks/T1.md",
+        required_reads=(),
+        next_action="implement",
+        stop_condition="pass",
+        next_role="Reviewer",
+        reasoning="Medium",
+        workstream_id="W",
+        epoch_id="E-1",
+        current_role="Builder",
+    )
+    before = hashlib.sha256((tmp_path / "ACTIVE.md").read_bytes()).hexdigest()
+    delta = {
+        "observedFacts": [],
+        "decisions": [],
+        "excludedHypotheses": [],
+        "evidenceRefs": ["EV-FILE-not-observed"],
+        "unresolvedRisks": [],
+        "codeRelations": [],
+        "validationStatus": [],
+        "nextAction": "review",
+    }
+    gate = deterministic_gate(
+        tmp_path,
+        state=state,
+        result=_result(changedFiles=[], semanticCapsuleDelta=delta),
+        active_sha_before=before,
+        changed_files=(),
+        event_info={"commands": [{"command": "python -m pytest -q", "eventType": "item.completed", "exitCode": 0}]},
+        evidence_ids=set(),
+    )
+    assert gate.accepted is False
+    assert "UNKNOWN_EVIDENCE_REFS:EV-FILE-not-observed" in gate.errors
+
+
+def test_semantic_capsule_persists_only_supervisor_bound_evidence() -> None:
+    capsule = SemanticCapsule("W")
+    capsule.merge(
+        {"evidenceRefs": ["ACTIVE.md", "docs/tasks/T1.md"]},
+        checkpoint_id="CP-1",
+        revision="abc",
+        role="Builder",
+        objective="test",
+        evidence_refs=["EV-FILE-authoritative"],
+        max_tokens=2500,
+    )
+    assert capsule.evidence_refs == ["EV-FILE-authoritative"]
+'''
+          if "test_model_source_evidence_refs_do_not_cause_gate_reject" in text:
+              raise SystemExit("hotfix tests already present")
+          t.write_text(text.rstrip() + addition + "\n", encoding="utf-8")
+          PY
+
+      - name: Validate hotfix
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m compileall -q src tests
+          ruff check .
+          pytest -q
+          rsaw acceptance . --horizon all --json
+
+      - name: Commit validated hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/v061-evidence-hotfix.yml
+          git add pyproject.toml src/repo_state_agent/__init__.py src/repo_state_agent/runtime/v6.py tests/test_v6_runtime.py
+          git commit -m "fix: make evidence binding supervisor-owned in v0.6.1"
+          git push origin HEAD:fix/v0.6.1-supervisor-evidence-binding
