@@ -8,14 +8,12 @@ from rich.console import Console
 
 import repo_state_agent.runtime.v6 as v6
 from repo_state_agent.active_format import canonicalize_active_text
-from repo_state_agent.model import ActiveState
 from repo_state_agent.parsing import parse_active
 from repo_state_agent.runtime.model import AdapterDoctorResult, AgentTurnResult, TokenUsage
 from repo_state_agent.runtime.tool_budget import ToolBudget, ToolBudgetGuard
 from repo_state_agent.runtime.tui.v6 import LiveDashboardV6
 from repo_state_agent.runtime.v6 import (
     CheckpointResult,
-    GateDecision,
     GovernorDecision,
     SemanticCapsule,
     TaskRef,
@@ -345,9 +343,7 @@ def test_verify_uses_canonical_budget_not_raw_blank_line_count(tmp_path: Path) -
 
 def test_dashboard_loads_repository_global_checkpoint(tmp_path: Path) -> None:
     _repo(tmp_path)
-    (tmp_path / ".rsaw/state/checkpoints/CP-0042.json").write_text(
-        "{}", encoding="utf-8"
-    )
+    (tmp_path / ".rsaw/state/checkpoints/CP-0042.json").write_text("{}", encoding="utf-8")
     dashboard = LiveDashboardV6(tmp_path, console=Console(record=True))
     assert dashboard._state["checkpoint"] == 42
     assert dashboard._state["task"] == "T1"

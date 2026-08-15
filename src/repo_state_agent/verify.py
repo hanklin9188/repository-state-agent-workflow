@@ -58,9 +58,7 @@ def verify_repository(
         )
     )
     if text != canonical:
-        result.warnings.append(
-            "ACTIVE.md is not canonical; run `rsaw state normalize .`"
-        )
+        result.warnings.append("ACTIVE.md is not canonical; run `rsaw state normalize .`")
 
     try:
         state = parse_active(root)
@@ -97,14 +95,12 @@ def verify_repository(
     next_role = _role(state.next_role)
     if next_role not in VALID_ROLES:
         result.errors.append(
-            f"Next Session Role must be one of {sorted(VALID_ROLES)}; "
-            f"got {state.next_role!r}"
+            f"Next Session Role must be one of {sorted(VALID_ROLES)}; got {state.next_role!r}"
         )
 
     if state.current_role and _role(state.current_role) not in VALID_ROLES:
         result.errors.append(
-            f"Context Epoch Role must be one of {sorted(VALID_ROLES)}; "
-            f"got {state.current_role!r}"
+            f"Context Epoch Role must be one of {sorted(VALID_ROLES)}; got {state.current_role!r}"
         )
 
     if state.reasoning.lower() not in VALID_REASONING:

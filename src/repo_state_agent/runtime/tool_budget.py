@@ -122,10 +122,7 @@ class ToolBudgetGuard:
         if not self.budget.enforce:
             return ""
         if self._tool_calls > self.budget.max_tool_calls_per_turn:
-            return (
-                "MAX_TOOL_CALLS:"
-                f"{self._tool_calls}>{self.budget.max_tool_calls_per_turn}"
-            )
+            return f"MAX_TOOL_CALLS:{self._tool_calls}>{self.budget.max_tool_calls_per_turn}"
         if self._peak_tool_output_tokens > self.budget.max_single_tool_output_tokens:
             return (
                 "MAX_SINGLE_TOOL_OUTPUT_TOKENS:"
@@ -172,12 +169,7 @@ def _command(payload: dict[str, Any]) -> str:
 
 
 def _output(payload: dict[str, Any]) -> str:
-    value = (
-        payload.get("aggregated_output")
-        or payload.get("output")
-        or payload.get("stdout")
-        or ""
-    )
+    value = payload.get("aggregated_output") or payload.get("output") or payload.get("stdout") or ""
     return value if isinstance(value, str) else ""
 
 

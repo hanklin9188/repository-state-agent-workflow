@@ -106,16 +106,11 @@ class LiveDashboardV6:
                 self._push("Supervisor owns checkpoint state")
             elif event_type == "v6.context.compiled":
                 self._state["envelope"] = int(event.get("totalTokens") or 0)
-                self._state["capsule"] = int(
-                    event.get("semanticCapsuleTokens") or 0
-                )
+                self._state["capsule"] = int(event.get("semanticCapsuleTokens") or 0)
                 self._state["repeated"] = int(event.get("repeatedInputTokens") or 0)
                 self._state["resend"] = int(event.get("evidenceResendTokens") or 0)
                 self._state["mode"] = str(event.get("mode") or "FRESH")
-                self._push(
-                    f"Context {self._state['mode']} · "
-                    f"{self._state['envelope']} tokens"
-                )
+                self._push(f"Context {self._state['mode']} · {self._state['envelope']} tokens")
             elif event_type == "v6.agent.turn.started":
                 self._state["status"] = "WORKING"
                 self._state["task"] = event.get("task") or self._state["task"]
@@ -126,11 +121,7 @@ class LiveDashboardV6:
                 accepted = bool(event.get("accepted"))
                 self._state["gate"] = "PASS" if accepted else "REJECT"
                 self._state["status"] = "CHECKPOINTING" if accepted else "FAILED"
-                self._push(
-                    "Deterministic gate PASS"
-                    if accepted
-                    else "Deterministic gate REJECT"
-                )
+                self._push("Deterministic gate PASS" if accepted else "Deterministic gate REJECT")
             elif event_type == "v6.governor":
                 self._state["action"] = event.get("action") or "—"
                 self._state["reason"] = event.get("reason") or ""
@@ -152,9 +143,7 @@ class LiveDashboardV6:
                 self._state["status"] = "PAUSED"
                 self._state["reason"] = str(event.get("violation") or "TOOL_BUDGET")
                 self._state["tool_calls"] = int(event.get("tool_calls") or 0)
-                self._state["tool_output"] = int(
-                    event.get("tool_output_tokens") or 0
-                )
+                self._state["tool_output"] = int(event.get("tool_output_tokens") or 0)
                 self._push(f"Tool budget paused · {self._state['reason']}")
             elif event_type == "v6.supervisor.terminal":
                 self._state["status"] = event.get("status") or self._state["status"]
@@ -172,7 +161,7 @@ class LiveDashboardV6:
                 self._state["input"] = total
                 self._state["cached"] = cached
                 self._state["fresh"] = max(0, total - cached)
-                self._push(f"Provider input {_fmt(total)} · fresh {_fmt(total-cached)}")
+                self._push(f"Provider input {_fmt(total)} · fresh {_fmt(total - cached)}")
             elif event_type.endswith(".started"):
                 item = event.get("item") if isinstance(event.get("item"), dict) else event
                 item_type = str(item.get("type") or "")
@@ -190,11 +179,7 @@ class LiveDashboardV6:
                         self._state["tool_calls"] += 1
             elif event_type.endswith(".completed"):
                 item = event.get("item") if isinstance(event.get("item"), dict) else event
-                output = (
-                    item.get("aggregated_output")
-                    or item.get("output")
-                    or item.get("stdout")
-                )
+                output = item.get("aggregated_output") or item.get("output") or item.get("stdout")
                 if isinstance(output, str):
                     self._state["tool_output"] += (len(output) + 3) // 4
         self._refresh()
@@ -244,7 +229,7 @@ class LiveDashboardV6:
         occ = (
             "unknown"
             if not isinstance(occupancy, int | float)
-            else f"{float(occupancy)*100:.1f}% estimated"
+            else f"{float(occupancy) * 100:.1f}% estimated"
         )
         memory = Table.grid(expand=True)
         memory.add_column(ratio=1)
@@ -284,9 +269,10 @@ class LiveDashboardV6:
             "",
         )
 
-        recent_text = "\n".join(
-            f"• {item}" for item in list(self._recent)[: (3 if compact else 6)]
-        ) or "• Waiting for runtime events"
+        recent_text = (
+            "\n".join(f"• {item}" for item in list(self._recent)[: (3 if compact else 6)])
+            or "• Waiting for runtime events"
+        )
         footer = (
             "Repository state is authoritative · UI is presentation-only · "
             "expected PAUSE/COMPLETE exits are operator-safe"
@@ -419,9 +405,9 @@ def _latest_checkpoint_index(root: Path) -> int:
 
 def _fmt(value: int) -> str:
     if value >= 1_000_000:
-        return f"{value/1_000_000:.2f}M"
+        return f"{value / 1_000_000:.2f}M"
     if value >= 1_000:
-        return f"{value/1_000:.1f}k"
+        return f"{value / 1_000:.1f}k"
     return str(value)
 
 

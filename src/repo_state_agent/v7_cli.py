@@ -79,9 +79,7 @@ def _resolve_codex_settings(
         codex = {}
     state = parse_active(root)
 
-    configured_binary = str(
-        codex.get("binary") or runtime.get("codex_binary") or "codex"
-    )
+    configured_binary = str(codex.get("binary") or runtime.get("codex_binary") or "codex")
     binary = configured_binary if requested_binary == "auto" else requested_binary
 
     overrides = codex.get("taskSandboxOverrides", {})
@@ -123,8 +121,7 @@ def _installation_view() -> dict[str, Any]:
         "python": sys.executable,
         "launcher": launcher,
         "launcherMatchesPythonPrefix": bool(
-            launcher
-            and Path(launcher).resolve().parent == Path(sys.executable).resolve().parent
+            launcher and Path(launcher).resolve().parent == Path(sys.executable).resolve().parent
         ),
         "moduleFallback": f"{sys.executable} -m repo_state_agent",
     }
@@ -559,8 +556,7 @@ def _gate(argv: list[str]) -> int:
     text = replace_section(
         text,
         "Continuation Gate",
-        f"Decision: {continuation}\n"
-        f"Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",
+        f"Decision: {continuation}\nReason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",
     )
     if "## Blockers" in text:
         text = replace_section(text, "Blockers", "None.")
