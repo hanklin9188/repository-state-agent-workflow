@@ -83,6 +83,15 @@ jobs:
           python -m pip install -e '.[dev]'
       - name: Apply incident-derived patch
         run: python /tmp/apply_v071.py
+      - name: Generated-source syntax preflight
+        run: |
+          if ! python -m py_compile src/repo_state_agent/v7_cli.py; then
+            nl -ba src/repo_state_agent/v7_cli.py | sed -n '625,665p'
+            exit 1
+          fi
+          python -m py_compile src/repo_state_agent/runtime/codex.py
+          python -m py_compile src/repo_state_agent/runtime/v6.py
+          python -m py_compile tests/test_v71_gpu_sandbox_boundary.py
       - name: Format and full validation
         run: |
           ruff format .
