@@ -261,11 +261,18 @@ def test_deterministic_gate_rejects_model_owned_active_mutation(tmp_path: Path) 
 
 
 def test_synthetic_horizons_preserve_zero_manual_relay(tmp_path: Path) -> None:
-    for horizon in (4, 16, 64):
-        result = synthetic_acceptance(tmp_path, horizon)
+    results = {horizon: synthetic_acceptance(tmp_path, horizon) for horizon in (4, 16, 64)}
+    for result in results.values():
         assert result["pass"] is True
         assert result["manualRelay"] == 0
         assert result["aggregateInputUsedAsOccupancy"] is False
+        assert result["completes"] == 1
+    assert results[4]["rotations"] >= 1
+    assert results[4]["compactions"] == 0
+    assert results[16]["rotations"] >= 1
+    assert results[16]["compactions"] >= 1
+    assert results[64]["rotations"] > results[16]["rotations"]
+    assert results[64]["compactions"] > results[16]["compactions"]
 
 
 def test_next_checkpoint_index_is_repository_global(tmp_path: Path) -> None:

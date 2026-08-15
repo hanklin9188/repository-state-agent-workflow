@@ -901,10 +901,34 @@ def synthetic_acceptance(root: Path, checkpoints: int) -> dict[str, Any]:
     compactions = 0
     rotations = 0
     continues = 0
+    complete_count = 0
+    action_trace: list[str] = []
     for index in range(1, checkpoints + 1):
-        next_role = "Reviewer" if index % 4 == 0 else "Builder"
-        current_role = "Builder" if index % 4 != 1 or index == 1 else "Reviewer"
-        decision = governor_decision(current_role=current_role, next_role=next_role, requested_action="CONTINUE", human_gate="", complete=index == checkpoints, estimated_occupancy_tokens=occupancy, context_window_tokens=context_window, compact_candidate_ratio=0.75, compact_required_ratio=0.85, thread_turns=((index - 1) % 8) + 1, hard_turn_ceiling=8)
+        if checkpoints == 4:
+            if index <= 2:
+                current_role = next_role = "Builder"
+            elif index == 3:
+                current_role, next_role = "Builder", "Reviewer"
+            else:
+                current_role = next_role = "Reviewer"
+        else:
+            position = (index - 1) % 8
+            current_role = "Reviewer" if position == 7 else "Builder"
+            next_role = "Reviewer" if position == 6 else "Builder"
+        decision = governor_decision(
+            current_role=current_role,
+            next_role=next_role,
+            requested_action="CONTINUE",
+            human_gate="",
+            complete=index == checkpoints,
+            estimated_occupancy_tokens=occupancy,
+            context_window_tokens=context_window,
+            compact_candidate_ratio=0.75,
+            compact_required_ratio=0.85,
+            thread_turns=((index - 1) % 8) + 1,
+            hard_turn_ceiling=8,
+        )
+        action_trace.append(decision.action)
         if decision.action == "COMPACT":
             compactions += 1
             occupancy = 5_000
@@ -913,8 +937,25 @@ def synthetic_acceptance(root: Path, checkpoints: int) -> dict[str, Any]:
             occupancy = 5_000
         elif decision.action == "CONTINUE":
             continues += 1
-            occupancy += 10_000
-    return {"checkpoints": checkpoints, "continues": continues, "compactions": compactions, "rotations": rotations, "manualRelay": 0, "aggregateInputUsedAsOccupancy": False, "pass": True}
+            occupancy += 20_000
+        elif decision.action == "COMPLETE":
+            complete_count += 1
+    expected = (
+        rotations >= 1 and compactions == 0
+        if checkpoints == 4
+        else rotations >= 1 and compactions >= 1
+    )
+    return {
+        "checkpoints": checkpoints,
+        "continues": continues,
+        "compactions": compactions,
+        "rotations": rotations,
+        "completes": complete_count,
+        "manualRelay": 0,
+        "aggregateInputUsedAsOccupancy": False,
+        "actionTrace": action_trace,
+        "pass": expected and complete_count == 1,
+    }
 
 
 def _v6_prompt(state: ActiveState, envelope: ContextEnvelope) -> str:
