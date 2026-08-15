@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import subprocess
 import time
@@ -57,9 +56,7 @@ class V6Options:
     dry_run: bool = False
 
     @classmethod
-    def from_root(
-        cls, root: Path, *, quiet: bool = False, dry_run: bool = False
-    ) -> V6Options:
+    def from_root(cls, root: Path, *, quiet: bool = False, dry_run: bool = False) -> V6Options:
         raw: dict[str, Any] = {}
         path = root / ".rsaw/config.json"
         if path.is_file():
@@ -70,58 +67,30 @@ class V6Options:
             runtime = {}
         v6 = runtime.get("v6", {}) if isinstance(runtime.get("v6", {}), dict) else {}
         compiler = (
-            v6.get("contextCompiler", {})
-            if isinstance(v6.get("contextCompiler", {}), dict)
-            else {}
+            v6.get("contextCompiler", {}) if isinstance(v6.get("contextCompiler", {}), dict) else {}
         )
-        governor = (
-            v6.get("governor", {})
-            if isinstance(v6.get("governor", {}), dict)
-            else {}
-        )
+        governor = v6.get("governor", {}) if isinstance(v6.get("governor", {}), dict) else {}
         tool_budget = (
-            runtime.get("toolBudget", {})
-            if isinstance(runtime.get("toolBudget", {}), dict)
-            else {}
+            runtime.get("toolBudget", {}) if isinstance(runtime.get("toolBudget", {}), dict) else {}
         )
         return cls(
             context_window_tokens=_pos(v6.get("contextWindowTokens"), 128_000),
-            target_envelope_tokens=_pos(
-                compiler.get("targetEnvelopeTokens"), 6_000
-            ),
+            target_envelope_tokens=_pos(compiler.get("targetEnvelopeTokens"), 6_000),
             hard_envelope_tokens=_pos(compiler.get("hardEnvelopeTokens"), 12_000),
-            max_exact_evidence_tokens=_pos(
-                compiler.get("maxExactEvidenceTokens"), 7_000
-            ),
-            max_capsule_tokens=_pos(
-                compiler.get("maxSemanticCapsuleTokens"), 2_500
-            ),
-            max_validation_tokens=_pos(
-                compiler.get("maxValidationSummaryTokens"), 1_000
-            ),
-            compact_candidate_ratio=_ratio(
-                governor.get("compactCandidateRatio"), 0.75
-            ),
-            compact_required_ratio=_ratio(
-                governor.get("compactRequiredRatio"), 0.85
-            ),
+            max_exact_evidence_tokens=_pos(compiler.get("maxExactEvidenceTokens"), 7_000),
+            max_capsule_tokens=_pos(compiler.get("maxSemanticCapsuleTokens"), 2_500),
+            max_validation_tokens=_pos(compiler.get("maxValidationSummaryTokens"), 1_000),
+            compact_candidate_ratio=_ratio(governor.get("compactCandidateRatio"), 0.75),
+            compact_required_ratio=_ratio(governor.get("compactRequiredRatio"), 0.85),
             hard_turn_ceiling=_pos(governor.get("hardTurnCeiling"), 8),
             max_transitions=_pos(runtime.get("max_transitions"), 100),
-            max_total_input_tokens=_nonneg(
-                runtime.get("max_total_input_tokens"), 5_000_000
-            ),
-            max_tool_calls_per_turn=_pos(
-                tool_budget.get("maxToolCallsPerTurn"), 32
-            ),
-            max_tool_output_tokens=_pos(
-                tool_budget.get("maxToolOutputTokens"), 50_000
-            ),
+            max_total_input_tokens=_nonneg(runtime.get("max_total_input_tokens"), 5_000_000),
+            max_tool_calls_per_turn=_pos(tool_budget.get("maxToolCallsPerTurn"), 32),
+            max_tool_output_tokens=_pos(tool_budget.get("maxToolOutputTokens"), 50_000),
             max_single_tool_output_tokens=_pos(
                 tool_budget.get("maxSingleToolOutputTokens"), 20_000
             ),
-            max_broad_discovery_commands=_nonneg(
-                tool_budget.get("maxBroadDiscoveryCommands"), 2
-            ),
+            max_broad_discovery_commands=_nonneg(tool_budget.get("maxBroadDiscoveryCommands"), 2),
             enforce_tool_budget=bool(tool_budget.get("enforce", True)),
             quiet=quiet,
             dry_run=dry_run,
@@ -298,9 +267,7 @@ class SemanticCapsule:
         # Authoritative evidence is bound by the supervisor after the turn.
         # Model-provided source labels are non-authoritative hints and are not persisted.
         incoming_refs = evidence_refs
-        self.evidence_refs = list(
-            dict.fromkeys([*self.evidence_refs, *incoming_refs])
-        )[-64:]
+        self.evidence_refs = list(dict.fromkeys([*self.evidence_refs, *incoming_refs]))[-64:]
         self.checkpoint_id = checkpoint_id
         self.source_revision = revision
         self.role = role
@@ -309,9 +276,9 @@ class SemanticCapsule:
         self._prune(max_tokens)
 
     def _prune(self, max_tokens: int) -> None:
-        self.unresolved_risks = [
-            x for x in self.unresolved_risks if not bool(x.get("resolved"))
-        ][-24:]
+        self.unresolved_risks = [x for x in self.unresolved_risks if not bool(x.get("resolved"))][
+            -24:
+        ]
         self.code_relations = self.code_relations[-24:]
         self.validation_status = self.validation_status[-24:]
         self.observed_facts = self.observed_facts[-48:]
@@ -698,9 +665,7 @@ def compile_context(
         cap_text = json.dumps(capsule.to_dict(), indent=2, sort_keys=True)
         components.append(_component("Semantic capsule", cap_text, "semantic"))
     if exact_parts:
-        components.append(
-            _component("Exact evidence", "\n\n".join(exact_parts), "exact-evidence")
-        )
+        components.append(_component("Exact evidence", "\n\n".join(exact_parts), "exact-evidence"))
     active_digest = _sha_file(root / "ACTIVE.md")
     delta = {
         "activeTask": state.task_id,
@@ -713,11 +678,7 @@ def compile_context(
 
     previous = previous_envelope or {}
     previous_digests = (
-        {
-            c.get("sha256")
-            for c in previous.get("components", [])
-            if isinstance(c, dict)
-        }
+        {c.get("sha256") for c in previous.get("components", []) if isinstance(c, dict)}
         if isinstance(previous, dict)
         else set()
     )
@@ -729,20 +690,15 @@ def compile_context(
     resend = sum(
         int(c.get("tokens", 0))
         for c in components
-        if c.get("category") == "exact-evidence"
-        and c.get("sha256") in previous_digests
+        if c.get("category") == "exact-evidence" and c.get("sha256") in previous_digests
     )
     total = sum(int(c.get("tokens", 0)) for c in components)
     capsule_tokens = sum(
-        int(c.get("tokens", 0))
-        for c in components
-        if c.get("category") == "semantic"
+        int(c.get("tokens", 0)) for c in components if c.get("category") == "semantic"
     )
     warnings: list[str] = []
     if total > options.target_envelope_tokens:
-        warnings.append(
-            f"envelope exceeds target: {total}>{options.target_envelope_tokens}"
-        )
+        warnings.append(f"envelope exceeds target: {total}>{options.target_envelope_tokens}")
     if total > options.hard_envelope_tokens:
         raise ValueError(
             f"context envelope exceeds hard budget: {total}>{options.hard_envelope_tokens}"
@@ -793,9 +749,7 @@ def store_evidence(root: Path, *, kind: str, source: str, content: str) -> Evide
     )
 
 
-def read_if_changed(
-    root: Path, relative: str, known_sha256: str | None
-) -> dict[str, Any]:
+def read_if_changed(root: Path, relative: str, known_sha256: str | None) -> dict[str, Any]:
     path = (root / relative).resolve()
     try:
         path.relative_to(root.resolve())
@@ -849,9 +803,7 @@ def governor_decision(
             "COMPLETE", "WORKSTREAM_STOP_CONDITION", ratio, estimated_occupancy_tokens
         )
     if _role(current_role) != _role(next_role):
-        return GovernorDecision(
-            "ROTATE", "ROLE_BOUNDARY", ratio, estimated_occupancy_tokens
-        )
+        return GovernorDecision("ROTATE", "ROLE_BOUNDARY", ratio, estimated_occupancy_tokens)
     if requested_action == "ROTATE":
         return GovernorDecision(
             "ROTATE", "AGENT_REQUESTED_ROTATE", ratio, estimated_occupancy_tokens
@@ -891,9 +843,7 @@ def inspect_turn_events(result: AgentTurnResult, root: Path) -> dict[str, Any]:
     peak_tool_output_tokens = 0
 
     if result.events_path and result.events_path.is_file():
-        for line in result.events_path.read_text(
-            encoding="utf-8", errors="replace"
-        ).splitlines():
+        for line in result.events_path.read_text(encoding="utf-8", errors="replace").splitlines():
             try:
                 event = json.loads(line)
             except json.JSONDecodeError:
@@ -919,11 +869,7 @@ def inspect_turn_events(result: AgentTurnResult, root: Path) -> dict[str, Any]:
                 "mcp_tool_call",
                 "function_call",
             }
-            if (
-                is_tool
-                and event_type.endswith(".started")
-                and identity not in started
-            ):
+            if is_tool and event_type.endswith(".started") and identity not in started:
                 started.add(identity)
                 tool_calls += 1
                 if command and is_broad_discovery(command):
@@ -949,11 +895,7 @@ def inspect_turn_events(result: AgentTurnResult, root: Path) -> dict[str, Any]:
                     record["exitCode"] = exit_code
                 command_records[identity] = record
 
-            if (
-                is_tool
-                and event_type.endswith(".completed")
-                and identity not in completed_output
-            ):
+            if is_tool and event_type.endswith(".completed") and identity not in completed_output:
                 completed_output.add(identity)
                 output = (
                     payload.get("aggregated_output")
@@ -963,9 +905,7 @@ def inspect_turn_events(result: AgentTurnResult, root: Path) -> dict[str, Any]:
                 if isinstance(output, str):
                     output_tokens = _tokens(output)
                     retained_output_tokens += output_tokens
-                    peak_tool_output_tokens = max(
-                        peak_tool_output_tokens, output_tokens
-                    )
+                    peak_tool_output_tokens = max(peak_tool_output_tokens, output_tokens)
 
     commands = [command_records[key] for key in command_order]
     return {
@@ -991,12 +931,8 @@ def deterministic_gate(
     warnings: list[str] = []
     if _sha_file(root / "ACTIVE.md") != active_sha_before:
         errors.append("MODEL_MUTATED_ACTIVE")
-    executed_records = [
-        x for x in event_info.get("commands", []) if isinstance(x, dict)
-    ]
-    executed = [
-        _one_line(x.get("command")) for x in executed_records if x.get("command")
-    ]
+    executed_records = [x for x in event_info.get("commands", []) if isinstance(x, dict)]
+    executed = [_one_line(x.get("command")) for x in executed_records if x.get("command")]
     actual = {x for x in changed_files if not _excluded(x)}
     declared = set(result.changed_files)
     if actual != declared:
@@ -1015,9 +951,7 @@ def deterministic_gate(
     required_validations = contract.get("validations", [])
     for required in required_validations:
         matches = [
-            record
-            for record in executed_records
-            if required in _one_line(record.get("command"))
+            record for record in executed_records if required in _one_line(record.get("command"))
         ]
         if not matches:
             errors.append("VALIDATION_NOT_EXECUTED:" + required)
@@ -1050,9 +984,7 @@ def deterministic_gate(
     if unknown_handles:
         errors.append("UNKNOWN_EVIDENCE_REFS:" + ",".join(sorted(unknown_handles)))
     if refs - claimed_handles:
-        warnings.append(
-            "MODEL_SOURCE_REFS_IGNORED:SUPERVISOR_OWNS_EVIDENCE_BINDING"
-        )
+        warnings.append("MODEL_SOURCE_REFS_IGNORED:SUPERVISOR_OWNS_EVIDENCE_BINDING")
     if result.requested_action != "COMPLETE":
         if result.next_task is None:
             errors.append("NEXT_TASK_REQUIRED")
@@ -1096,9 +1028,7 @@ def supervise_v6(
     root = root.resolve()
     verification = verify_repository(root)
     if not verification.ok:
-        return V6SupervisorResult(
-            "FAILED", "REPOSITORY_VERIFICATION_FAILED", "", None, 23
-        )
+        return V6SupervisorResult("FAILED", "REPOSITORY_VERIFICATION_FAILED", "", None, 23)
     state = parse_active(root)
     run_id = f"rsaw-v7-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
     store = RuntimeStore(root, run_id)
@@ -1157,9 +1087,7 @@ def supervise_v6(
 
     doctor = adapter.doctor()
     if not doctor.ok:
-        return finish(
-            "FAILED", "ADAPTER_DOCTOR_FAILED:" + ";".join(doctor.errors), 22
-        )
+        return finish("FAILED", "ADAPTER_DOCTOR_FAILED:" + ";".join(doctor.errors), 22)
 
     thread_id: str | None = None
     thread_turns = 0
@@ -1242,16 +1170,12 @@ def supervise_v6(
                 summary.total_usage = summary.total_usage + turn.usage
                 event_info = inspect_turn_events(turn, root)
                 summary.tool_calls += int(event_info["tool_calls"])
-                summary.tool_output_tokens += int(
-                    event_info["retained_tool_output_tokens"]
-                )
+                summary.tool_output_tokens += int(event_info["retained_tool_output_tokens"])
                 summary.peak_tool_output_tokens = max(
                     summary.peak_tool_output_tokens,
                     int(event_info["peak_tool_output_tokens"]),
                 )
-                summary.recovery_rediscovery_commands += int(
-                    event_info["broad_discovery_commands"]
-                )
+                summary.recovery_rediscovery_commands += int(event_info["broad_discovery_commands"])
                 epoch_tokens_estimate += turn.latest_turn_usage.output_tokens + int(
                     event_info["retained_tool_output_tokens"]
                 )
@@ -1273,8 +1197,7 @@ def supervise_v6(
                     sorted(
                         path
                         for path in set(dirty_before) | set(dirty_after)
-                        if dirty_before.get(path) != dirty_after.get(path)
-                        and not _excluded(path)
+                        if dirty_before.get(path) != dirty_after.get(path) and not _excluded(path)
                     )
                 )
 
@@ -1282,9 +1205,7 @@ def supervise_v6(
                 for path in changed:
                     file_path = root / path
                     if file_path.is_file() and file_path.stat().st_size <= 128_000:
-                        content = file_path.read_text(
-                            encoding="utf-8", errors="replace"
-                        )
+                        content = file_path.read_text(encoding="utf-8", errors="replace")
                         evidence_handles.append(
                             store_evidence(
                                 root,
@@ -1380,25 +1301,15 @@ def supervise_v6(
                     )
 
                 capsule_path = (
-                    root
-                    / ".rsaw/state/capsules"
-                    / f"{_safe_name(capsule.workstream_id)}.json"
+                    root / ".rsaw/state/capsules" / f"{_safe_name(capsule.workstream_id)}.json"
                 )
                 review_manifest_path = None
                 if decision.action == "ROTATE" and _role(next_role) == "reviewer":
-                    review_manifest_path = (
-                        root / ".rsaw/state/reviews" / f"{checkpoint_id}.json"
-                    )
-                checkpoint_path = (
-                    root / ".rsaw/state/checkpoints" / f"{checkpoint_id}.json"
-                )
-                sidecar_path = checkpoint_path.with_suffix(
-                    checkpoint_path.suffix + ".sha256"
-                )
+                    review_manifest_path = root / ".rsaw/state/reviews" / f"{checkpoint_id}.json"
+                checkpoint_path = root / ".rsaw/state/checkpoints" / f"{checkpoint_id}.json"
+                sidecar_path = checkpoint_path.with_suffix(checkpoint_path.suffix + ".sha256")
                 if checkpoint_path.exists() or sidecar_path.exists():
-                    return finish(
-                        "FAILED", f"CHECKPOINT_ALREADY_EXISTS:{checkpoint_id}", 29
-                    )
+                    return finish("FAILED", f"CHECKPOINT_ALREADY_EXISTS:{checkpoint_id}", 29)
 
                 authority_paths = [
                     root / "ACTIVE.md",
@@ -1407,9 +1318,7 @@ def supervise_v6(
                 ]
                 if review_manifest_path is not None:
                     authority_paths.append(review_manifest_path)
-                snapshots = {
-                    path: _snapshot_file(path) for path in authority_paths
-                }
+                snapshots = {path: _snapshot_file(path) for path in authority_paths}
 
                 try:
                     capsule_path = capsule.save(root)
@@ -1458,14 +1367,11 @@ def supervise_v6(
                         capsule_path,
                         revision,
                     )
-                    (root / "ACTIVE.md").write_text(
-                        proposed_active, encoding="utf-8"
-                    )
+                    (root / "ACTIVE.md").write_text(proposed_active, encoding="utf-8")
                     post = verify_repository(root)
                     if not post.ok:
                         raise RuntimeError(
-                            "POST_ADVANCE_REPOSITORY_INVALID:"
-                            + ";".join(post.errors)
+                            "POST_ADVANCE_REPOSITORY_INVALID:" + ";".join(post.errors)
                         )
                 except Exception as exc:
                     checkpoint_path.unlink(missing_ok=True)
@@ -1491,8 +1397,7 @@ def supervise_v6(
 
                 if (
                     options.max_total_input_tokens
-                    and summary.total_usage.input_tokens
-                    >= options.max_total_input_tokens
+                    and summary.total_usage.input_tokens >= options.max_total_input_tokens
                 ):
                     return finish("LIMIT_REACHED", "MAX_TOTAL_INPUT_TOKENS", 24)
                 if decision.action == "COMPLETE":
@@ -1519,11 +1424,7 @@ def supervise_v6(
 
 def v6_efficiency_view(summary: dict[str, Any]) -> dict[str, Any]:
     checkpoints = int(summary.get("checkpoints_observed") or 0)
-    usage = (
-        summary.get("total_usage")
-        if isinstance(summary.get("total_usage"), dict)
-        else {}
-    )
+    usage = summary.get("total_usage") if isinstance(summary.get("total_usage"), dict) else {}
     total = int(usage.get("input_tokens") or 0)
     cached = min(total, int(usage.get("cached_input_tokens") or 0))
     fresh = max(0, total - cached)
@@ -1546,14 +1447,10 @@ def v6_efficiency_view(summary: dict[str, Any]) -> dict[str, Any]:
                 output / checkpoints if checkpoints else None
             ),
             "model_calls_per_successful_checkpoint": (
-                int(summary.get("model_calls") or 0) / checkpoints
-                if checkpoints
-                else None
+                int(summary.get("model_calls") or 0) / checkpoints if checkpoints else None
             ),
             "tool_calls_per_successful_checkpoint": (
-                int(summary.get("tool_calls") or 0) / checkpoints
-                if checkpoints
-                else None
+                int(summary.get("tool_calls") or 0) / checkpoints if checkpoints else None
             ),
         }
     )
@@ -1575,9 +1472,7 @@ def synthetic_acceptance(root: Path, horizon: int) -> dict[str, Any]:
             next_role = "Builder"
         else:
             next_role = current_role
-        turns_in_role = 1 + sum(
-            1 for previous in actions[-2:] if previous == "CONTINUE"
-        )
+        turns_in_role = 1 + sum(1 for previous in actions[-2:] if previous == "CONTINUE")
         simulated_ratio = 0.80 if horizon >= 16 and index % 6 == 0 else 0.35
         decision = governor_decision(
             current_role=current_role,
@@ -1585,9 +1480,7 @@ def synthetic_acceptance(root: Path, horizon: int) -> dict[str, Any]:
             requested_action=requested,
             human_gate="",
             complete=final,
-            estimated_occupancy_tokens=int(
-                options.context_window_tokens * simulated_ratio
-            ),
+            estimated_occupancy_tokens=int(options.context_window_tokens * simulated_ratio),
             context_window_tokens=options.context_window_tokens,
             compact_candidate_ratio=options.compact_candidate_ratio,
             compact_required_ratio=options.compact_required_ratio,
@@ -1722,7 +1615,9 @@ def _write_active_pointer(
                 else state.task_spec.relative_to(root).as_posix()
             ),
             "role": (
-                next_task.role if next_task and decision.action != "COMPLETE" else state.current_role
+                next_task.role
+                if next_task and decision.action != "COMPLETE"
+                else state.current_role
             ),
             "lifecycleAction": decision.action,
             "sourceRevision": revision,
@@ -1752,19 +1647,11 @@ def _render_active_markdown(
         continuation = (
             "ROTATE_REQUIRED"
             if decision.action == "ROTATE"
-            else (
-                "STOP_REQUIRED"
-                if decision.action == "PAUSE"
-                else "CONTINUE_ALLOWED"
-            )
+            else ("STOP_REQUIRED" if decision.action == "PAUSE" else "CONTINUE_ALLOWED")
         )
     following = result.following_task
-    text = _replace_section(
-        text, "Context Epoch", f"ID: {state.epoch_id or 'E-v7'}\nRole: {role}"
-    )
-    text = _replace_section(
-        text, "Active Task", f"ID: {active_id}\nSpec: {active_spec}"
-    )
+    text = _replace_section(text, "Context Epoch", f"ID: {state.epoch_id or 'E-v7'}\nRole: {role}")
+    text = _replace_section(text, "Active Task", f"ID: {active_id}\nSpec: {active_spec}")
     text = _replace_section(
         text,
         "Required Reads",
@@ -2014,7 +1901,9 @@ def _merge_semantic(
         if identity not in merged:
             order.append(identity)
         merged[identity] = {**item, "_order": index}
-    return [{key: value for key, value in merged[item].items() if key != "_order"} for item in order]
+    return [
+        {key: value for key, value in merged[item].items() if key != "_order"} for item in order
+    ]
 
 
 def _role(value: str) -> str:
