@@ -14,6 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from ... import __version__
 from ...parsing import parse_active
 
 
@@ -69,6 +70,8 @@ class LiveDashboardV6:
             "resend": 0,
             "gate": gate,
             "mode": "FRESH",
+            "sandbox": "—",
+            "sandbox_source": "",
         }
         self._recent: deque[str] = deque(maxlen=6)
         if checkpoint:
@@ -111,10 +114,18 @@ class LiveDashboardV6:
                 self._state["resend"] = int(event.get("evidenceResendTokens") or 0)
                 self._state["mode"] = str(event.get("mode") or "FRESH")
                 self._push(f"Context {self._state['mode']} · {self._state['envelope']} tokens")
+            elif event_type == "v7.sandbox.resolved":
+                self._state["sandbox"] = str(event.get("sandbox") or "—")
+                self._state["sandbox_source"] = str(event.get("source") or "")
+                self._push(f"Sandbox {self._state['sandbox']} · {self._state['sandbox_source']}")
             elif event_type == "v6.agent.turn.started":
                 self._state["status"] = "WORKING"
                 self._state["task"] = event.get("task") or self._state["task"]
                 self._state["role"] = event.get("role") or self._state["role"]
+                self._state["sandbox"] = event.get("sandbox") or self._state["sandbox"]
+                self._state["sandbox_source"] = (
+                    event.get("sandboxSource") or self._state["sandbox_source"]
+                )
                 self._state["model_calls"] += 1
                 self._push(f"Agent turn · {event.get('mode')}")
             elif event_type == "v6.gate":
@@ -207,7 +218,7 @@ class LiveDashboardV6:
             style=_status_style(str(state["status"])),
         )
         title = Text.assemble(
-            ("RSAW 0.7", "bold"),
+            (f"RSAW {__version__}", "bold"),
             " · Repository Context Runtime · ",
             status,
         )
@@ -216,7 +227,9 @@ class LiveDashboardV6:
         now.add_column(ratio=2)
         now.add_column(ratio=1, justify="right")
         now.add_row(
-            f"Task  {state['task']}\nRole  {state['role']} · Mode {state['mode']}",
+            f"Task  {state['task']}\n"
+            f"Role  {state['role']} · Mode {state['mode']}\n"
+            f"Sandbox  {state['sandbox']} · {state['sandbox_source']}",
             f"Durable CP-{int(state['checkpoint']):04d}\nGate {state['gate']}",
         )
 

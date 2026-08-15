@@ -2,6 +2,27 @@
 
 All notable changes to the public reference implementation are documented here.
 
+## 0.7.1 — GPU Sandbox Boundary Repair
+
+### Added
+
+- per-turn task/sandbox/source telemetry;
+- automatic fresh rotation when the sandbox class changes across tasks;
+- mandatory non-empty reasons, operator identity, and verifiable content-bound audits for sandbox set/clear;
+- explicit `rsaw --version` output;
+- EdgeFlow GPU sandbox incident and v0.7.1 deployment documentation.
+
+### Fixed
+
+- task-specific `danger-full-access` no longer remains active after an automatic task transition;
+- audit-write failure restores the previous sandbox configuration;
+- expected non-TUI PAUSED / COMPLETE / LIMIT_REACHED / DRY_RUN states return shell exit 0 by default;
+- synthetic acceptance derives rotation from the next phase and remains deterministic at 4/16/64 checkpoints.
+
+### Safety boundary
+
+Host capability, worker-sandbox capability, formal experiment readiness, and scientific evidence eligibility remain separate authorities. This release restores and audits an execution boundary; it does not authorize experiment retries or promote capability smoke into scientific evidence.
+
 ## 0.7.0 — Operator-Hardened Repository Context Runtime
 
 ### Added

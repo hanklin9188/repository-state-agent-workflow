@@ -10,15 +10,15 @@
 
 <p align="center">
   <img alt="Python 3.10–3.13" src="https://img.shields.io/badge/Python-3.10%E2%80%933.13-3776AB?logo=python&logoColor=white" />
-  <img alt="Version 0.7.0" src="https://img.shields.io/badge/RSAW-0.7.0-14b8a6" />
+  <img alt="Version 0.7.1" src="https://img.shields.io/badge/RSAW-0.7.1-14b8a6" />
   <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-22c55e" />
   <img alt="Codex adapter" src="https://img.shields.io/badge/Adapter-Codex-6366f1" />
 </p>
 
 <p align="center">
   <a href="README.md">English</a> ·
-  <a href="docs/edgeflow-v07-deployment.md">EdgeFlow 部署</a> ·
-  <a href="docs/releases/v070-edgeflow-hardening.md">v0.7 強化規格</a> ·
+  <a href="docs/edgeflow-v071-deployment.md">EdgeFlow 部署</a> ·
+  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7 強化規格</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -50,7 +50,7 @@ RSAW 是一套為長時間 coding / research agent 設計的 **repository-backed
 
 ```bash
 python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.0"
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
 ```
 
 ### 已經使用 RSAW 的 repository
@@ -95,7 +95,7 @@ Terminal 顯示的是可觀測 runtime state，不是 hidden reasoning：
 | **EFFICIENCY GUARD** | provider input 與 tool output 是否正在失控增長？ |
 | **RECENT** | 最近發生了哪些 durable runtime events？ |
 
-新的 terminal 會直接載入 repository 裡已存在的 checkpoint，不會再明明有 `CP-0003` 卻顯示 `Checkpoint 0`。正常的 `PAUSED` 與 `COMPLETE` 在一般 TUI 使用中也不再被 VS Code 當成 terminal failure。
+新的 terminal 會直接載入 repository 裡已存在的 checkpoint，不會再明明有 `CP-0003` 卻顯示 `Checkpoint 0`。正常的 `PAUSED`、`COMPLETE`、`LIMIT_REACHED` 與 `DRY_RUN`，不論 TUI 或非 TUI operator 模式都會以 shell exit 0 結束；需要內部語意碼的自動化流程才使用 `--strict-exit-codes`。
 
 ---
 
@@ -116,7 +116,7 @@ v0.7 不是憑空想出來的 feature list，而是把真實 EdgeFlow 上機時�
 | 1–2k envelope 最後仍膨脹成巨大 provider context | 加入 live per-turn tool/output budget，阻止失控 rediscovery |
 | started/completed events 重複計數 | 依 tool identity 去重 telemetry |
 
-完整規格見：[v0.7 EdgeFlow-derived hardening](docs/releases/v070-edgeflow-hardening.md)。
+完整規格見：[v0.7 EdgeFlow-derived hardening](docs/releases/v071-gpu-sandbox-boundary.md)。
 
 ---
 
@@ -284,6 +284,7 @@ RSAW 會建立 operator-action artifact、驗證新狀態，並根據 role bound
 rsaw sandbox set . \
   --task current \
   --mode danger-full-access \
+  --reason "reviewed GPU/NVML boundary" \
   --yes
 
 rsaw preflight .
@@ -294,10 +295,22 @@ rsaw start .
 
 ```bash
 rsaw sandbox show . --json
-rsaw sandbox clear . --task current --yes
+rsaw sandbox clear . --task current --reason "boundary closed" --yes
 ```
 
-設定會綁定 task ID，不會自動把較寬鬆權限帶到下一個 Analyst 或 Builder task。
+設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 會記錄 operator identity、拒絕空白 reason、建立由 `rsaw verify` 驗證的 content-bound operator audit；audit 寫入失敗時設定會 rollback。 顯式 `--sandbox` 也只綁定 run 啟動時的 active task；進入下一個 task 後，會回到該 task 自己的 override 或 repository default。
+
+---
+
+## Host 能力不等於 worker sandbox 能力
+
+`workspace-write` 裡看不到 GPU/NVML，不代表 WSL、driver 或主機 GPU 一定故障。必須分開驗證：
+
+```text
+host visibility  ≠  Codex worker-sandbox visibility
+```
+
+Capability smoke 只屬於 workflow infrastructure evidence，不能授權正式 retry、取代或消耗 experiment nonce、修改 sealed evidence，也不能成為科學結果。完整事故邊界見：[EdgeFlow GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md)。
 
 ---
 
@@ -319,7 +332,7 @@ rsaw sandbox clear . --task current --yes
 
 ```bash
 python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.0"
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
 ```
 
 ### 升級現有 repository
@@ -332,7 +345,7 @@ rsaw preflight .
 rsaw start .
 ```
 
-Migration 會保留 `ACTIVE.md`，並建立 v0.6 config backup。完整的 process/lock、安全 gate、GPU sandbox、驗證與 rollback 流程見：[EdgeFlow v0.7 部署指南](docs/edgeflow-v07-deployment.md)。
+Migration 會保留 `ACTIVE.md`，並建立 v0.6 config backup。完整的 process/lock、安全 gate、GPU sandbox、驗證與 rollback 流程見：[EdgeFlow v0.7 部署指南](docs/edgeflow-v071-deployment.md)。
 
 ---
 
@@ -373,8 +386,8 @@ recovery rediscovery commands
 
 ## 文件
 
-- [EdgeFlow v0.7 部署](docs/edgeflow-v07-deployment.md)
-- [v0.7 release hardening](docs/releases/v070-edgeflow-hardening.md)
+- [EdgeFlow v0.7 部署](docs/edgeflow-v071-deployment.md)
+- [v0.7 release hardening](docs/releases/v071-gpu-sandbox-boundary.md)
 - [Architecture](docs/architecture.md)
 - [Concepts](docs/concepts.md)
 - [Adoption guide](docs/adoption-guide.md)

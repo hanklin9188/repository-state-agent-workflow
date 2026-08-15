@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,6 +31,42 @@ class VerificationResult:
 
 def _role(value: str) -> str:
     return value.strip().lower().replace("_", "-")
+
+
+def _verify_operator_actions(root: Path, result: VerificationResult) -> None:
+    actions = root / ".rsaw/state/operator-actions"
+    if not actions.is_dir():
+        return
+    for path in sorted(actions.glob("*.json")):
+        relative = path.relative_to(root).as_posix()
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            result.errors.append(f"Operator action is unreadable: {relative}: {exc}")
+            continue
+        if not isinstance(payload, dict):
+            result.errors.append(f"Operator action must be an object: {relative}")
+            continue
+        schema = str(payload.get("schemaVersion") or "")
+        if schema == "rsaw.operator-action.v1":
+            result.warnings.append(f"Legacy operator action is not content-bound: {relative}")
+            continue
+        if schema != "rsaw.operator-action.v2":
+            result.errors.append(f"Unsupported operator action schema {schema!r}: {relative}")
+            continue
+        expected = str(payload.get("contentSha256") or "")
+        unsigned = dict(payload)
+        unsigned.pop("contentSha256", None)
+        canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        actual = hashlib.sha256(canonical).hexdigest()
+        if not expected or expected != actual:
+            result.errors.append(f"Operator action checksum mismatch: {relative}")
+        for field_name in ("action", "reason", "timestamp"):
+            if not str(payload.get(field_name) or "").strip():
+                result.errors.append(f"Operator action is missing {field_name}: {relative}")
+        operator = payload.get("operator")
+        if not isinstance(operator, dict) or not str(operator.get("user") or "").strip():
+            result.warnings.append(f"Operator identity is incomplete: {relative}")
 
 
 def verify_repository(
@@ -156,4 +194,5 @@ def verify_repository(
         if marker in text:
             result.warnings.append(f"ACTIVE.md may contain raw log content: {marker}")
 
+    _verify_operator_actions(root, result)
     return result

@@ -103,4 +103,4 @@ def test_dry_run_uses_v07_identity(tmp_path: Path) -> None:
     events = (tmp_path / ".rsaw/runtime" / result.run_id / "supervisor-events.jsonl").read_text(
         encoding="utf-8"
     )
-    assert '"runtime": "v0.7"' in events
+    assert '"runtime": "v0.7.1"' in events
