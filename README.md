@@ -18,7 +18,7 @@
 <p align="center">
   <a href="README.zh-TW.md">繁體中文</a> ·
   <a href="docs/edgeflow-v071-deployment.md">EdgeFlow deployment</a> ·
-  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7 hardening</a> ·
+  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7.1 hardening</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -119,7 +119,7 @@ v0.7 was derived from a real EdgeFlow adoption, not a synthetic feature wishlist
 | A 1–2k compiled envelope still grew into a very large tool-driven context | live per-turn tool and output budgets stop runaway rediscovery |
 | started/completed command events inflated telemetry | event accounting is deduplicated by tool identity |
 
-The detailed release gate is documented in [v0.7 EdgeFlow-derived hardening](docs/releases/v071-gpu-sandbox-boundary.md).
+The detailed release gate is documented in [v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md).
 
 ---
 
@@ -341,7 +341,7 @@ rsaw preflight .
 rsaw start .
 ```
 
-Migration preserves `ACTIVE.md` and writes a v0.6 configuration backup. See the complete [EdgeFlow v0.7 deployment guide](docs/edgeflow-v071-deployment.md) for process/lock checks, sandbox configuration, Human Gate handling, validation, and rollback.
+Migration preserves `ACTIVE.md` and writes a v0.6 configuration backup. See the complete [EdgeFlow v0.7.1 deployment guide](docs/edgeflow-v071-deployment.md) for process/lock checks, sandbox configuration, Human Gate handling, validation, and rollback.
 
 ---
 
@@ -360,7 +360,7 @@ RSAW does not make an unsafe task safe merely by supervising it.
 
 ## Evidence and claim boundary
 
-v0.7 is validated for implementation behavior, transactional state safety, migration, packaging, operator controls, tool-budget enforcement, and synthetic lifecycle coverage.
+v0.7.1 is validated for implementation behavior, transactional state safety, migration, packaging, operator controls, tool-budget enforcement, and synthetic lifecycle coverage.
 
 It does **not** yet claim a universal reduction in provider tokens, wall time, or failure rate. Those claims require matched prospective evaluation on real workstreams.
 
@@ -382,8 +382,8 @@ recovery rediscovery commands
 
 ## Documentation
 
-- [EdgeFlow v0.7 deployment](docs/edgeflow-v071-deployment.md)
-- [v0.7 release hardening](docs/releases/v071-gpu-sandbox-boundary.md)
+- [EdgeFlow v0.7.1 deployment](docs/edgeflow-v071-deployment.md)
+- [v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md)
 - [Architecture](docs/architecture.md)
 - [Concepts](docs/concepts.md)
 - [Adoption guide](docs/adoption-guide.md)
