@@ -32,6 +32,10 @@ The release must prevent or safely contain all of the following:
 - Deduplicated event accounting and explicit tool-output telemetry.
 - Operator-safe exit behavior for expected interactive terminal states.
 
+## Release validation
+
+Generated source must pass `py_compile` immediately after materialization, before editable installation, formatting, tests, or packaging. This prevents staging scripts from being mistaken for a valid implementation when their emitted Python source is syntactically invalid.
+
 ## Claim boundary
 
 These gates prove runtime behavior and regression coverage. They do not establish a causal token or success-rate improvement. Matched prospective evaluation remains required before publishing efficiency claims.
