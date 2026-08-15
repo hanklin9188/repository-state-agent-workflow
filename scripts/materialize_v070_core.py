@@ -652,7 +652,7 @@ def _write_review_manifest''',
 regex_once(
     "src/repo_state_agent/runtime/v6.py",
     r"def _update_active_markdown\(root: Path, state: ActiveState, result: CheckpointResult, decision: GovernorDecision, checkpoint_id: str\) -> None:.*?\n\ndef _checkpoint_result_dict",
-    '''def _render_active_markdown(
+    r'''def _render_active_markdown(
     root: Path,
     state: ActiveState,
     result: CheckpointResult,
