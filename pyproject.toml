@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repository-state-agent-workflow"
-version = "0.5.0"
-description = "Repository-backed workstreams with cache-aware context planning and live runtime observability"
+version = "0.6.0"
+description = "Repository-backed agent workstreams with compiled working memory, deterministic checkpoints, and adaptive context lifecycle control"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -19,14 +19,15 @@ keywords = [
   "agent-workflow",
   "repository-state",
   "context-engineering",
-  "context-planning",
-  "cache-efficiency",
+  "context-compiler",
+  "semantic-memory",
   "persistent-workstreams",
+  "context-compaction",
   "context-rotation",
   "runtime-supervisor",
+  "deterministic-checkpoints",
   "terminal-ui",
   "agent-observability",
-  "progressive-disclosure",
   "developer-tools",
   "software-engineering",
 ]
@@ -44,12 +45,13 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2",
   "pytest>=8.0",
   "ruff>=0.9",
 ]
 
 [project.scripts]
-rsaw = "repo_state_agent.cli:main"
+rsaw = "repo_state_agent.v6_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/hanklin9188/repository-state-agent-workflow"
@@ -81,5 +83,10 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/repo_state_agent/runtime/supervisor.py" = ["UP035"]
+"src/repo_state_agent/runtime/v6.py" = ["E501", "I001"]
+"src/repo_state_agent/runtime/tui/v6.py" = ["E501", "I001"]
+"src/repo_state_agent/v6_cli.py" = ["E501", "I001"]
+"tests/test_v6_runtime.py" = ["E501", "I001"]
+"tests/test_v6_tui.py" = ["E501", "I001"]
 "tests/test_codex_adapter_subprocess.py" = ["I001"]
 "tests/test_codex_adapter_lifecycle.py" = ["I001"]

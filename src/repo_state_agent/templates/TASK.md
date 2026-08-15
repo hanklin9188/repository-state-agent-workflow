@@ -1,74 +1,49 @@
-# T-000 — Bootstrap Repository-State Workflow
+# T-000 — Bootstrap task
 
-## Workstream
+## Objective
 
-W-000 — Bootstrap
-
-## Goal
-
-Customize RSAW for this repository and define the first real task.
-
-## Role
-
-Builder
-
-## Blocked By
-
-None.
-
-## Inputs and Authority
-
-- existing repository documentation;
-- build and test commands;
-- current project priorities.
-
-## Context Budget
-
-- Stable authority: `AGENTS.md`.
-- Dynamic authority: `ACTIVE.md` and this task.
-- Additional reads must be justified by the active acceptance criterion.
-- Inspect with `rsaw context .` before a large checkpoint.
-
-## In Scope
-
-- customize AGENTS.md;
-- update the workstream contract;
-- update ACTIVE.md;
-- define the first real task;
-- choose whether the next checkpoint can continue or must rotate.
-
-## Out of Scope
-
-- implementing the product feature itself;
-- rewriting all existing documentation.
+Replace this bootstrap objective with one bounded engineering or research task.
 
 ## Acceptance Criteria
 
-- AGENTS.md contains stable project policy;
-- ACTIVE.md is compact and actionable;
-- workstream spec exists;
-- active task exists;
-- continuation decision is explicit;
-- `rsaw verify .` passes;
-- `rsaw context .` is within the configured bootstrap budget.
+- The requested semantic change is complete.
+- Required validation has actually executed.
+- Durable evidence is available for the checkpoint.
 
-## Targeted Validation
+## Allowed Writes
 
-```bash
-rsaw verify .
-rsaw context . --strict
-rsaw status .
-rsaw next .
-```
+- src/**
+- tests/**
+- docs/**
 
-## Evidence Expected
+Adjust this list before execution. The v0.6 deterministic gate enforces it when present.
 
-A clean diff and verified active handoff.
+## Forbidden Operations
 
-## Continuation Candidate
+- destructive Git cleanup of unrelated work;
+- credential/authorization inference;
+- bypassing the configured sandbox;
+- model-owned edits to `ACTIVE.md` while v0.6 supervision is active;
+- model invocation of `advance.py` while v0.6 supervision is active.
 
-Rotate after bootstrap because the next task establishes real project work.
+## Required Reads
+
+Use the compiled Context Envelope first. Add only exact files needed by this task.
+
+## Validation
+
+- `python -m pytest -q`
+
+Replace the example with deterministic commands appropriate for the task. v0.6 can verify that configured validation commands appeared in the agent event stream.
+
+## Artifacts
+
+Record required artifact paths and checksums in the typed checkpoint result.
+
+## Next Task
+
+The supervised agent reports `nextTask` and optional `followingTask` in `rsaw.checkpoint-result.v1`; the Supervisor validates readiness before advancing.
 
 ## Stop Condition
 
-The first real task is ready for a fresh builder context.
+Acceptance criteria and deterministic gate pass.

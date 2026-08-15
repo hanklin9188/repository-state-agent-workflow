@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc">
+<title id="title">RSAW v0.6 runtime architecture</title>
+<desc id="desc">Durable repository state flows through semantic capsule, context compiler, agent epoch, deterministic gate and token governor.</desc>
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#111827"/></linearGradient><filter id="shadow"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-opacity=".28"/></filter><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#67e8f9"/></marker></defs>
+<rect width="1500" height="900" rx="28" fill="url(#bg)"/>
+<text x="750" y="64" text-anchor="middle" fill="#f8fafc" font-family="Inter,Segoe UI,sans-serif" font-size="34" font-weight="800">RSAW 0.6 · Context Operating System</text>
+<text x="750" y="102" text-anchor="middle" fill="#94a3b8" font-family="Inter,Segoe UI,sans-serif" font-size="18">Durable memory + semantic memory + working context + deterministic supervision</text>
+<g font-family="Inter,Segoe UI,sans-serif" filter="url(#shadow)">
+ <g><rect x="470" y="135" width="560" height="105" rx="20" fill="#0f2536" stroke="#22d3ee"/><text x="750" y="177" text-anchor="middle" fill="#cffafe" font-size="24" font-weight="700">1 · Durable Repository State</text><text x="750" y="210" text-anchor="middle" fill="#a5f3fc" font-size="16">active pointer · checksummed checkpoints · evidence handles</text></g>
+ <g><rect x="470" y="285" width="560" height="105" rx="20" fill="#14283b" stroke="#38bdf8"/><text x="750" y="327" text-anchor="middle" fill="#e0f2fe" font-size="24" font-weight="700">2 · Semantic Capsule</text><text x="750" y="360" text-anchor="middle" fill="#bae6fd" font-size="16">facts · decisions · exclusions · risks · next action</text></g>
+ <g><rect x="470" y="435" width="560" height="105" rx="20" fill="#221b3a" stroke="#a78bfa"/><text x="750" y="477" text-anchor="middle" fill="#ede9fe" font-size="24" font-weight="700">3 · Context Compiler</text><text x="750" y="510" text-anchor="middle" fill="#ddd6fe" font-size="16">exact task + semantic state + delta + bounded evidence</text></g>
+ <g><rect x="470" y="585" width="560" height="105" rx="20" fill="#172554" stroke="#60a5fa"/><text x="750" y="627" text-anchor="middle" fill="#dbeafe" font-size="24" font-weight="700">4 · Agent Epoch</text><text x="750" y="660" text-anchor="middle" fill="#bfdbfe" font-size="16">coherent working context · typed CheckpointResult</text></g>
+ <g><rect x="80" y="735" width="420" height="105" rx="20" fill="#2a1f13" stroke="#f59e0b"/><text x="290" y="777" text-anchor="middle" fill="#fef3c7" font-size="23" font-weight="700">5 · Deterministic Gate</text><text x="290" y="810" text-anchor="middle" fill="#fde68a" font-size="15">diff · validation · artifacts · scope · evidence</text></g>
+ <g><rect x="540" y="735" width="420" height="105" rx="20" fill="#0d332b" stroke="#34d399"/><text x="750" y="777" text-anchor="middle" fill="#d1fae5" font-size="23" font-weight="700">6 · Token Governor</text><text x="750" y="810" text-anchor="middle" fill="#a7f3d0" font-size="15">estimated occupancy · lifecycle decision</text></g>
+ <g><rect x="1000" y="735" width="420" height="105" rx="20" fill="#27183b" stroke="#c084fc"/><text x="1210" y="777" text-anchor="middle" fill="#f3e8ff" font-size="23" font-weight="700">7 · Lifecycle</text><text x="1210" y="810" text-anchor="middle" fill="#e9d5ff" font-size="15">CONTINUE · COMPACT · ROTATE · PAUSE · COMPLETE</text></g>
+</g>
+<g stroke="#67e8f9" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M750 240v39"/><path d="M750 390v39"/><path d="M750 540v39"/><path d="M750 690v38"/><path d="M500 787h28"/><path d="M960 787h28"/></g>
+<text x="65" y="180" fill="#64748b" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16">Cold memory</text>
+<text x="65" y="330" fill="#64748b" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16">Warm memory</text>
+<text x="65" y="630" fill="#64748b" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16">Hot context</text>
+</svg>

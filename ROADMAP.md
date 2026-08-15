@@ -1,28 +1,46 @@
-# Roadmap
+# RSAW Roadmap
 
-## 0.5 — Cache-Aware Context Runtime
+## v0.6 — Compiled Working Memory Runtime
 
-- [x] deterministic context plan and fingerprints
-- [x] fresh vs continued read contracts
-- [x] context budgets and `rsaw context`
-- [x] cache-aware deterministic rotation
-- [x] checkpoint-normalized context metrics
-- [x] updated Live Console visuals and documentation
-- [ ] controlled prospective matched study
-- [ ] calibrate defaults from measured workloads
+Status: implemented release line; empirical promotion remains evidence-gated.
 
-## 0.6 candidates
+- [x] Supervisor-owned ACTIVE advancement
+- [x] Typed checkpoint result
+- [x] Checksummed durable checkpoints
+- [x] Semantic Capsule
+- [x] Context Compiler
+- [x] Evidence handles
+- [x] Read-if-changed
+- [x] Delta-oriented continuation
+- [x] COMPACT distinct from ROTATE
+- [x] Estimated occupancy governor
+- [x] Bounded reviewer manifest
+- [x] v0.6 Live Runtime Console
+- [x] Migration path from v0.5
+- [x] 4 / 16 / 64 synthetic lifecycle acceptance
+- [ ] Matched short-horizon prospective evaluation
+- [ ] Matched medium-horizon break-even evaluation
+- [ ] Matched 32–64 checkpoint long-horizon evaluation
 
-- provider-tokenizer-backed plan estimates when available;
-- pluggable context-policy profiles;
-- read-only observer/attach mode for an active workstream;
-- richer long-running external-job telemetry;
-- additional agent adapters without weakening repository authority.
+## Promotion requirements
 
-## Explicitly deferred
+Do not promote causal efficiency claims until matched evidence shows:
 
-- web dashboard;
-- project-management platform behavior;
-- hidden-memory database;
-- unsafe autonomous approvals;
-- universal token-savings claims without matched evidence.
+- semantic-success parity versus No-RSAW;
+- no short-horizon input/success regression;
+- medium-horizon total/cached input per success improvement;
+- long-horizon total/repeated input per success separation;
+- zero manual relay;
+- fresh recovery without stale-state regression.
+
+## After v0.6 evidence
+
+Only after the v0.6 matched study should later releases consider:
+
+- provider-native occupancy signals when available;
+- additional agent adapters;
+- richer evidence range retrieval;
+- team/shared durable-state coordination;
+- policy-learning experiments for the Token Governor.
+
+Do not add complexity merely to create a new version number. The v0.6 empirical hypothesis must be resolved first.

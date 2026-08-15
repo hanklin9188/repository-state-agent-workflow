@@ -32,7 +32,15 @@ def initialize_repository(root: Path, force: bool = False) -> tuple[list[Path], 
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(_template_text(template), encoding="utf-8")
         created.append(target)
-    (root / "docs/handoffs/archive").mkdir(parents=True, exist_ok=True)
-    (root / "docs/checkpoints").mkdir(parents=True, exist_ok=True)
-    (root / "docs/decisions").mkdir(parents=True, exist_ok=True)
+    for relative in (
+        "docs/handoffs/archive",
+        "docs/checkpoints",
+        "docs/decisions",
+        ".rsaw/state/checkpoints",
+        ".rsaw/state/capsules",
+        ".rsaw/state/evidence",
+        ".rsaw/state/envelopes",
+        ".rsaw/state/reviews",
+    ):
+        (root / relative).mkdir(parents=True, exist_ok=True)
     return created, skipped
