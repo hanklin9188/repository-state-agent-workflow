@@ -1,0 +1,68 @@
+name: v0.6 source hardening
+
+on:
+  push:
+    branches: ["feat/v0.6.0-context-operating-system"]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/v0.6.0-context-operating-system
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Patch v0.6 source invariants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path("src/repo_state_agent/runtime/v6.py")
+          s = p.read_text(encoding="utf-8")
+
+          # Durable checkpoint numbering is repository-global, not per process run.
+          s = s.replace("    checkpoint_index = 0\n", "    checkpoint_index = _next_checkpoint_index(root)\n", 1)
+          old = '''                checkpoint_path = root / ".rsaw/state/checkpoints" / f"{checkpoint_id}.json"\n                atomic_write_json(checkpoint_path, checkpoint)\n'''
+          new = '''                checkpoint_path = root / ".rsaw/state/checkpoints" / f"{checkpoint_id}.json"\n                if checkpoint_path.exists():\n                    return finish("FAILED", f"CHECKPOINT_ALREADY_EXISTS:{checkpoint_id}", 29)\n                atomic_write_json(checkpoint_path, checkpoint)\n'''
+          if old not in s:
+              raise SystemExit("checkpoint write anchor not found")
+          s = s.replace(old, new, 1)
+
+          anchor = '''def _write_sha_sidecar(path: Path) -> None:\n    path.with_suffix(path.suffix + ".sha256").write_text(_sha_file(path) + "\\n", encoding="utf-8")\n\n\n'''
+          helper = '''def _next_checkpoint_index(root: Path) -> int:\n    directory = root / ".rsaw/state/checkpoints"\n    maximum = 0\n    if directory.is_dir():\n        for path in directory.glob("CP-*.json"):\n            match = re.fullmatch(r"CP-(\\d+)\\.json", path.name)\n            if match:\n                maximum = max(maximum, int(match.group(1)))\n    return maximum\n\n\n'''
+          if anchor not in s:
+              raise SystemExit("sha sidecar anchor not found")
+          s = s.replace(anchor, helper + anchor, 1)
+          p.write_text(s, encoding="utf-8")
+
+          # Add a regression test proving checkpoints never reuse an existing ID.
+          t = Path("tests/test_v6_runtime.py")
+          text = t.read_text(encoding="utf-8")
+          if "test_next_checkpoint_index_is_repository_global" not in text:
+              text += '''\n\ndef test_next_checkpoint_index_is_repository_global(tmp_path: Path) -> None:\n    from repo_state_agent.runtime.v6 import _next_checkpoint_index\n\n    directory = tmp_path / ".rsaw/state/checkpoints"\n    directory.mkdir(parents=True)\n    (directory / "CP-0001.json").write_text("{}", encoding="utf-8")\n    (directory / "CP-0042.json").write_text("{}", encoding="utf-8")\n    assert _next_checkpoint_index(tmp_path) == 42\n'''
+              t.write_text(text, encoding="utf-8")
+          PY
+      - name: Validate patch
+        run: |
+          python -m compileall -q src tests
+          python -m pip install -e '.[dev]'
+          ruff check .
+          pytest -q
+      - name: Commit hardened source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/repo_state_agent/runtime/v6.py tests/test_v6_runtime.py
+          if git diff --cached --quiet; then
+            echo "No fixup required"
+            exit 0
+          fi
+          git commit -m "fix: enforce immutable repository-global v0.6 checkpoints"
+          git push origin HEAD:feat/v0.6.0-context-operating-system
