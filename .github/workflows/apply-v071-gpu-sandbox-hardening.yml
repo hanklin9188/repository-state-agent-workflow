@@ -1,0 +1,1531 @@
+name: Apply v0.7.1 GPU sandbox boundary hardening
+
+on:
+  push:
+    branches: ["fix/v0.7.1-gpu-sandbox-boundary"]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.7.1-gpu-sandbox-boundary
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Apply incident-derived patch
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/apply_v071.py" <<'PY'
+          from __future__ import annotations
+
+          import json
+          import re
+          from pathlib import Path
+
+          ROOT = Path.cwd()
+
+
+          def read(path: str) -> str:
+              return (ROOT / path).read_text(encoding="utf-8")
+
+
+          def write(path: str, text: str) -> None:
+              target = ROOT / path
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(text, encoding="utf-8")
+
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              text = read(path)
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"{path}: expected one exact replacement, found {count}")
+              write(path, text.replace(old, new, 1))
+
+
+          def regex_once(path: str, pattern: str, replacement: str) -> None:
+              text = read(path)
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE | re.DOTALL)
+              if count != 1:
+                  raise RuntimeError(f"{path}: expected one regex replacement, found {count}")
+              write(path, updated)
+
+
+          # ------------------------------------------------------------------
+          # Version metadata
+          # ------------------------------------------------------------------
+          replace_once("pyproject.toml", 'version = "0.7.0"', 'version = "0.7.1"')
+          replace_once(
+              "src/repo_state_agent/__init__.py",
+              '__version__ = "0.7.0"',
+              '__version__ = "0.7.1"',
+          )
+          replace_once("CITATION.cff", "version: 0.7.0", "version: 0.7.1")
+          replace_once(
+              ".github/workflows/ci.yml",
+              'assert repo_state_agent.__version__ == "0.7.0"\n          assert version("repository-state-agent-workflow") == "0.7.0"',
+              'assert repo_state_agent.__version__ == "0.7.1"\n          assert version("repository-state-agent-workflow") == "0.7.1"',
+          )
+
+          # ------------------------------------------------------------------
+          # Codex adapter: resolve task sandbox for every turn.
+          # ------------------------------------------------------------------
+          codex = "src/repo_state_agent/runtime/codex.py"
+          replace_once(
+              codex,
+              "CodexEventGuard = Callable[[dict[str, Any]], str | None]\n",
+              "CodexEventGuard = Callable[[dict[str, Any]], str | None]\n"
+              "_SANDBOXES = {\"read-only\", \"workspace-write\", \"danger-full-access\"}\n",
+          )
+          replace_once(
+              codex,
+              "        sandbox: str = \"workspace-write\",\n        approve_for_me: bool = False,",
+              "        sandbox: str = \"workspace-write\",\n"
+              "        task_sandbox_overrides: dict[str, str] | None = None,\n"
+              "        forced_sandbox: str | None = None,\n"
+              "        approve_for_me: bool = False,",
+          )
+          replace_once(
+              codex,
+              "        self.sandbox = sandbox\n        self.approve_for_me = approve_for_me",
+              "        self.sandbox = sandbox\n"
+              "        self.task_sandbox_overrides = {\n"
+              "            str(task): str(mode)\n"
+              "            for task, mode in (task_sandbox_overrides or {}).items()\n"
+              "        }\n"
+              "        self.forced_sandbox = forced_sandbox\n"
+              "        for label, mode in {\n"
+              "            \"default\": self.sandbox,\n"
+              "            \"forced\": self.forced_sandbox,\n"
+              "            **{f\"task:{task}\": value for task, value in self.task_sandbox_overrides.items()},\n"
+              "        }.items():\n"
+              "            if mode is not None and mode not in _SANDBOXES:\n"
+              "                raise ValueError(f\"unsupported Codex sandbox for {label}: {mode}\")\n"
+              "        self.approve_for_me = approve_for_me",
+          )
+          replace_once(
+              codex,
+              "    def doctor(self) -> AdapterDoctorResult:\n",
+              "    def resolve_turn_settings(self, environment: dict[str, str]) -> dict[str, str]:\n"
+              "        task_id = str(environment.get(\"RSAW_TASK_ID\") or \"\")\n"
+              "        pre_resolved = str(environment.get(\"RSAW_RESOLVED_SANDBOX\") or \"\")\n"
+              "        if pre_resolved:\n"
+              "            sandbox = pre_resolved\n"
+              "            source = str(environment.get(\"RSAW_SANDBOX_SOURCE\") or \"supervisor\")\n"
+              "        elif self.forced_sandbox:\n"
+              "            sandbox = self.forced_sandbox\n"
+              "            source = \"CLI\"\n"
+              "        elif task_id and task_id in self.task_sandbox_overrides:\n"
+              "            sandbox = self.task_sandbox_overrides[task_id]\n"
+              "            source = \"task override\"\n"
+              "        else:\n"
+              "            sandbox = self.sandbox\n"
+              "            source = \"default\"\n"
+              "        if sandbox not in _SANDBOXES:\n"
+              "            raise ValueError(f\"unsupported Codex sandbox mode: {sandbox}\")\n"
+              "        return {\"task\": task_id, \"sandbox\": sandbox, \"source\": source}\n\n"
+              "    def doctor(self) -> AdapterDoctorResult:\n",
+          )
+          replace_once(
+              codex,
+              "        thread_id: str | None,\n    ) -> list[str]:",
+              "        thread_id: str | None,\n        sandbox: str | None = None,\n    ) -> list[str]:",
+          )
+          replace_once(
+              codex,
+              '            command.extend(["--sandbox", self.sandbox])',
+              '            command.extend(["--sandbox", sandbox or self.sandbox])',
+          )
+          replace_once(
+              codex,
+              "        command = self.build_command(\n            root=root,\n            last_message_path=last_message_path,\n            thread_id=thread_id,\n        )\n        env = os.environ.copy()\n        env.update(environment)",
+              "        turn_settings = self.resolve_turn_settings(environment)\n"
+              "        command = self.build_command(\n"
+              "            root=root,\n"
+              "            last_message_path=last_message_path,\n"
+              "            thread_id=thread_id,\n"
+              "            sandbox=turn_settings[\"sandbox\"],\n"
+              "        )\n"
+              "        env = os.environ.copy()\n"
+              "        env.update(environment)\n"
+              "        env[\"RSAW_RESOLVED_SANDBOX\"] = turn_settings[\"sandbox\"]\n"
+              "        env[\"RSAW_SANDBOX_SOURCE\"] = turn_settings[\"source\"]",
+          )
+
+          # ------------------------------------------------------------------
+          # CLI: task-aware profile, content-bound audits, clean expected exits.
+          # ------------------------------------------------------------------
+          cli = "src/repo_state_agent/v7_cli.py"
+          replace_once(
+              cli,
+              "from . import cli as legacy_cli",
+              "from . import __version__, cli as legacy_cli",
+          )
+          replace_once(
+              cli,
+              '_SANDBOXES = ("read-only", "workspace-write", "danger-full-access")\n',
+              '_SANDBOXES = ("read-only", "workspace-write", "danger-full-access")\n'
+              '_EXPECTED_OPERATOR_STATUSES = {"PAUSED", "COMPLETE", "LIMIT_REACHED", "DRY_RUN"}\n\n\n'
+              'def _json_document_bytes(value: dict[str, Any]) -> bytes:\n'
+              '    return (json.dumps(value, indent=2, sort_keys=True) + "\\n").encode("utf-8")\n\n\n'
+              'def _sha256_bytes(value: bytes) -> str:\n'
+              '    return hashlib.sha256(value).hexdigest()\n\n\n'
+              'def _snapshot_file(path: Path) -> bytes | None:\n'
+              '    return path.read_bytes() if path.is_file() else None\n\n\n'
+              'def _restore_file(path: Path, snapshot: bytes | None) -> None:\n'
+              '    if snapshot is None:\n'
+              '        path.unlink(missing_ok=True)\n'
+              '        return\n'
+              '    path.parent.mkdir(parents=True, exist_ok=True)\n'
+              '    path.write_bytes(snapshot)\n\n\n'
+              'def _operator_action_path(root: Path, timestamp: str, suffix: str) -> Path:\n'
+              '    slug = timestamp.replace(":", "").replace("+", "-")\n'
+              '    return root / ".rsaw/state/operator-actions" / f"{slug}-{suffix}.json"\n\n\n'
+              'def _write_operator_action(\n'
+              '    root: Path, *, suffix: str, payload: dict[str, Any]\n'
+              ') -> Path:\n'
+              '    timestamp = str(payload.get("timestamp") or utc_now())\n'
+              '    bound = {"schemaVersion": "rsaw.operator-action.v2", **payload, "timestamp": timestamp}\n'
+              '    canonical = json.dumps(bound, sort_keys=True, separators=(",", ":")).encode("utf-8")\n'
+              '    bound["contentSha256"] = hashlib.sha256(canonical).hexdigest()\n'
+              '    path = _operator_action_path(root, timestamp, suffix)\n'
+              '    atomic_write_json(path, bound)\n'
+              '    return path\n',
+          )
+          regex_once(
+              cli,
+              r"def _resolve_codex_settings\(.*?\n\n\ndef _tool_budget",
+              '''def _codex_profile(
+              root: Path,
+              *,
+              requested_binary: str = "auto",
+              requested_sandbox: str = "auto",
+          ) -> dict[str, Any]:
+              runtime = _runtime_config(root)
+              codex = runtime.get("codex", {})
+              if not isinstance(codex, dict):
+                  codex = {}
+              configured_binary = str(codex.get("binary") or runtime.get("codex_binary") or "codex")
+              binary = configured_binary if requested_binary == "auto" else requested_binary
+              default_sandbox = str(
+                  codex.get("defaultSandbox") or runtime.get("sandbox") or "workspace-write"
+              )
+              if default_sandbox not in _SANDBOXES:
+                  raise ValueError(f"unsupported default sandbox mode: {default_sandbox}")
+              raw_overrides = codex.get("taskSandboxOverrides", {})
+              if not isinstance(raw_overrides, dict):
+                  raise ValueError("runtime.codex.taskSandboxOverrides must be an object")
+              overrides: dict[str, str] = {}
+              for task, mode in raw_overrides.items():
+                  task_id = str(task).strip()
+                  sandbox = str(mode).strip()
+                  if not task_id:
+                      raise ValueError("task sandbox override has an empty task ID")
+                  if sandbox not in _SANDBOXES:
+                      raise ValueError(f"unsupported sandbox for task {task_id}: {sandbox}")
+                  overrides[task_id] = sandbox
+              forced = None if requested_sandbox == "auto" else requested_sandbox
+              if forced is not None and forced not in _SANDBOXES:
+                  raise ValueError(f"unsupported CLI sandbox mode: {forced}")
+              return {
+                  "binary": binary,
+                  "defaultSandbox": default_sandbox,
+                  "taskSandboxOverrides": overrides,
+                  "forcedSandbox": forced,
+              }
+
+
+          def _resolve_profile_sandbox(profile: dict[str, Any], task_id: str) -> tuple[str, str]:
+              forced = profile.get("forcedSandbox")
+              if forced:
+                  return str(forced), "CLI"
+              overrides = profile.get("taskSandboxOverrides", {})
+              if isinstance(overrides, dict) and task_id in overrides:
+                  return str(overrides[task_id]), "task override"
+              return str(profile["defaultSandbox"]), "default"
+
+
+          def _resolve_codex_settings(
+              root: Path,
+              *,
+              requested_binary: str = "auto",
+              requested_sandbox: str = "auto",
+          ) -> tuple[str, str, str]:
+              profile = _codex_profile(
+                  root,
+                  requested_binary=requested_binary,
+                  requested_sandbox=requested_sandbox,
+              )
+              state = parse_active(root)
+              sandbox, source = _resolve_profile_sandbox(profile, state.task_id)
+              return str(profile["binary"]), sandbox, source
+
+
+          def _tool_budget''',
+          )
+          replace_once(
+              cli,
+              "    binary, resolved_sandbox, sandbox_source = _resolve_codex_settings(\n        root,\n        requested_binary=codex_binary,\n        requested_sandbox=sandbox,\n    )\n    adapter = CodexAdapter(binary=binary, sandbox=resolved_sandbox, quiet=True)",
+              "    profile = _codex_profile(\n"
+              "        root,\n"
+              "        requested_binary=codex_binary,\n"
+              "        requested_sandbox=sandbox,\n"
+              "    )\n"
+              "    resolved_sandbox, sandbox_source = _resolve_profile_sandbox(profile, state.task_id)\n"
+              "    binary = str(profile[\"binary\"])\n"
+              "    adapter = CodexAdapter(\n"
+              "        binary=binary,\n"
+              "        sandbox=str(profile[\"defaultSandbox\"]),\n"
+              "        task_sandbox_overrides=dict(profile[\"taskSandboxOverrides\"]),\n"
+              "        forced_sandbox=profile.get(\"forcedSandbox\"),\n"
+              "        quiet=True,\n"
+              "    )",
+          )
+          replace_once(
+              cli,
+              '            "sandboxSource": sandbox_source,\n        },',
+              '            "sandboxSource": sandbox_source,\n'
+              '            "sandboxPolicy": ("CLI" if profile.get("forcedSandbox") else "task-aware"),\n'
+              '            "taskSandboxOverrideCount": len(profile["taskSandboxOverrides"]),\n'
+              '        },',
+          )
+          replace_once(
+              cli,
+              "    binary, sandbox, _ = _resolve_codex_settings(\n        root,\n        requested_binary=args.codex_bin,\n        requested_sandbox=args.sandbox,\n    )",
+              "    profile = _codex_profile(\n"
+              "        root,\n"
+              "        requested_binary=args.codex_bin,\n"
+              "        requested_sandbox=args.sandbox,\n"
+              "    )\n"
+              "    state = parse_active(root)\n"
+              "    sandbox, sandbox_source = _resolve_profile_sandbox(profile, state.task_id)\n"
+              "    binary = str(profile[\"binary\"])",
+          )
+          replace_once(
+              cli,
+              "        sandbox=sandbox,\n        approve_for_me=args.approve_for_me,",
+              "        sandbox=str(profile[\"defaultSandbox\"]),\n"
+              "        task_sandbox_overrides=dict(profile[\"taskSandboxOverrides\"]),\n"
+              "        forced_sandbox=profile.get(\"forcedSandbox\"),\n"
+              "        approve_for_me=args.approve_for_me,",
+          )
+          replace_once(
+              cli,
+              '        "sandbox": sandbox,\n    }',
+              '        "sandbox": sandbox,\n'
+              '        "sandbox_source": sandbox_source,\n'
+              '        "sandbox_policy": ("CLI" if profile.get("forcedSandbox") else "task-aware"),\n'
+              '    }',
+          )
+          replace_once(
+              cli,
+              "    if (\n        dashboard\n        and not args.strict_exit_codes\n        and result.status in {\"PAUSED\", \"COMPLETE\", \"LIMIT_REACHED\", \"DRY_RUN\"}\n    ):\n        return 0",
+              "    if not args.strict_exit_codes and result.status in _EXPECTED_OPERATOR_STATUSES:\n"
+              "        return 0",
+          )
+
+          regex_once(
+              cli,
+              r"def _gate\(argv: list\[str\]\) -> int:.*?\n\n\ndef _sandbox",
+              '''def _gate(argv: list[str]) -> int:
+              parser = argparse.ArgumentParser(prog="rsaw gate")
+              sub = parser.add_subparsers(dest="action", required=True)
+              show = sub.add_parser("show")
+              show.add_argument("path", nargs="?", default=".")
+              show.add_argument("--json", action="store_true")
+              clear = sub.add_parser("clear")
+              clear.add_argument("path", nargs="?", default=".")
+              clear.add_argument("--reason", required=True)
+              clear.add_argument("--yes", action="store_true")
+              clear.add_argument("--json", action="store_true")
+              args = parser.parse_args(argv)
+              root = _root(args.path)
+              state = parse_active(root)
+              if args.action == "show":
+                  payload = {
+                      "humanGate": state.human_gate or None,
+                      "continuation": state.continuation,
+                      "reason": state.continuation_reason,
+                  }
+                  print(json.dumps(payload, indent=2) if args.json else payload)
+                  return 0
+              if not args.yes:
+                  print("ERROR: gate clear requires --yes", file=sys.stderr)
+                  return 2
+
+              active_path = root / "ACTIVE.md"
+              before = active_path.read_bytes()
+              before_text = before.decode("utf-8")
+              text = replace_section(before_text, "Human Gate", "None.")
+              current_role = (state.current_role or "").strip().lower()
+              next_role = (state.next_role or state.current_role or "").strip().lower()
+              continuation = (
+                  "ROTATE_REQUIRED"
+                  if current_role and next_role and current_role != next_role
+                  else "CONTINUE_ALLOWED"
+              )
+              text = replace_section(
+                  text,
+                  "Continuation Gate",
+                  f"Decision: {continuation}\\nReason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",
+              )
+              if "## Blockers" in text:
+                  text = replace_section(text, "Blockers", "None.")
+              text = text.replace("Human Gate active", "Human Gate cleared")
+              after_text = canonicalize_active_text(text)
+              after = after_text.encode("utf-8")
+              action_path: Path | None = None
+              try:
+                  active_path.write_bytes(after)
+                  verification = verify_repository(root)
+                  if not verification.ok:
+                      raise RuntimeError(
+                          "gate clear would leave repository invalid: "
+                          + ";".join(verification.errors)
+                      )
+                  action_path = _write_operator_action(
+                      root,
+                      suffix="gate-clear",
+                      payload={
+                          "action": "CLEAR_HUMAN_GATE",
+                          "reason": args.reason.strip(),
+                          "task": state.task_id,
+                          "beforeSha256": _sha256_bytes(before),
+                          "afterSha256": _sha256_bytes(after),
+                          "continuation": continuation,
+                          "timestamp": utc_now(),
+                      },
+                  )
+              except Exception as exc:
+                  active_path.write_bytes(before)
+                  if action_path is not None:
+                      action_path.unlink(missing_ok=True)
+                  print(f"ERROR: {exc}", file=sys.stderr)
+                  return 1
+
+              payload = {
+                  "status": "CLEARED",
+                  "task": state.task_id,
+                  "reason": args.reason.strip(),
+                  "audit": action_path.relative_to(root).as_posix(),
+              }
+              print(json.dumps(payload, indent=2) if args.json else "Human Gate cleared")
+              return 0
+
+
+          def _sandbox''',
+          )
+          regex_once(
+              cli,
+              r"def _sandbox\(argv: list\[str\]\) -> int:.*?\n\n\ndef _help",
+              '''def _sandbox(argv: list[str]) -> int:
+              parser = argparse.ArgumentParser(prog="rsaw sandbox")
+              sub = parser.add_subparsers(dest="action", required=True)
+              show = sub.add_parser("show")
+              show.add_argument("path", nargs="?", default=".")
+              show.add_argument("--json", action="store_true")
+              set_parser = sub.add_parser("set")
+              set_parser.add_argument("path", nargs="?", default=".")
+              set_parser.add_argument("--task", default="current")
+              set_parser.add_argument("--mode", choices=_SANDBOXES, required=True)
+              set_parser.add_argument("--reason", required=True)
+              set_parser.add_argument("--yes", action="store_true")
+              set_parser.add_argument("--json", action="store_true")
+              clear = sub.add_parser("clear")
+              clear.add_argument("path", nargs="?", default=".")
+              clear.add_argument("--task", default="current")
+              clear.add_argument("--reason", required=True)
+              clear.add_argument("--yes", action="store_true")
+              clear.add_argument("--json", action="store_true")
+              args = parser.parse_args(argv)
+              root = _root(args.path)
+              state = parse_active(root)
+              if args.action == "show":
+                  binary, sandbox, source = _resolve_codex_settings(root)
+                  payload = {
+                      "task": state.task_id,
+                      "binary": binary,
+                      "sandbox": sandbox,
+                      "source": source,
+                  }
+                  print(json.dumps(payload, indent=2) if args.json else payload)
+                  return 0
+              if not args.yes:
+                  print("ERROR: sandbox changes require --yes", file=sys.stderr)
+                  return 2
+
+              task = state.task_id if args.task == "current" else args.task.strip()
+              if not task:
+                  print("ERROR: sandbox task ID must not be empty", file=sys.stderr)
+                  return 2
+              config_path = root / ".rsaw/config.json"
+              before = _snapshot_file(config_path)
+              config = _load_config(root)
+              runtime = config.setdefault("runtime", {})
+              if not isinstance(runtime, dict):
+                  print("ERROR: runtime configuration must be an object", file=sys.stderr)
+                  return 1
+              codex = runtime.setdefault("codex", {})
+              if not isinstance(codex, dict):
+                  print("ERROR: runtime.codex must be an object", file=sys.stderr)
+                  return 1
+              overrides = codex.setdefault("taskSandboxOverrides", {})
+              if not isinstance(overrides, dict):
+                  print("ERROR: taskSandboxOverrides must be an object", file=sys.stderr)
+                  return 1
+              before_mode = overrides.get(task)
+              if args.action == "set":
+                  overrides[task] = args.mode
+                  status = "SET"
+                  suffix = "sandbox-set"
+                  action = "SET_TASK_SANDBOX"
+              else:
+                  overrides.pop(task, None)
+                  status = "CLEARED"
+                  suffix = "sandbox-clear"
+                  action = "CLEAR_TASK_SANDBOX"
+              after_bytes = _json_document_bytes(config)
+              action_path: Path | None = None
+              try:
+                  _save_config(root, config)
+                  _codex_profile(root)
+                  verification = verify_repository(root)
+                  if not verification.ok:
+                      raise RuntimeError(
+                          "sandbox change would leave repository invalid: "
+                          + ";".join(verification.errors)
+                      )
+                  action_path = _write_operator_action(
+                      root,
+                      suffix=suffix,
+                      payload={
+                          "action": action,
+                          "reason": args.reason.strip(),
+                          "task": task,
+                          "beforeSandbox": before_mode,
+                          "afterSandbox": overrides.get(task),
+                          "beforeConfigSha256": (_sha256_bytes(before) if before is not None else None),
+                          "afterConfigSha256": _sha256_bytes(after_bytes),
+                          "timestamp": utc_now(),
+                      },
+                  )
+              except Exception as exc:
+                  _restore_file(config_path, before)
+                  if action_path is not None:
+                      action_path.unlink(missing_ok=True)
+                  print(f"ERROR: {exc}", file=sys.stderr)
+                  return 1
+              payload = {
+                  "status": status,
+                  "task": task,
+                  "sandbox": overrides.get(task),
+                  "reason": args.reason.strip(),
+                  "audit": action_path.relative_to(root).as_posix(),
+              }
+              print(json.dumps(payload, indent=2) if args.json else payload)
+              return 0
+
+
+          def _help''',
+          )
+          replace_once(
+              cli,
+              '"""Repository-State Agent Workflow (RSAW) v0.7',
+              'f"""Repository-State Agent Workflow (RSAW) v{__version__}',
+          )
+          replace_once(
+              cli,
+              '  rsaw sandbox set . --task current --mode danger-full-access --yes',
+              '  rsaw sandbox set . --task current --mode danger-full-access --reason "reviewed GPU boundary" --yes\n'
+              '  rsaw sandbox clear . --task current --reason "boundary closed" --yes',
+          )
+          replace_once(
+              cli,
+              "    if not args or args[0] in {\"-h\", \"--help\", \"help\"}:\n        return _help()",
+              "    if not args or args[0] in {\"-h\", \"--help\", \"help\"}:\n"
+              "        return _help()\n"
+              "    if args[0] in {\"-V\", \"--version\", \"version\"}:\n"
+              "        print(f\"RSAW {__version__}\")\n"
+              "        return 0",
+          )
+
+          # ------------------------------------------------------------------
+          # Supervisor telemetry and sandbox-boundary rotation.
+          # ------------------------------------------------------------------
+          v6 = "src/repo_state_agent/runtime/v6.py"
+          replace_once(
+              v6,
+              "    tool_budget_aborts: int = 0\n    occupancy_samples: list[float] = field(default_factory=list)",
+              "    tool_budget_aborts: int = 0\n"
+              "    sandbox_resolutions: list[dict[str, Any]] = field(default_factory=list)\n"
+              "    occupancy_samples: list[float] = field(default_factory=list)",
+          )
+          replace_once(
+              v6,
+              "def supervise_v6(\n",
+              '''def _resolve_adapter_turn_settings(
+              adapter: AgentAdapter, environment: dict[str, str]
+          ) -> dict[str, str]:
+              resolver = getattr(adapter, "resolve_turn_settings", None)
+              if not callable(resolver):
+                  return {}
+              value = resolver(dict(environment))
+              if not isinstance(value, dict):
+                  raise ValueError("adapter turn settings must be an object")
+              task = _s(value.get("task")) or environment.get("RSAW_TASK_ID", "")
+              sandbox = _s(value.get("sandbox"))
+              source = _s(value.get("source")) or "adapter"
+              if not sandbox:
+                  raise ValueError("adapter turn settings omitted sandbox")
+              return {"task": task, "sandbox": sandbox, "source": source}
+
+
+          def supervise_v6(
+''',
+          )
+          old_turn = '''                _emit(
+                    store,
+                    event_sink,
+                    {
+                        "type": "v6.agent.turn.started",
+                        "runtime": "v0.7",
+                        "turn": summary.agent_turns,
+                        "mode": next_mode,
+                        "task": state.task_id,
+                        "role": state.current_role,
+                    },
+                )
+                turn = adapter.run_turn(
+                    prompt=prompt,
+                    root=root,
+                    run_dir=store.run_dir,
+                    turn_index=summary.agent_turns,
+                    thread_id=thread_id,
+                    environment={
+                        "RSAW_SUPERVISED": "1",
+                        "RSAW_V6": "1",
+                        "RSAW_V7": "1",
+                        "RSAW_RUNTIME_VERSION": "0.7",
+                        "RSAW_RUN_ID": run_id,
+                        "RSAW_TASK_ID": state.task_id,
+                        "RSAW_ROLE": state.current_role or state.next_role,
+                    },
+                )'''
+          new_turn = '''                turn_environment = {
+                    "RSAW_SUPERVISED": "1",
+                    "RSAW_V6": "1",
+                    "RSAW_V7": "1",
+                    "RSAW_RUNTIME_VERSION": "0.7.1",
+                    "RSAW_RUN_ID": run_id,
+                    "RSAW_TASK_ID": state.task_id,
+                    "RSAW_ROLE": state.current_role or state.next_role,
+                }
+                try:
+                    turn_settings = _resolve_adapter_turn_settings(adapter, turn_environment)
+                except (TypeError, ValueError) as exc:
+                    return finish("FAILED", f"SANDBOX_RESOLUTION_FAILED:{exc}", 22)
+                if turn_settings:
+                    turn_environment["RSAW_RESOLVED_SANDBOX"] = turn_settings["sandbox"]
+                    turn_environment["RSAW_SANDBOX_SOURCE"] = turn_settings["source"]
+                    resolution = {
+                        "turn": summary.agent_turns,
+                        "task": turn_settings["task"],
+                        "sandbox": turn_settings["sandbox"],
+                        "source": turn_settings["source"],
+                    }
+                    summary.sandbox_resolutions.append(resolution)
+                    _emit(
+                        store,
+                        event_sink,
+                        {"type": "v7.sandbox.resolved", "runtime": "v0.7.1", **resolution},
+                    )
+                _emit(
+                    store,
+                    event_sink,
+                    {
+                        "type": "v6.agent.turn.started",
+                        "runtime": "v0.7.1",
+                        "turn": summary.agent_turns,
+                        "mode": next_mode,
+                        "task": state.task_id,
+                        "role": state.current_role,
+                        "sandbox": turn_settings.get("sandbox"),
+                        "sandboxSource": turn_settings.get("source"),
+                    },
+                )
+                turn = adapter.run_turn(
+                    prompt=prompt,
+                    root=root,
+                    run_dir=store.run_dir,
+                    turn_index=summary.agent_turns,
+                    thread_id=thread_id,
+                    environment=turn_environment,
+                )'''
+          replace_once(v6, old_turn, new_turn)
+          old_decision = '''                summary.occupancy_samples.append(decision.occupancy_ratio)
+                if decision.action == "COMPACT":
+                    summary.context_compactions += 1
+                elif decision.action == "ROTATE":
+                    summary.role_rotations += 1'''
+          new_decision = '''                next_task_id = result.next_task.task_id if result.next_task else state.task_id
+                next_environment = {
+                    "RSAW_TASK_ID": next_task_id,
+                    "RSAW_ROLE": next_role,
+                }
+                try:
+                    next_turn_settings = _resolve_adapter_turn_settings(adapter, next_environment)
+                except (TypeError, ValueError) as exc:
+                    return finish("FAILED", f"NEXT_SANDBOX_RESOLUTION_FAILED:{exc}", 22)
+                if (
+                    turn_settings
+                    and next_turn_settings
+                    and turn_settings["sandbox"] != next_turn_settings["sandbox"]
+                    and decision.action in {"CONTINUE", "COMPACT"}
+                ):
+                    decision = GovernorDecision(
+                        "ROTATE",
+                        "SANDBOX_BOUNDARY",
+                        decision.occupancy_ratio,
+                        decision.occupancy_tokens,
+                        source="sandbox-policy",
+                    )
+                    summary.forced_rotations += 1
+                    _emit(
+                        store,
+                        event_sink,
+                        {
+                            "type": "v7.sandbox.boundary",
+                            "runtime": "v0.7.1",
+                            "fromTask": state.task_id,
+                            "fromSandbox": turn_settings["sandbox"],
+                            "toTask": next_task_id,
+                            "toSandbox": next_turn_settings["sandbox"],
+                        },
+                    )
+                summary.occupancy_samples.append(decision.occupancy_ratio)
+                if decision.action == "COMPACT":
+                    summary.context_compactions += 1
+                elif decision.action == "ROTATE":
+                    summary.role_rotations += 1'''
+          replace_once(v6, old_decision, new_decision)
+          regex_once(
+              v6,
+              r"def synthetic_acceptance\(root: Path, horizon: int\) -> dict\[str, Any\]:.*?\n\n\ndef _v6_prompt",
+              '''def synthetic_acceptance(root: Path, horizon: int) -> dict[str, Any]:
+              options = V6Options.from_root(root)
+              actions: list[str] = []
+              phases = ("Explore", "Plan", "Implement", "Review")
+              roles = {
+                  "Explore": "Builder",
+                  "Plan": "Builder",
+                  "Implement": "Builder",
+                  "Review": "Reviewer",
+              }
+              current_role = roles[phases[0]]
+              for index in range(1, horizon + 1):
+                  final = index == horizon
+                  next_phase = phases[index % len(phases)]
+                  next_role = current_role if final else roles[next_phase]
+                  requested = "COMPLETE" if final else "CONTINUE"
+                  turns_in_role = 1 + sum(
+                      1 for previous in actions[-2:] if previous == "CONTINUE"
+                  )
+                  simulated_ratio = 0.80 if horizon >= 16 and index % 5 == 0 else 0.35
+                  decision = governor_decision(
+                      current_role=current_role,
+                      next_role=next_role,
+                      requested_action=requested,
+                      human_gate="",
+                      complete=final,
+                      estimated_occupancy_tokens=int(
+                          options.context_window_tokens * simulated_ratio
+                      ),
+                      context_window_tokens=options.context_window_tokens,
+                      compact_candidate_ratio=options.compact_candidate_ratio,
+                      compact_required_ratio=options.compact_required_ratio,
+                      thread_turns=turns_in_role,
+                      hard_turn_ceiling=options.hard_turn_ceiling,
+                  )
+                  actions.append(decision.action)
+                  if decision.action == "ROTATE":
+                      current_role = next_role
+              return {
+                  "schemaVersion": "rsaw.v6.acceptance.v1",
+                  "checkpoints": horizon,
+                  "continues": actions.count("CONTINUE"),
+                  "compactions": actions.count("COMPACT"),
+                  "rotations": actions.count("ROTATE"),
+                  "pauses": actions.count("PAUSE"),
+                  "completes": actions.count("COMPLETE"),
+                  "manualRelay": 0,
+                  "aggregateInputUsedAsOccupancy": False,
+                  "pass": (
+                      actions.count("COMPLETE") == 1
+                      and actions.count("PAUSE") == 0
+                      and actions.count("ROTATE") >= 1
+                      and (horizon < 16 or actions.count("COMPACT") >= 1)
+                  ),
+              }
+
+
+          def _v6_prompt''',
+          )
+          write(v6, read(v6).replace('"runtime": "v0.7",', '"runtime": "v0.7.1",'))
+
+          # ------------------------------------------------------------------
+          # Regression tests: exact incident boundaries.
+          # ------------------------------------------------------------------
+          write(
+              "tests/test_v71_gpu_sandbox_boundary.py",
+              r'''from __future__ import annotations
+
+          import hashlib
+          import json
+          import subprocess
+          from pathlib import Path
+
+          import pytest
+
+          import repo_state_agent.v7_cli as cli_module
+          from repo_state_agent.runtime.model import AdapterDoctorResult, AgentTurnResult, TokenUsage
+          from repo_state_agent.runtime.v6 import V6Options, V6SupervisorResult, supervise_v6, synthetic_acceptance
+          from repo_state_agent.v7_cli import main as cli_main
+
+
+          def _repo(root: Path) -> None:
+              subprocess.run(["git", "init", "--quiet"], cwd=root, check=True)
+              (root / ".rsaw/state/checkpoints").mkdir(parents=True)
+              (root / "docs/tasks").mkdir(parents=True)
+              (root / "docs/workstreams").mkdir(parents=True)
+              (root / "AGENTS.md").write_text("# Policy\n", encoding="utf-8")
+              (root / "docs/workstreams/W.md").write_text("# W\n", encoding="utf-8")
+              task = """# Task
+
+          ## Allowed Writes
+          - src/**
+          - tests/**
+
+          ## Validation
+          - `python -m pytest -q`
+          """
+              (root / "docs/tasks/GPU.md").write_text(task, encoding="utf-8")
+              (root / "docs/tasks/ANALYST.md").write_text(task, encoding="utf-8")
+              (root / "ACTIVE.md").write_text(
+                  """# Active Handoff
+
+          ## Workstream
+          ID: W
+          Spec: docs/workstreams/W.md
+
+          ## Context Epoch
+          ID: E-1
+          Role: Runner
+
+          ## Active Task
+          ID: GPU
+          Spec: docs/tasks/GPU.md
+
+          ## Required Reads
+          - AGENTS.md
+          - ACTIVE.md
+          - docs/tasks/GPU.md
+
+          ## Human Gate
+          None.
+
+          ## Next Exact Action
+          Run the reviewed infrastructure boundary.
+
+          ## Stop Condition
+          Boundary closes.
+
+          ## Continuation Gate
+          Decision: CONTINUE_ALLOWED
+          Reason: same role
+
+          ## Next Task
+          ID: ANALYST
+          Spec: docs/tasks/ANALYST.md
+
+          ## Next Session Role
+          Runner
+
+          ## Recommended Reasoning
+          Medium
+          """,
+                  encoding="utf-8",
+              )
+              (root / ".rsaw/config.json").write_text(
+                  json.dumps(
+                      {
+                          "schema_version": 4,
+                          "runtime": {
+                              "max_transitions": 4,
+                              "v6": {"enabled": True},
+                              "codex": {
+                                  "binary": "codex",
+                                  "defaultSandbox": "workspace-write",
+                                  "taskSandboxOverrides": {"GPU": "danger-full-access"},
+                              },
+                          },
+                      }
+                  ),
+                  encoding="utf-8",
+              )
+
+
+          def _payload(task: str) -> dict[str, object]:
+              complete = task == "ANALYST"
+              return {
+                  "schemaVersion": "rsaw.checkpoint-result.v1",
+                  "outcome": "PASS",
+                  "summary": f"{task} complete",
+                  "changedFiles": [],
+                  "validations": [{"command": "python -m pytest -q", "status": "PASS"}],
+                  "artifacts": [],
+                  "semanticCapsuleDelta": {
+                      "observedFacts": [],
+                      "decisions": [],
+                      "excludedHypotheses": [],
+                      "evidenceRefs": [],
+                      "unresolvedRisks": [],
+                      "codeRelations": [],
+                      "validationStatus": [],
+                      "nextAction": "continue",
+                  },
+                  "nextTask": (
+                      None
+                      if complete
+                      else {
+                          "taskId": "ANALYST",
+                          "taskSpec": "docs/tasks/ANALYST.md",
+                          "role": "Runner",
+                      }
+                  ),
+                  "followingTask": None,
+                  "nextAction": "Close." if complete else "Continue safely.",
+                  "stopCondition": "Complete." if complete else "Next task completes.",
+                  "requestedAction": "COMPLETE" if complete else "CONTINUE",
+                  "transitionReason": "done" if complete else "same role, new sandbox",
+                  "humanGate": "",
+              }
+
+
+          class _TaskAwareAdapter:
+              name = "fake"
+
+              def __init__(self) -> None:
+                  self.calls: list[dict[str, object]] = []
+
+              def doctor(self) -> AdapterDoctorResult:
+                  return AdapterDoctorResult(ok=True, adapter="fake", binary="fake")
+
+              def resolve_turn_settings(self, environment: dict[str, str]) -> dict[str, str]:
+                  task = environment["RSAW_TASK_ID"]
+                  sandbox = "danger-full-access" if task == "GPU" else "workspace-write"
+                  source = "task override" if task == "GPU" else "default"
+                  return {"task": task, "sandbox": sandbox, "source": source}
+
+              def run_turn(
+                  self,
+                  *,
+                  prompt: str,
+                  root: Path,
+                  run_dir: Path,
+                  turn_index: int,
+                  thread_id: str | None,
+                  environment: dict[str, str],
+              ) -> AgentTurnResult:
+                  task = environment["RSAW_TASK_ID"]
+                  self.calls.append(
+                      {
+                          "task": task,
+                          "sandbox": environment["RSAW_RESOLVED_SANDBOX"],
+                          "thread": thread_id,
+                      }
+                  )
+                  events = run_dir / f"turn-{turn_index:04d}.jsonl"
+                  events.write_text(
+                      "\n".join(
+                          json.dumps(row)
+                          for row in (
+                              {
+                                  "type": "item.started",
+                                  "item": {
+                                      "id": f"cmd-{turn_index}",
+                                      "type": "command_execution",
+                                      "command": "python -m pytest -q",
+                                  },
+                              },
+                              {
+                                  "type": "item.completed",
+                                  "item": {
+                                      "id": f"cmd-{turn_index}",
+                                      "type": "command_execution",
+                                      "command": "python -m pytest -q",
+                                      "aggregated_output": "1 passed",
+                                      "exit_code": 0,
+                                  },
+                              },
+                          )
+                      )
+                      + "\n",
+                      encoding="utf-8",
+                  )
+                  message = json.dumps(_payload(task))
+                  last = run_dir / f"turn-{turn_index:04d}-last-message.txt"
+                  last.write_text(message, encoding="utf-8")
+                  return AgentTurnResult(
+                      exit_code=0,
+                      thread_id=f"thread-{turn_index}",
+                      usage=TokenUsage(input_tokens=10),
+                      latest_turn_usage=TokenUsage(input_tokens=10),
+                      last_message=message,
+                      events_path=events,
+                      last_message_path=last,
+                  )
+
+
+          def test_task_sandbox_is_resolved_each_turn_and_forces_boundary_rotation(tmp_path: Path) -> None:
+              _repo(tmp_path)
+              adapter = _TaskAwareAdapter()
+              result = supervise_v6(tmp_path, adapter, V6Options(max_transitions=3))
+              assert result.status == "COMPLETE"
+              assert adapter.calls == [
+                  {"task": "GPU", "sandbox": "danger-full-access", "thread": None},
+                  {"task": "ANALYST", "sandbox": "workspace-write", "thread": None},
+              ]
+              summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
+              assert [row["sandbox"] for row in summary["sandbox_resolutions"]] == [
+                  "danger-full-access",
+                  "workspace-write",
+              ]
+              events = (result.summary_path.parent / "supervisor-events.jsonl").read_text(
+                  encoding="utf-8"
+              )
+              assert '"type": "v7.sandbox.boundary"' in events
+              assert '"toSandbox": "workspace-write"' in events
+
+
+          def test_sandbox_set_and_clear_require_reason_and_write_content_bound_audits(
+              tmp_path: Path, capsys
+          ) -> None:
+              _repo(tmp_path)
+              with pytest.raises(SystemExit):
+                  cli_main(
+                      [
+                          "sandbox",
+                          "set",
+                          str(tmp_path),
+                          "--task",
+                          "current",
+                          "--mode",
+                          "danger-full-access",
+                          "--yes",
+                      ]
+                  )
+              capsys.readouterr()
+              assert (
+                  cli_main(
+                      [
+                          "sandbox",
+                          "set",
+                          str(tmp_path),
+                          "--task",
+                          "current",
+                          "--mode",
+                          "danger-full-access",
+                          "--reason",
+                          "reviewed GPU boundary",
+                          "--yes",
+                          "--json",
+                      ]
+                  )
+                  == 0
+              )
+              payload = json.loads(capsys.readouterr().out)
+              audit = json.loads((tmp_path / payload["audit"]).read_text(encoding="utf-8"))
+              digest = audit.pop("contentSha256")
+              canonical = json.dumps(audit, sort_keys=True, separators=(",", ":")).encode("utf-8")
+              assert digest == hashlib.sha256(canonical).hexdigest()
+              assert audit["reason"] == "reviewed GPU boundary"
+              assert (
+                  cli_main(
+                      [
+                          "sandbox",
+                          "clear",
+                          str(tmp_path),
+                          "--task",
+                          "current",
+                          "--reason",
+                          "Runner boundary closed",
+                          "--yes",
+                          "--json",
+                      ]
+                  )
+                  == 0
+              )
+              clear_payload = json.loads(capsys.readouterr().out)
+              assert (tmp_path / clear_payload["audit"]).is_file()
+              config = json.loads((tmp_path / ".rsaw/config.json").read_text(encoding="utf-8"))
+              assert "GPU" not in config["runtime"]["codex"]["taskSandboxOverrides"]
+
+
+          def test_sandbox_audit_failure_rolls_back_config(tmp_path: Path, monkeypatch, capsys) -> None:
+              _repo(tmp_path)
+              before = (tmp_path / ".rsaw/config.json").read_bytes()
+
+              def fail_audit(*_args, **_kwargs):
+                  raise OSError("synthetic audit failure")
+
+              monkeypatch.setattr(cli_module, "_write_operator_action", fail_audit)
+              rc = cli_main(
+                  [
+                      "sandbox",
+                      "set",
+                      str(tmp_path),
+                      "--task",
+                      "current",
+                      "--mode",
+                      "danger-full-access",
+                      "--reason",
+                      "reviewed GPU boundary",
+                      "--yes",
+                      "--json",
+                  ]
+              )
+              assert rc == 1
+              assert (tmp_path / ".rsaw/config.json").read_bytes() == before
+              assert "synthetic audit failure" in capsys.readouterr().err
+
+
+          def test_expected_non_tui_pause_exits_zero_unless_strict(
+              tmp_path: Path, monkeypatch, capsys
+          ) -> None:
+              _repo(tmp_path)
+
+              def paused(*_args, **_kwargs) -> V6SupervisorResult:
+                  return V6SupervisorResult("PAUSED", "HUMAN_GATE", "run", None, 20)
+
+              monkeypatch.setattr(cli_module, "supervise_v6", paused)
+              assert cli_main(["run", str(tmp_path), "--no-tui", "--json"]) == 0
+              payload = json.loads(capsys.readouterr().out)
+              assert payload["status"] == "PAUSED"
+              assert payload["exit_code"] == 20
+              assert (
+                  cli_main(
+                      [
+                          "run",
+                          str(tmp_path),
+                          "--no-tui",
+                          "--json",
+                          "--strict-exit-codes",
+                      ]
+                  )
+                  == 20
+              )
+              capsys.readouterr()
+
+
+          def test_acceptance_uses_next_phase_and_version_is_explicit(tmp_path: Path, capsys) -> None:
+              _repo(tmp_path)
+              results = [synthetic_acceptance(tmp_path, horizon) for horizon in (4, 16, 64)]
+              assert all(result["pass"] for result in results)
+              assert results[0]["rotations"] >= 1
+              assert cli_main(["--version"]) == 0
+              assert capsys.readouterr().out.strip() == "RSAW 0.7.1"
+          ''',
+          )
+
+          # ------------------------------------------------------------------
+          # Release notes, incident record, and deployment guide.
+          # ------------------------------------------------------------------
+          incident = '''# EdgeFlow GPU Sandbox Incident — Upstream Repair
+
+          Date: 2026-08-15  
+          Upstream release: RSAW v0.7.1  
+          Scope: RSAW workflow infrastructure only  
+          Scientific evidence eligibility: **none**
+
+          ## Incident boundary
+
+          An EdgeFlow Runner paused after host GPU visibility and Codex worker visibility diverged. The host WSL environment could see the RTX-class GPU, CUDA, and NVML, while the Codex `workspace-write` worker could not. The worker-side failure was initially misdescribed as an operating-system failure.
+
+          The associated capability smoke verified execution-boundary visibility only. It did not run EdgeFlow, consume a formal experiment nonce, authorize a diagnostic retry, modify sealed evidence, or support a scientific claim.
+
+          ## Public v0.7.0 audit
+
+          The public v0.7.0 release already provided task sandbox profiles, launcher/Python preflight diagnostics, transactional checkpoint advancement, gate auditing, and synthetic lifecycle acceptance. The incident exposed four remaining upstream gaps:
+
+          1. a task sandbox was resolved once when the Supervisor started rather than for every turn;
+          2. sandbox set/clear lacked mandatory reasons and content-bound operator records;
+          3. expected non-TUI `PAUSED` states still surfaced process exit 20 by default;
+          4. synthetic role rotation was derived from the current phase rather than the next phase.
+
+          The locally reported repair commit `bb0b7090a8cb4a0bc91ab80ae8bbddecfe79d7ef` was not reachable from the public GitHub repository during upstream review, so v0.7.1 independently reconstructs and regression-tests the described behavior.
+
+          ## v0.7.1 invariants
+
+          - The current `RSAW_TASK_ID` is resolved before every Codex turn.
+          - A task-specific `danger-full-access` override cannot silently flow into another task.
+          - Changing sandbox class forces a fresh context boundary even when the role is unchanged.
+          - Durable telemetry records turn, task, sandbox, and resolution source.
+          - `sandbox set` and `sandbox clear` require `--reason` and `--yes`.
+          - Operator records bind action content and before/after configuration hashes.
+          - A failed audit write restores the prior configuration.
+          - Expected operator states return shell exit 0 by default in TUI and non-TUI modes; `--strict-exit-codes` retains machine codes.
+          - 4/16/64 synthetic acceptance derives the next role from the next phase.
+
+          ## Host-versus-worker diagnosis rule
+
+          A worker-side GPU/NVML failure must not be attributed to the host operating system without a differential check:
+
+          ```text
+          host capability
+                 versus
+          exact worker sandbox capability
+          ```
+
+          The comparison is infrastructure evidence only. Formal experiment readiness, interference checks, authorization nonces, and evidence promotion remain separate gates.
+
+          ## Residual safety boundary
+
+          `danger-full-access` is materially broader than `workspace-write`. Keep it scoped to one reviewed task ID, provide an operator reason, re-resolve it every turn, and clear it with another audited reason when the boundary closes. External GPU workloads remain a fail-closed readiness concern for experiments even when the worker can see the device.
+          '''
+          write("docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md", incident)
+
+          release_doc = '''# RSAW v0.7.1 — GPU Sandbox Boundary Repair
+
+          v0.7.1 is a safety and operator-semantics patch release derived from a real EdgeFlow GPU sandbox incident.
+
+          ## Fixed
+
+          - Per-turn task sandbox resolution using the current `RSAW_TASK_ID`.
+          - Automatic fresh rotation across sandbox-class changes.
+          - Durable task/sandbox/source telemetry.
+          - Mandatory reasons and content-bound audit records for sandbox set/clear.
+          - Transactional rollback when an operator audit cannot be written.
+          - Clean default process exits for expected non-TUI operator states.
+          - Explicit `rsaw --version` output to diagnose launcher drift.
+          - Next-phase-based 4/16/64 synthetic lifecycle acceptance.
+
+          ## Preserved
+
+          - Repository default `workspace-write`.
+          - Explicit task scope for `danger-full-access`.
+          - Strict machine exit codes through `--strict-exit-codes`.
+          - Fail-closed experiment readiness and evidence boundaries.
+          - No conversion of capability smoke into scientific evidence.
+
+          See the [incident record](../incidents/2026-08-15-edgeflow-gpu-sandbox.md) and [EdgeFlow deployment guide](../edgeflow-v071-deployment.md).
+          '''
+          write("docs/releases/v071-gpu-sandbox-boundary.md", release_doc)
+
+          deployment = '''# Deploy RSAW v0.7.1 into EdgeFlow
+
+          This procedure upgrades RSAW workflow infrastructure only. It does not authorize or execute an EdgeFlow diagnostic.
+
+          ## 1. Stop at a durable boundary
+
+          Do not replace the active RSAW installation while a Supervisor or Codex worker is live.
+
+          ```bash
+          cd ~/StateFT/EdgeFlow_Full_Project_Plan_RTX4080SUPER
+          ps -ef | grep -E '[r]saw (run|start)|[c]odex exec' || true
+          test ! -e .rsaw/runtime.lock || cat .rsaw/runtime.lock
+          ```
+
+          Continue only after the prior run is durably `PAUSED`, `COMPLETE`, or otherwise stopped and the lock is not live.
+
+          ## 2. Preserve the current repository boundary
+
+          ```bash
+          git status --short > /tmp/edgeflow-pre-rsaw-v071.status
+          git rev-parse HEAD > /tmp/edgeflow-pre-rsaw-v071.head
+          sha256sum ACTIVE.md .rsaw/config.json > /tmp/edgeflow-pre-rsaw-v071.sha256
+          cp ACTIVE.md /tmp/edgeflow-pre-rsaw-v071.ACTIVE.md
+          cp .rsaw/config.json /tmp/edgeflow-pre-rsaw-v071.config.json
+          ```
+
+          Do not reset, clean, restore, or reinitialize the repository.
+
+          ## 3. Use one canonical RSAW environment
+
+          A dedicated virtual environment avoids base/Conda launcher drift:
+
+          ```bash
+          python3 -m venv /home/hank/.venvs/rsaw-v071
+          /home/hank/.venvs/rsaw-v071/bin/python -m pip install --upgrade pip
+          /home/hank/.venvs/rsaw-v071/bin/python -m pip install --upgrade \
+            "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
+          ln -sfn /home/hank/.venvs/rsaw-v071/bin/rsaw /home/hank/.local/bin/rsaw
+          export PATH="/home/hank/.local/bin:$PATH"
+          hash -r
+          ```
+
+          Verify identity before touching repository state:
+
+          ```bash
+          rsaw --version
+          /home/hank/.venvs/rsaw-v071/bin/python - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+
+          assert repo_state_agent.__version__ == "0.7.1"
+          assert version("repository-state-agent-workflow") == "0.7.1"
+          print(repo_state_agent.__version__)
+          PY
+          ```
+
+          ## 4. Upgrade repository configuration idempotently
+
+          ```bash
+          rsaw upgrade . --json
+          rsaw upgrade . --apply --json
+          rsaw state normalize . --json
+          rsaw verify .
+          ```
+
+          Schema v4 remains valid. The upgrade must preserve `ACTIVE.md` except for an explicit later normalization or operator action.
+
+          ## 5. Configure only the reviewed GPU Runner
+
+          Keep the repository default at `workspace-write`. Apply the broader sandbox only to the exact reviewed task:
+
+          ```bash
+          rsaw sandbox set . \
+            --task E04-GPU-OBSERVABILITY-DIAGNOSTIC-RUNNER-AFTER-COMPATIBILITY-FIX \
+            --mode danger-full-access \
+            --reason "WSL GPU/NVML is visible only across the reviewed Codex device boundary" \
+            --yes \
+            --json
+          ```
+
+          Inspect the audit and resolution:
+
+          ```bash
+          rsaw sandbox show . --json
+          rsaw preflight . --json
+          ```
+
+          `preflight` must show the exact current task, the audited task override, launcher/Python consistency, and `READY`. A different task must resolve to `workspace-write`.
+
+          ## 6. Capability smoke is not an experiment
+
+          A constrained worker smoke may verify only that the selected sandbox can execute `nvidia-smi` and import PyTorch CUDA. It must not load EdgeFlow models, run the diagnostic, consume a nonce, or produce promotable evidence.
+
+          Before any diagnostic, the fresh Runner must separately re-check GPU process inventory. An unrelated workload that could confound utilization observation requires a fail-closed stop.
+
+          ## 7. Start normal supervised execution
+
+          ```bash
+          rsaw start .
+          ```
+
+          Expected `PAUSED`, `COMPLETE`, `LIMIT_REACHED`, and `DRY_RUN` states return process exit 0 by default. Automation that needs the internal code uses:
+
+          ```bash
+          rsaw run . --strict-exit-codes --no-tui
+          ```
+
+          ## 8. Clear the broader boundary when it closes
+
+          ```bash
+          rsaw sandbox clear . \
+            --task E04-GPU-OBSERVABILITY-DIAGNOSTIC-RUNNER-AFTER-COMPATIBILITY-FIX \
+            --reason "reviewed GPU Runner boundary completed or was abandoned" \
+            --yes \
+            --json
+          rsaw preflight . --json
+          ```
+
+          Confirm the task now resolves to the repository default and preserve the generated operator audit record.
+
+          ## 9. Rollback
+
+          Package rollback does not authorize experiment rollback or retry:
+
+          ```bash
+          /home/hank/.venvs/rsaw-v071/bin/python -m pip install --force-reinstall \
+            "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.0"
+          cp /tmp/edgeflow-pre-rsaw-v071.config.json .rsaw/config.json
+          rsaw verify .
+          ```
+
+          Restore `ACTIVE.md` only when the operator explicitly determines that no legitimate post-snapshot state transition occurred.
+          '''
+          write("docs/edgeflow-v071-deployment.md", deployment)
+
+          changelog = '''## 0.7.1 — GPU Sandbox Boundary Repair
+
+          ### Added
+
+          - per-turn task/sandbox/source telemetry;
+          - automatic fresh rotation when the sandbox class changes across tasks;
+          - mandatory reasons and content-bound operator audits for sandbox set/clear;
+          - explicit `rsaw --version` output;
+          - EdgeFlow GPU sandbox incident and v0.7.1 deployment documentation.
+
+          ### Fixed
+
+          - task-specific `danger-full-access` no longer remains active after an automatic task transition;
+          - audit-write failure restores the previous sandbox configuration;
+          - expected non-TUI PAUSED / COMPLETE / LIMIT_REACHED / DRY_RUN states return shell exit 0 by default;
+          - synthetic acceptance derives rotation from the next phase and remains deterministic at 4/16/64 checkpoints.
+
+          ### Safety boundary
+
+          Host capability, worker-sandbox capability, formal experiment readiness, and scientific evidence eligibility remain separate authorities. This release restores and audits an execution boundary; it does not authorize experiment retries or promote capability smoke into scientific evidence.
+
+          '''
+          replace_once(
+              "CHANGELOG.md",
+              "All notable changes to the public reference implementation are documented here.\n\n",
+              "All notable changes to the public reference implementation are documented here.\n\n" + changelog,
+          )
+
+          for path in ("README.md", "README.zh-TW.md"):
+              text = read(path).replace("0.7.0", "0.7.1").replace("v0.7.0", "v0.7.1")
+              text = text.replace("docs/edgeflow-v07-deployment.md", "docs/edgeflow-v071-deployment.md")
+              text = text.replace(
+                  "docs/releases/v070-edgeflow-hardening.md",
+                  "docs/releases/v071-gpu-sandbox-boundary.md",
+              )
+              write(path, text)
+
+          readme = read("README.md")
+          readme = readme.replace(
+              "Expected `PAUSED` and `COMPLETE` states also exit cleanly in normal TUI use instead of appearing as VS Code terminal failures.",
+              "Expected `PAUSED`, `COMPLETE`, `LIMIT_REACHED`, and `DRY_RUN` states exit cleanly in both TUI and non-TUI operator use instead of appearing as VS Code terminal failures. `--strict-exit-codes` preserves machine-oriented codes.",
+          )
+          readme = readme.replace(
+              "  --mode danger-full-access \\\n  --yes",
+              "  --mode danger-full-access \\\n  --reason \"reviewed GPU/NVML boundary\" \\\n  --yes",
+          )
+          readme = readme.replace(
+              "rsaw sandbox clear . --task current --yes",
+              "rsaw sandbox clear . --task current --reason \"boundary closed\" --yes",
+          )
+          readme = readme.replace(
+              "The override is keyed to the task ID. It does not automatically broaden a later Analyst or Builder task.",
+              "The override is keyed to the task ID and is resolved again before every Codex turn. A sandbox-class change forces a fresh context boundary, so a broader Runner profile cannot silently continue into a later Analyst or Builder task. Set and clear operations are content-bound operator actions and roll back if the audit cannot be written.",
+          )
+          marker = "---\n\n## Repository memory model"
+          insert = '''---
+
+          ## Host capability is not worker capability
+
+          A GPU/NVML failure inside `workspace-write` does not by itself prove that WSL, the driver, or the host GPU is unavailable. Diagnose the two boundaries separately:
+
+          ```text
+          host visibility  ≠  Codex worker-sandbox visibility
+          ```
+
+          Capability smoke is workflow infrastructure evidence only. It cannot authorize a formal retry, consume or replace an experiment nonce, modify sealed evidence, or become a scientific result. See the [EdgeFlow GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md).
+
+          ---
+
+          ## Repository memory model'''
+          if marker not in readme:
+              raise RuntimeError("README.md insertion marker missing")
+          write("README.md", readme.replace(marker, insert, 1))
+
+          zh = read("README.zh-TW.md")
+          zh = zh.replace(
+              "正常的 `PAUSED` 與 `COMPLETE` 在一般 TUI 使用中也不再被 VS Code 當成 terminal failure。",
+              "正常的 `PAUSED`、`COMPLETE`、`LIMIT_REACHED` 與 `DRY_RUN`，不論 TUI 或非 TUI operator 模式都會以 shell exit 0 結束；需要內部語意碼的自動化流程才使用 `--strict-exit-codes`。",
+          )
+          zh = zh.replace(
+              "  --mode danger-full-access \\\n  --yes",
+              "  --mode danger-full-access \\\n  --reason \"reviewed GPU/NVML boundary\" \\\n  --yes",
+          )
+          zh = zh.replace(
+              "rsaw sandbox clear . --task current --yes",
+              "rsaw sandbox clear . --task current --reason \"boundary closed\" --yes",
+          )
+          zh = zh.replace(
+              "設定會綁定 task ID，不會自動把較寬鬆權限帶到下一個 Analyst 或 Builder task。",
+              "設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 都必須提供 reason、建立 content-bound operator audit；audit 寫入失敗時設定會 rollback。",
+          )
+          zh_marker = "---\n\n## Repository memory model"
+          zh_insert = '''---
+
+          ## Host 能力不等於 worker sandbox 能力
+
+          `workspace-write` 裡看不到 GPU/NVML，不代表 WSL、driver 或主機 GPU 一定故障。必須分開驗證：
+
+          ```text
+          host visibility  ≠  Codex worker-sandbox visibility
+          ```
+
+          Capability smoke 只屬於 workflow infrastructure evidence，不能授權正式 retry、取代或消耗 experiment nonce、修改 sealed evidence，也不能成為科學結果。完整事故邊界見：[EdgeFlow GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md)。
+
+          ---
+
+          ## Repository memory model'''
+          if zh_marker not in zh:
+              raise RuntimeError("README.zh-TW.md insertion marker missing")
+          write("README.zh-TW.md", zh.replace(zh_marker, zh_insert, 1))
+
+          # Keep metadata descriptions current without changing schema.
+          metadata = json.loads(read("REPOSITORY_METADATA.json"))
+          metadata["description"] = (
+              "Repository-backed agent runtime with transactional checkpoints, per-turn task sandbox boundaries, "
+              "content-bound operator audits, bounded tool context, and live observability."
+          )
+          write("REPOSITORY_METADATA.json", json.dumps(metadata, indent=2) + "\n")
+
+          roadmap = read("ROADMAP.md")
+          roadmap = roadmap.replace(
+              "# RSAW Roadmap\n\n",
+              "# RSAW Roadmap\n\n## v0.7.1 — GPU sandbox boundary repair\n\n"
+              "Status: implemented patch line; release remains CI- and clean-install-gated.\n\n"
+              "- [x] Per-turn task sandbox resolution\n"
+              "- [x] Fresh rotation across sandbox-class changes\n"
+              "- [x] Content-bound sandbox set/clear audits\n"
+              "- [x] Non-TUI expected-state clean exits\n"
+              "- [x] Explicit launcher version output\n"
+              "- [x] Next-phase 4 / 16 / 64 lifecycle acceptance\n"
+              "- [ ] Matched prospective efficiency study\n\n",
+              1,
+          )
+          write("ROADMAP.md", roadmap)
+          PY
+          python "$RUNNER_TEMP/apply_v071.py"
+      - name: Format and full validation
+        run: |
+          ruff format .
+          python -m compileall -q src tests
+          ruff format --check .
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw footprint . --max-tokens 15000
+          rsaw compile . --mode FRESH --json
+          rsaw run . --dry-run --json
+          rsaw report . --json
+          rsaw acceptance . --horizon all --json
+          rsaw --version
+          python -m repo_state_agent --version
+          python scripts/check_markdown_links.py .
+          rm -rf dist build src/*.egg-info
+          python -m build
+      - name: Commit validated patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-v071-gpu-sandbox-hardening.yml
+          git add -A
+          git commit -m "fix: harden per-turn GPU sandbox boundaries for v0.7.1"
+          git push origin HEAD:fix/v0.7.1-gpu-sandbox-boundary
