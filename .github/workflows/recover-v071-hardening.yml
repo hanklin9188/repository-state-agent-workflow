@@ -144,12 +144,16 @@ jobs:
           python scripts/check_markdown_links.py .
           rm -rf dist build src/*.egg-info
           python -m build
-      - name: Commit validated patch
+      - name: Commit validated non-workflow patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/apply-v071-gpu-sandbox-hardening.yml
-          git rm .github/workflows/recover-v071-hardening.yml
+          git restore --source=HEAD -- .github/workflows/ci.yml
+          if ! git diff --quiet -- .github/workflows; then
+            git diff -- .github/workflows
+            echo "Refusing an Actions-bot workflow mutation."
+            exit 1
+          fi
           git add -A
           git commit -m "fix: harden per-turn GPU sandbox boundaries for v0.7.1"
           git push origin HEAD:fix/v0.7.1-gpu-sandbox-boundary
