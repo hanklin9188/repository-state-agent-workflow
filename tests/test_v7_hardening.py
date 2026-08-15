@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 from rich.console import Console
@@ -28,6 +29,12 @@ from repo_state_agent.verify import VerificationResult, verify_repository
 
 
 def _repo(root: Path) -> None:
+    subprocess.run(
+        ["git", "init", "--quiet"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
     (root / ".rsaw/state/checkpoints").mkdir(parents=True, exist_ok=True)
     (root / "docs/tasks").mkdir(parents=True, exist_ok=True)
     (root / "docs/workstreams").mkdir(parents=True, exist_ok=True)

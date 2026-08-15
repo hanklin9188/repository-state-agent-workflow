@@ -1465,15 +1465,20 @@ def synthetic_acceptance(root: Path, horizon: int) -> dict[str, Any]:
     for index in range(1, horizon + 1):
         phase = phases[(index - 1) % len(phases)]
         final = index == horizon
-        requested = "COMPLETE" if final else "CONTINUE"
-        if phase == "Review" and not final:
+        if final:
+            requested = "COMPLETE"
+            next_role = current_role
+        elif phase == "Implement":
+            requested = "CONTINUE"
             next_role = "Reviewer"
-        elif current_role == "Reviewer" and not final:
+        elif phase == "Review":
+            requested = "CONTINUE"
             next_role = "Builder"
         else:
+            requested = "CONTINUE"
             next_role = current_role
         turns_in_role = 1 + sum(1 for previous in actions[-2:] if previous == "CONTINUE")
-        simulated_ratio = 0.80 if horizon >= 16 and index % 6 == 0 else 0.35
+        simulated_ratio = 0.80 if horizon >= 16 and index % 5 == 0 else 0.35
         decision = governor_decision(
             current_role=current_role,
             next_role=next_role,
