@@ -276,3 +276,41 @@ def test_next_checkpoint_index_is_repository_global(tmp_path: Path) -> None:
     (directory / "CP-0001.json").write_text("{}", encoding="utf-8")
     (directory / "CP-0042.json").write_text("{}", encoding="utf-8")
     assert _next_checkpoint_index(tmp_path) == 42
+
+
+def test_deterministic_gate_rejects_observed_validation_failure(tmp_path: Path) -> None:
+    _repo(tmp_path)
+    state = ActiveState(
+        root=tmp_path,
+        active_path=tmp_path / "ACTIVE.md",
+        task_id="T1",
+        task_spec=tmp_path / "docs/tasks/T1.md",
+        required_reads=(),
+        next_action="implement",
+        stop_condition="pass",
+        next_role="Reviewer",
+        reasoning="Medium",
+        workstream_id="W",
+        epoch_id="E-1",
+        current_role="Builder",
+    )
+    before = hashlib.sha256((tmp_path / "ACTIVE.md").read_bytes()).hexdigest()
+    gate = deterministic_gate(
+        tmp_path,
+        state=state,
+        result=_result(changedFiles=[]),
+        active_sha_before=before,
+        changed_files=(),
+        event_info={
+            "commands": [
+                {
+                    "command": "python -m pytest -q",
+                    "eventType": "item.completed",
+                    "exitCode": 1,
+                }
+            ]
+        },
+        evidence_ids=set(),
+    )
+    assert gate.accepted is False
+    assert "VALIDATION_FAILED:python -m pytest -q" in gate.errors

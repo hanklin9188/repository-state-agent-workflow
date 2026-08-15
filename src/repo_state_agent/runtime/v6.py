@@ -631,10 +631,26 @@ def deterministic_gate(root: Path, *, state: ActiveState, result: CheckpointResu
         for path in sorted(actual):
             if not any(fnmatch.fnmatch(path, pattern) for pattern in allowed):
                 errors.append(f"WRITE_OUTSIDE_SCOPE:{path}")
-    executed = [_s(x.get("command")) for x in event_info.get("commands", []) if isinstance(x, dict)]
+    command_records = [x for x in event_info.get("commands", []) if isinstance(x, dict)]
+    executed = [_s(x.get("command")) for x in command_records]
     for required in contract.get("validations", []):
-        if not any(_command_matches(required, command) for command in executed):
+        matched = [
+            record
+            for record in command_records
+            if _command_matches(required, _s(record.get("command")))
+        ]
+        if not matched:
             errors.append(f"VALIDATION_NOT_EXECUTED:{required}")
+            continue
+        completed = [
+            record
+            for record in matched
+            if _s(record.get("eventType")).endswith(".completed")
+        ]
+        if any(record.get("exitCode") not in {None, 0} for record in completed):
+            errors.append(f"VALIDATION_FAILED:{required}")
+        elif not completed:
+            warnings.append(f"VALIDATION_COMPLETION_STATUS_UNAVAILABLE:{required}")
     for artifact in result.artifacts:
         path_value = _s(artifact.get("path"))
         if not path_value:
