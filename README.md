@@ -294,7 +294,7 @@ rsaw sandbox show . --json
 rsaw sandbox clear . --task current --reason "boundary closed" --yes
 ```
 
-The override is keyed to the task ID and is resolved again before every Codex turn. A sandbox-class change forces a fresh context boundary, so a broader Runner profile cannot silently continue into a later Analyst or Builder task. Set and clear operations are content-bound operator actions and roll back if the audit cannot be written. An explicit `--sandbox` value is also scoped to the task active when the run starts; after a task transition, RSAW reverts to the next task's own override or the repository default.
+The override is keyed to the task ID and is resolved again before every Codex turn. A sandbox-class change forces a fresh context boundary, so a broader Runner profile cannot silently continue into a later Analyst or Builder task. Set and clear operations record operator identity, reject empty reasons, create content-bound operator actions, are checked by `rsaw verify`, and roll back if the audit cannot be written. An explicit `--sandbox` value is also scoped to the task active when the run starts; after a task transition, RSAW reverts to the next task's own override or the repository default.
 
 ---
 

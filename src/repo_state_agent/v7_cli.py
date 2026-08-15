@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import json
+import os
 import shutil
+import socket
 import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -34,6 +37,31 @@ _SANDBOXES = ("read-only", "workspace-write", "danger-full-access")
 _EXPECTED_OPERATOR_STATUSES = {"PAUSED", "COMPLETE", "LIMIT_REACHED", "DRY_RUN"}
 
 
+def _nonempty_reason(value: str) -> str:
+    reason = value.strip()
+    if not reason:
+        raise argparse.ArgumentTypeError("reason must contain non-whitespace text")
+    return reason
+
+
+def _operator_identity() -> dict[str, Any]:
+    try:
+        user = getpass.getuser()
+    except (KeyError, OSError):
+        user = os.environ.get("USER") or os.environ.get("USERNAME") or "unknown"
+    identity: dict[str, Any] = {
+        "user": user,
+        "hostname": socket.gethostname(),
+        "pid": os.getpid(),
+        "python": str(Path(sys.executable).resolve()),
+    }
+    if hasattr(os, "getuid"):
+        identity["uid"] = os.getuid()
+    if hasattr(os, "getgid"):
+        identity["gid"] = os.getgid()
+    return identity
+
+
 def _json_document_bytes(value: dict[str, Any]) -> bytes:
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
@@ -61,7 +89,12 @@ def _operator_action_path(root: Path, timestamp: str, suffix: str) -> Path:
 
 def _write_operator_action(root: Path, *, suffix: str, payload: dict[str, Any]) -> Path:
     timestamp = str(payload.get("timestamp") or utc_now())
-    bound = {"schemaVersion": "rsaw.operator-action.v2", **payload, "timestamp": timestamp}
+    bound = {
+        "schemaVersion": "rsaw.operator-action.v2",
+        "operator": _operator_identity(),
+        **payload,
+        "timestamp": timestamp,
+    }
     canonical = json.dumps(bound, sort_keys=True, separators=(",", ":")).encode("utf-8")
     bound["contentSha256"] = hashlib.sha256(canonical).hexdigest()
     path = _operator_action_path(root, timestamp, suffix)
@@ -615,7 +648,7 @@ def _gate(argv: list[str]) -> int:
     show.add_argument("--json", action="store_true")
     clear = sub.add_parser("clear")
     clear.add_argument("path", nargs="?", default=".")
-    clear.add_argument("--reason", required=True)
+    clear.add_argument("--reason", required=True, type=_nonempty_reason)
     clear.add_argument("--yes", action="store_true")
     clear.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -702,13 +735,13 @@ def _sandbox(argv: list[str]) -> int:
     set_parser.add_argument("path", nargs="?", default=".")
     set_parser.add_argument("--task", default="current")
     set_parser.add_argument("--mode", choices=_SANDBOXES, required=True)
-    set_parser.add_argument("--reason", required=True)
+    set_parser.add_argument("--reason", required=True, type=_nonempty_reason)
     set_parser.add_argument("--yes", action="store_true")
     set_parser.add_argument("--json", action="store_true")
     clear = sub.add_parser("clear")
     clear.add_argument("path", nargs="?", default=".")
     clear.add_argument("--task", default="current")
-    clear.add_argument("--reason", required=True)
+    clear.add_argument("--reason", required=True, type=_nonempty_reason)
     clear.add_argument("--yes", action="store_true")
     clear.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)

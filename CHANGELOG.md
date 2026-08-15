@@ -8,7 +8,7 @@ All notable changes to the public reference implementation are documented here.
 
 - per-turn task/sandbox/source telemetry;
 - automatic fresh rotation when the sandbox class changes across tasks;
-- mandatory reasons and content-bound operator audits for sandbox set/clear;
+- mandatory non-empty reasons, operator identity, and verifiable content-bound audits for sandbox set/clear;
 - explicit `rsaw --version` output;
 - EdgeFlow GPU sandbox incident and v0.7.1 deployment documentation.
 

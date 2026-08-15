@@ -275,6 +275,9 @@ def test_sandbox_set_and_clear_require_reason_and_write_content_bound_audits(
     canonical = json.dumps(audit, sort_keys=True, separators=(",", ":")).encode("utf-8")
     assert digest == hashlib.sha256(canonical).hexdigest()
     assert audit["reason"] == "reviewed GPU boundary"
+    assert audit["operator"]["user"]
+    assert audit["operator"]["hostname"]
+    assert isinstance(audit["operator"]["pid"], int)
     assert (
         audit["afterConfigSha256"]
         == hashlib.sha256((tmp_path / ".rsaw/config.json").read_bytes()).hexdigest()
@@ -397,3 +400,59 @@ def test_tui_tracks_resolved_sandbox(tmp_path: Path) -> None:
     )
     assert dashboard._state["sandbox"] == "danger-full-access"
     assert dashboard._state["sandbox_source"] == "task override"
+
+
+def test_operator_reasons_reject_whitespace(tmp_path: Path) -> None:
+    _repo(tmp_path)
+    with pytest.raises(SystemExit):
+        cli_main(
+            [
+                "sandbox",
+                "set",
+                str(tmp_path),
+                "--mode",
+                "danger-full-access",
+                "--reason",
+                "   ",
+                "--yes",
+            ]
+        )
+    with pytest.raises(SystemExit):
+        cli_main(
+            [
+                "gate",
+                "clear",
+                str(tmp_path),
+                "--reason",
+                "\t",
+                "--yes",
+            ]
+        )
+
+
+def test_verify_detects_operator_action_tampering(tmp_path: Path, capsys) -> None:
+    _repo(tmp_path)
+    assert (
+        cli_main(
+            [
+                "sandbox",
+                "set",
+                str(tmp_path),
+                "--mode",
+                "danger-full-access",
+                "--reason",
+                "reviewed GPU boundary",
+                "--yes",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    audit_path = tmp_path / payload["audit"]
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    audit["reason"] = "tampered"
+    audit_path.write_text(json.dumps(audit, indent=2) + "\n", encoding="utf-8")
+    result = cli_module.verify_repository(tmp_path)
+    assert not result.ok
+    assert any("Operator action checksum mismatch" in error for error in result.errors)
