@@ -1,0 +1,227 @@
+name: Materialize RSAW v0.7.2 venv launcher prefix repair
+
+on:
+  push:
+    branches: ["fix/v0.7.2-venv-launcher-prefix"]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.7.2-venv-launcher-prefix
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply v0.7.2 repair
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_value: str, old: str, new: str) -> None:
+              path = Path(path_value)
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path_value}: expected one replacement, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          cli = "src/repo_state_agent/v7_cli.py"
+          old = '''    launcher = shutil.which("rsaw")
+    return {
+        "packageVersion": package_version,
+        "python": sys.executable,
+        "launcher": launcher,
+        "launcherMatchesPythonPrefix": bool(
+            launcher and Path(launcher).resolve().parent == Path(sys.executable).resolve().parent
+        ),
+        "moduleFallback": f"{sys.executable} -m repo_state_agent",
+    }
+'''
+          new = '''    launcher = shutil.which("rsaw")
+    launcher_resolved = Path(launcher).resolve() if launcher else None
+    environment_bin = Path(sys.prefix).resolve() / ("Scripts" if os.name == "nt" else "bin")
+    return {
+        "packageVersion": package_version,
+        "python": sys.executable,
+        "pythonPrefix": sys.prefix,
+        "pythonBasePrefix": sys.base_prefix,
+        "launcher": launcher,
+        "launcherResolved": str(launcher_resolved) if launcher_resolved else None,
+        "launcherMatchesPythonPrefix": bool(
+            launcher_resolved and launcher_resolved.parent == environment_bin
+        ),
+        "moduleFallback": f"{sys.executable} -m repo_state_agent",
+    }
+'''
+          replace_once(cli, old, new)
+
+          replace_once("pyproject.toml", 'version = "0.7.1"', 'version = "0.7.2"')
+          replace_once("src/repo_state_agent/__init__.py", '__version__ = "0.7.1"', '__version__ = "0.7.2"')
+          replace_once("CITATION.cff", "version: 0.7.1", "version: 0.7.2")
+          replace_once("REPOSITORY_METADATA.json", '"version": "0.7.1"', '"version": "0.7.2"')
+
+          ci = Path(".github/workflows/ci.yml")
+          ci_text = ci.read_text(encoding="utf-8")
+          count = ci_text.count('== "0.7.1"')
+          if count != 2:
+              raise SystemExit(f"CI version assertions: expected 2, found {count}")
+          ci.write_text(ci_text.replace('== "0.7.1"', '== "0.7.2"'), encoding="utf-8")
+
+          for path_value in ("README.md", "README.zh-TW.md"):
+              path = Path(path_value)
+              text = path.read_text(encoding="utf-8")
+              text = text.replace("Version 0.7.1", "Version 0.7.2")
+              text = text.replace("RSAW-0.7.1-14b8a6", "RSAW-0.7.2-14b8a6")
+              text = text.replace("@v0.7.1", "@v0.7.2")
+              text = text.replace("docs/edgeflow-v071-deployment.md", "docs/edgeflow-v072-deployment.md")
+              path.write_text(text, encoding="utf-8")
+
+          source_deploy = Path("docs/edgeflow-v071-deployment.md").read_text(encoding="utf-8")
+          deploy = source_deploy.replace("v0.7.1", "v0.7.2").replace("v071", "v072")
+          deploy = deploy.replace("rsaw-v071", "rsaw-v072")
+          deploy = deploy.replace("edgeflow-pre-rsaw-v071", "edgeflow-pre-rsaw-v072")
+          deploy += '''
+
+## v0.7.2 launcher-prefix note
+
+`sys.executable` inside a virtual environment may itself be a symlink to the base interpreter. Resolving that executable therefore does not identify the active Python environment. RSAW v0.7.2 binds launcher identity to `sys.prefix` instead, while retaining the resolved launcher path for diagnostics.
+'''
+          Path("docs/edgeflow-v072-deployment.md").write_text(deploy, encoding="utf-8")
+
+          release_note = '''# RSAW v0.7.2 — Virtual-Environment Launcher Identity Repair
+
+v0.7.2 is a focused correctness patch for launcher/environment diagnostics.
+
+## Root cause
+
+v0.7.1 compared the resolved `rsaw` launcher directory with the resolved `sys.executable` directory. In symlink-based virtual environments, resolving `sys.executable` can produce the base interpreter path (for example `/usr/bin/python3.12`) even though the active environment is a venv. This produced a false `launcherMatchesPythonPrefix: false` result.
+
+## Fix
+
+- Treat `sys.prefix` as the active Python environment authority.
+- Resolve the launcher path only to find its actual installation directory.
+- Compare the resolved launcher parent against `<sys.prefix>/bin` (`Scripts` on Windows).
+- Report `pythonPrefix`, `pythonBasePrefix`, and `launcherResolved` for explicit diagnostics.
+- Add a regression test in which the venv Python executable is a symlink to a base interpreter.
+- Preserve all v0.7.1 sandbox, audit, lifecycle, and scientific-evidence boundaries unchanged.
+
+This patch changes installation diagnostics only; it does not authorize or execute any EdgeFlow experiment or diagnostic.
+'''
+          Path("docs/releases/v072-venv-launcher-prefix.md").write_text(release_note, encoding="utf-8")
+
+          changelog = Path("CHANGELOG.md")
+          text = changelog.read_text(encoding="utf-8")
+          marker = "# Changelog\n"
+          if not text.startswith(marker):
+              raise SystemExit("CHANGELOG heading changed")
+          entry = '''# Changelog
+
+## 0.7.2 — 2026-08-15
+
+### Fixed
+
+- launcher/environment identity now uses `sys.prefix` instead of the resolved interpreter symlink target;
+- symlink-based venvs no longer report a false launcher/Python mismatch;
+- preflight reports the active prefix, base prefix, and resolved launcher path for diagnosis;
+- added regression coverage for venv interpreters that resolve to a system Python.
+
+'''
+          changelog.write_text(entry + text[len(marker):].lstrip("\n"), encoding="utf-8")
+
+          test = '''from __future__ import annotations
+
+from pathlib import Path
+
+import repo_state_agent.v7_cli as cli_module
+
+
+def test_installation_view_uses_sys_prefix_for_symlink_based_venv(
+    tmp_path: Path, monkeypatch
+) -> None:
+    base_bin = tmp_path / "base" / "bin"
+    base_bin.mkdir(parents=True)
+    real_python = base_bin / "python3.12"
+    real_python.write_text("python", encoding="utf-8")
+
+    venv = tmp_path / "venv"
+    venv_bin = venv / "bin"
+    venv_bin.mkdir(parents=True)
+    venv_python = venv_bin / "python"
+    venv_python.symlink_to(real_python)
+    venv_rsaw = venv_bin / "rsaw"
+    venv_rsaw.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    user_bin = tmp_path / "local" / "bin"
+    user_bin.mkdir(parents=True)
+    launcher = user_bin / "rsaw"
+    launcher.symlink_to(venv_rsaw)
+
+    monkeypatch.setattr(cli_module.sys, "prefix", str(venv))
+    monkeypatch.setattr(cli_module.sys, "base_prefix", str(tmp_path / "base"))
+    monkeypatch.setattr(cli_module.sys, "executable", str(venv_python))
+    monkeypatch.setattr(cli_module.shutil, "which", lambda name: str(launcher))
+
+    view = cli_module._installation_view()
+
+    assert Path(view["launcherResolved"]).parent == venv_bin.resolve()
+    assert Path(cli_module.sys.executable).resolve().parent == base_bin.resolve()
+    assert Path(view["launcherResolved"]).parent != Path(cli_module.sys.executable).resolve().parent
+    assert view["pythonPrefix"] == str(venv)
+    assert view["pythonBasePrefix"] == str(tmp_path / "base")
+    assert view["launcherMatchesPythonPrefix"] is True
+
+
+def test_installation_view_rejects_launcher_from_another_environment(
+    tmp_path: Path, monkeypatch
+) -> None:
+    active = tmp_path / "active"
+    (active / "bin").mkdir(parents=True)
+    other = tmp_path / "other"
+    (other / "bin").mkdir(parents=True)
+    launcher = other / "bin" / "rsaw"
+    launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    monkeypatch.setattr(cli_module.sys, "prefix", str(active))
+    monkeypatch.setattr(cli_module.shutil, "which", lambda name: str(launcher))
+
+    assert cli_module._installation_view()["launcherMatchesPythonPrefix"] is False
+'''
+          Path("tests/test_v72_venv_launcher_prefix.py").write_text(test, encoding="utf-8")
+          PY
+
+      - name: Validate v0.7.2
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff format .
+          python -m compileall -q src tests
+          ruff format --check .
+          ruff check .
+          pytest -q
+          rsaw --version
+          python -m repo_state_agent --version
+          rsaw verify .
+          rsaw acceptance . --horizon all --json
+          python scripts/check_markdown_links.py .
+          rm -rf dist build src/*.egg-info
+          python -m build
+
+      - name: Commit validated repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- .github/workflows; then
+            echo "workflow mutation detected"
+            exit 1
+          fi
+          git add -A
+          git commit -m "fix: use Python environment prefix for launcher identity"
+          git push origin HEAD:fix/v0.7.2-venv-launcher-prefix
