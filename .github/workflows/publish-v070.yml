@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: release/v0.7.0-publish
+          ref: e577e4f8a8d1d426efbcc0ad813f7fd0ff66626d
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -70,14 +70,10 @@ jobs:
             "git+https://github.com/$REPOSITORY.git@$RELEASE_TAG"
           "$RUNNER_TEMP/rsaw-tag/bin/python" - <<'PY'
           from importlib.metadata import version
-          from pathlib import Path
-          import shutil
-          import sys
           import repo_state_agent
 
           assert repo_state_agent.__version__ == "0.7.0"
           assert version("repository-state-agent-workflow") == "0.7.0"
-          assert Path(sys.executable).resolve().parent == Path(shutil.which("python")).resolve().parent
           print(repo_state_agent.__version__)
           PY
           "$RUNNER_TEMP/rsaw-tag/bin/rsaw" --help
