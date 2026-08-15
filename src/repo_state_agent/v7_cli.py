@@ -9,7 +9,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
-from . import cli as legacy_cli
+from . import __version__, cli as legacy_cli
 from .active_format import canonicalize_active_text, replace_section
 from .parsing import parse_active
 from .runtime.codex import CodexAdapter
@@ -31,6 +31,42 @@ from .runtime.v6 import (
 from .verify import verify_repository
 
 _SANDBOXES = ("read-only", "workspace-write", "danger-full-access")
+_EXPECTED_OPERATOR_STATUSES = {"PAUSED", "COMPLETE", "LIMIT_REACHED", "DRY_RUN"}
+
+
+def _json_document_bytes(value: dict[str, Any]) -> bytes:
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def _snapshot_file(path: Path) -> bytes | None:
+    return path.read_bytes() if path.is_file() else None
+
+
+def _restore_file(path: Path, snapshot: bytes | None) -> None:
+    if snapshot is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(snapshot)
+
+
+def _operator_action_path(root: Path, timestamp: str, suffix: str) -> Path:
+    slug = timestamp.replace(":", "").replace("+", "-")
+    return root / ".rsaw/state/operator-actions" / f"{slug}-{suffix}.json"
+
+
+def _write_operator_action(root: Path, *, suffix: str, payload: dict[str, Any]) -> Path:
+    timestamp = str(payload.get("timestamp") or utc_now())
+    bound = {"schemaVersion": "rsaw.operator-action.v2", **payload, "timestamp": timestamp}
+    canonical = json.dumps(bound, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    bound["contentSha256"] = hashlib.sha256(canonical).hexdigest()
+    path = _operator_action_path(root, timestamp, suffix)
+    atomic_write_json(path, bound)
+    return path
 
 
 def _root(value: str) -> Path:
@@ -67,37 +103,70 @@ def _runtime_config(root: Path) -> dict[str, Any]:
     return runtime if isinstance(runtime, dict) else {}
 
 
+def _codex_profile(
+    root: Path,
+    *,
+    requested_binary: str = "auto",
+    requested_sandbox: str = "auto",
+) -> dict[str, Any]:
+    runtime = _runtime_config(root)
+    codex = runtime.get("codex", {})
+    if not isinstance(codex, dict):
+        codex = {}
+    configured_binary = str(codex.get("binary") or runtime.get("codex_binary") or "codex")
+    binary = configured_binary if requested_binary == "auto" else requested_binary
+    default_sandbox = str(
+        codex.get("defaultSandbox") or runtime.get("sandbox") or "workspace-write"
+    )
+    if default_sandbox not in _SANDBOXES:
+        raise ValueError(f"unsupported default sandbox mode: {default_sandbox}")
+    raw_overrides = codex.get("taskSandboxOverrides", {})
+    if not isinstance(raw_overrides, dict):
+        raise ValueError("runtime.codex.taskSandboxOverrides must be an object")
+    overrides: dict[str, str] = {}
+    for task, mode in raw_overrides.items():
+        task_id = str(task).strip()
+        sandbox = str(mode).strip()
+        if not task_id:
+            raise ValueError("task sandbox override has an empty task ID")
+        if sandbox not in _SANDBOXES:
+            raise ValueError(f"unsupported sandbox for task {task_id}: {sandbox}")
+        overrides[task_id] = sandbox
+    forced = None if requested_sandbox == "auto" else requested_sandbox
+    if forced is not None and forced not in _SANDBOXES:
+        raise ValueError(f"unsupported CLI sandbox mode: {forced}")
+    return {
+        "binary": binary,
+        "defaultSandbox": default_sandbox,
+        "taskSandboxOverrides": overrides,
+        "forcedSandbox": forced,
+    }
+
+
+def _resolve_profile_sandbox(profile: dict[str, Any], task_id: str) -> tuple[str, str]:
+    forced = profile.get("forcedSandbox")
+    if forced:
+        return str(forced), "CLI"
+    overrides = profile.get("taskSandboxOverrides", {})
+    if isinstance(overrides, dict) and task_id in overrides:
+        return str(overrides[task_id]), "task override"
+    return str(profile["defaultSandbox"]), "default"
+
+
 def _resolve_codex_settings(
     root: Path,
     *,
     requested_binary: str = "auto",
     requested_sandbox: str = "auto",
 ) -> tuple[str, str, str]:
-    runtime = _runtime_config(root)
-    codex = runtime.get("codex", {})
-    if not isinstance(codex, dict):
-        codex = {}
-    state = parse_active(root)
-
-    configured_binary = str(codex.get("binary") or runtime.get("codex_binary") or "codex")
-    binary = configured_binary if requested_binary == "auto" else requested_binary
-
-    overrides = codex.get("taskSandboxOverrides", {})
-    if not isinstance(overrides, dict):
-        overrides = {}
-    override = str(overrides.get(state.task_id) or "")
-    configured_default = str(
-        codex.get("defaultSandbox") or runtime.get("sandbox") or "workspace-write"
+    profile = _codex_profile(
+        root,
+        requested_binary=requested_binary,
+        requested_sandbox=requested_sandbox,
     )
-    if requested_sandbox == "auto":
-        sandbox = override or configured_default
-        source = "task override" if override else "default"
-    else:
-        sandbox = requested_sandbox
-        source = "CLI"
-    if sandbox not in _SANDBOXES:
-        raise ValueError(f"unsupported sandbox mode: {sandbox}")
-    return binary, sandbox, source
+    state = parse_active(root)
+    sandbox, source = _resolve_profile_sandbox(profile, state.task_id)
+    return str(profile["binary"]), sandbox, source
 
 
 def _tool_budget(options: V6Options) -> ToolBudget:
@@ -136,12 +205,20 @@ def _preflight_payload(
     verification = verify_repository(root)
     state = parse_active(root)
     options = V6Options.from_root(root)
-    binary, resolved_sandbox, sandbox_source = _resolve_codex_settings(
+    profile = _codex_profile(
         root,
         requested_binary=codex_binary,
         requested_sandbox=sandbox,
     )
-    adapter = CodexAdapter(binary=binary, sandbox=resolved_sandbox, quiet=True)
+    resolved_sandbox, sandbox_source = _resolve_profile_sandbox(profile, state.task_id)
+    binary = str(profile["binary"])
+    adapter = CodexAdapter(
+        binary=binary,
+        sandbox=str(profile["defaultSandbox"]),
+        task_sandbox_overrides=dict(profile["taskSandboxOverrides"]),
+        forced_sandbox=profile.get("forcedSandbox"),
+        quiet=True,
+    )
     doctor = adapter.doctor()
     if verification.ok and doctor.ok and not state.human_gate:
         status = "READY"
@@ -167,6 +244,8 @@ def _preflight_payload(
             "requestedBinary": codex_binary,
             "resolvedSandbox": resolved_sandbox,
             "sandboxSource": sandbox_source,
+            "sandboxPolicy": ("CLI" if profile.get("forcedSandbox") else "task-aware"),
+            "taskSandboxOverrideCount": len(profile["taskSandboxOverrides"]),
         },
         "toolBudget": _tool_budget(options).__dict__,
         "installation": _installation_view(),
@@ -324,11 +403,14 @@ def _run(argv: list[str]) -> int:
 
     root = _root(args.path)
     options = V6Options.from_root(root, quiet=args.quiet, dry_run=args.dry_run)
-    binary, sandbox, _ = _resolve_codex_settings(
+    profile = _codex_profile(
         root,
         requested_binary=args.codex_bin,
         requested_sandbox=args.sandbox,
     )
+    state = parse_active(root)
+    sandbox, sandbox_source = _resolve_profile_sandbox(profile, state.task_id)
+    binary = str(profile["binary"])
     use_tui = should_use_v6_tui(
         force=args.tui,
         disable=args.no_tui,
@@ -353,7 +435,9 @@ def _run(argv: list[str]) -> int:
         binary=binary,
         model=args.model,
         profile=args.profile,
-        sandbox=sandbox,
+        sandbox=str(profile["defaultSandbox"]),
+        task_sandbox_overrides=dict(profile["taskSandboxOverrides"]),
+        forced_sandbox=profile.get("forcedSandbox"),
         approve_for_me=args.approve_for_me,
         quiet=bool(args.quiet or dashboard),
         event_sink=dashboard.handle_codex_event if dashboard else None,
@@ -381,6 +465,8 @@ def _run(argv: list[str]) -> int:
         "exit_code": result.exit_code,
         "runtime": "v0.7",
         "sandbox": sandbox,
+        "sandbox_source": sandbox_source,
+        "sandbox_policy": ("CLI" if profile.get("forcedSandbox") else "task-aware"),
     }
     if args.json:
         print(json.dumps(payload, indent=2))
@@ -389,11 +475,7 @@ def _run(argv: list[str]) -> int:
         if result.summary_path:
             print(f"Summary: {result.summary_path}")
 
-    if (
-        dashboard
-        and not args.strict_exit_codes
-        and result.status in {"PAUSED", "COMPLETE", "LIMIT_REACHED", "DRY_RUN"}
-    ):
+    if not args.strict_exit_codes and result.status in _EXPECTED_OPERATOR_STATUSES:
         return 0
     return result.exit_code
 
@@ -544,8 +626,9 @@ def _gate(argv: list[str]) -> int:
         return 2
 
     active_path = root / "ACTIVE.md"
-    before = active_path.read_text(encoding="utf-8")
-    text = replace_section(before, "Human Gate", "None.")
+    before = active_path.read_bytes()
+    before_text = before.decode("utf-8")
+    text = replace_section(before_text, "Human Gate", "None.")
     current_role = (state.current_role or "").strip().lower()
     next_role = (state.next_role or state.current_role or "").strip().lower()
     continuation = (
@@ -556,37 +639,41 @@ def _gate(argv: list[str]) -> int:
     text = replace_section(
         text,
         "Continuation Gate",
-        f"Decision: {continuation}\nReason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",
+        (f"Decision: {continuation}\nReason: OPERATOR_GATE_CLEARED:{args.reason.strip()}"),
     )
     if "## Blockers" in text:
         text = replace_section(text, "Blockers", "None.")
     text = text.replace("Human Gate active", "Human Gate cleared")
-    active_path.write_text(canonicalize_active_text(text), encoding="utf-8")
-    verification = verify_repository(root)
-    if not verification.ok:
-        active_path.write_text(before, encoding="utf-8")
-        print("ERROR: gate clear would leave repository invalid", file=sys.stderr)
-        for error in verification.errors:
-            print(f"ERROR: {error}", file=sys.stderr)
+    after_text = canonicalize_active_text(text)
+    after = after_text.encode("utf-8")
+    action_path: Path | None = None
+    try:
+        active_path.write_bytes(after)
+        verification = verify_repository(root)
+        if not verification.ok:
+            raise RuntimeError(
+                "gate clear would leave repository invalid: " + ";".join(verification.errors)
+            )
+        action_path = _write_operator_action(
+            root,
+            suffix="gate-clear",
+            payload={
+                "action": "CLEAR_HUMAN_GATE",
+                "reason": args.reason.strip(),
+                "task": state.task_id,
+                "beforeSha256": _sha256_bytes(before),
+                "afterSha256": _sha256_bytes(after),
+                "continuation": continuation,
+                "timestamp": utc_now(),
+            },
+        )
+    except Exception as exc:
+        active_path.write_bytes(before)
+        if action_path is not None:
+            action_path.unlink(missing_ok=True)
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    action_path = (
-        root
-        / ".rsaw/state/operator-actions"
-        / f"{utc_now().replace(':', '').replace('+', '-')}-gate-clear.json"
-    )
-    atomic_write_json(
-        action_path,
-        {
-            "schemaVersion": "rsaw.operator-action.v1",
-            "action": "CLEAR_HUMAN_GATE",
-            "reason": args.reason.strip(),
-            "task": state.task_id,
-            "beforeSha256": hashlib.sha256(before.encode("utf-8")).hexdigest(),
-            "afterSha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-            "timestamp": utc_now(),
-        },
-    )
     payload = {
         "status": "CLEARED",
         "task": state.task_id,
@@ -607,11 +694,13 @@ def _sandbox(argv: list[str]) -> int:
     set_parser.add_argument("path", nargs="?", default=".")
     set_parser.add_argument("--task", default="current")
     set_parser.add_argument("--mode", choices=_SANDBOXES, required=True)
+    set_parser.add_argument("--reason", required=True)
     set_parser.add_argument("--yes", action="store_true")
     set_parser.add_argument("--json", action="store_true")
     clear = sub.add_parser("clear")
     clear.add_argument("path", nargs="?", default=".")
     clear.add_argument("--task", default="current")
+    clear.add_argument("--reason", required=True)
     clear.add_argument("--yes", action="store_true")
     clear.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -630,26 +719,81 @@ def _sandbox(argv: list[str]) -> int:
     if not args.yes:
         print("ERROR: sandbox changes require --yes", file=sys.stderr)
         return 2
-    task = state.task_id if args.task == "current" else args.task
+
+    task = state.task_id if args.task == "current" else args.task.strip()
+    if not task:
+        print("ERROR: sandbox task ID must not be empty", file=sys.stderr)
+        return 2
+    config_path = root / ".rsaw/config.json"
+    before = _snapshot_file(config_path)
     config = _load_config(root)
     runtime = config.setdefault("runtime", {})
+    if not isinstance(runtime, dict):
+        print("ERROR: runtime configuration must be an object", file=sys.stderr)
+        return 1
     codex = runtime.setdefault("codex", {})
+    if not isinstance(codex, dict):
+        print("ERROR: runtime.codex must be an object", file=sys.stderr)
+        return 1
     overrides = codex.setdefault("taskSandboxOverrides", {})
+    if not isinstance(overrides, dict):
+        print("ERROR: taskSandboxOverrides must be an object", file=sys.stderr)
+        return 1
+    before_mode = overrides.get(task)
     if args.action == "set":
         overrides[task] = args.mode
         status = "SET"
+        suffix = "sandbox-set"
+        action = "SET_TASK_SANDBOX"
     else:
         overrides.pop(task, None)
         status = "CLEARED"
-    _save_config(root, config)
-    payload = {"status": status, "task": task, "sandbox": overrides.get(task)}
+        suffix = "sandbox-clear"
+        action = "CLEAR_TASK_SANDBOX"
+    after_bytes = _json_document_bytes(config)
+    action_path: Path | None = None
+    try:
+        _save_config(root, config)
+        _codex_profile(root)
+        verification = verify_repository(root)
+        if not verification.ok:
+            raise RuntimeError(
+                "sandbox change would leave repository invalid: " + ";".join(verification.errors)
+            )
+        action_path = _write_operator_action(
+            root,
+            suffix=suffix,
+            payload={
+                "action": action,
+                "reason": args.reason.strip(),
+                "task": task,
+                "beforeSandbox": before_mode,
+                "afterSandbox": overrides.get(task),
+                "beforeConfigSha256": (_sha256_bytes(before) if before is not None else None),
+                "afterConfigSha256": _sha256_bytes(after_bytes),
+                "timestamp": utc_now(),
+            },
+        )
+    except Exception as exc:
+        _restore_file(config_path, before)
+        if action_path is not None:
+            action_path.unlink(missing_ok=True)
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    payload = {
+        "status": status,
+        "task": task,
+        "sandbox": overrides.get(task),
+        "reason": args.reason.strip(),
+        "audit": action_path.relative_to(root).as_posix(),
+    }
     print(json.dumps(payload, indent=2) if args.json else payload)
     return 0
 
 
 def _help() -> int:
     print(
-        """Repository-State Agent Workflow (RSAW) v0.7
+        f"""Repository-State Agent Workflow (RSAW) v{__version__}
 
 Daily use:
   rsaw start .                     preflight + supervised Codex + live TUI
@@ -661,7 +805,8 @@ Operator controls:
   rsaw gate show .
   rsaw gate clear . --reason \"prerequisite restored\" --yes
   rsaw sandbox show .
-  rsaw sandbox set . --task current --mode danger-full-access --yes
+  rsaw sandbox set . --task current --mode danger-full-access --reason "reviewed GPU boundary" --yes
+  rsaw sandbox clear . --task current --reason "boundary closed" --yes
   rsaw state normalize .
 
 Runtime / migration:
@@ -683,6 +828,9 @@ def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in {"-h", "--help", "help"}:
         return _help()
+    if args[0] in {"-V", "--version", "version"}:
+        print(f"RSAW {__version__}")
+        return 0
     command = args[0]
     rest = args[1:]
     if command == "migrate":

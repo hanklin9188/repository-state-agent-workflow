@@ -3,7 +3,7 @@
   "owner": "hanklin9188",
   "visibility": "public",
   "version": "0.7.0",
-  "description": "Repository-backed agent runtime with bounded tool context, transactional checkpoints, audited operator controls, and live terminal observability.",
+  "description": "Repository-backed agent runtime with transactional checkpoints, per-turn task sandbox boundaries, content-bound operator audits, bounded tool context, and live observability.",
   "license": "MIT",
   "topics": [
     "coding-agents",

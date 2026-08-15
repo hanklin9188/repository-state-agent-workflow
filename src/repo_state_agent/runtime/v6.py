@@ -402,6 +402,7 @@ class V6Summary:
     tool_output_tokens: int = 0
     peak_tool_output_tokens: int = 0
     tool_budget_aborts: int = 0
+    sandbox_resolutions: list[dict[str, Any]] = field(default_factory=list)
     occupancy_samples: list[float] = field(default_factory=list)
     total_usage: TokenUsage = TokenUsage()
     human_gate: str = ""
@@ -1018,6 +1019,23 @@ def parse_task_contract(path: Path) -> dict[str, Any]:
     }
 
 
+def _resolve_adapter_turn_settings(
+    adapter: AgentAdapter, environment: dict[str, str]
+) -> dict[str, str]:
+    resolver = getattr(adapter, "resolve_turn_settings", None)
+    if not callable(resolver):
+        return {}
+    value = resolver(dict(environment))
+    if not isinstance(value, dict):
+        raise ValueError("adapter turn settings must be an object")
+    task = _s(value.get("task")) or environment.get("RSAW_TASK_ID", "")
+    sandbox = _s(value.get("sandbox"))
+    source = _s(value.get("source")) or "adapter"
+    if not sandbox:
+        raise ValueError("adapter turn settings omitted sandbox")
+    return {"task": task, "sandbox": sandbox, "source": source}
+
+
 def supervise_v6(
     root: Path,
     adapter: AgentAdapter,
@@ -1045,7 +1063,7 @@ def supervise_v6(
         {
             "type": "v6.supervisor.started",
             "run_id": run_id,
-            "runtime": "v0.7",
+            "runtime": "v0.7.1",
             "workstream": state.workstream_id,
             "task": state.task_id,
         },
@@ -1064,7 +1082,7 @@ def supervise_v6(
             event_sink,
             {
                 "type": "v6.supervisor.terminal",
-                "runtime": "v0.7",
+                "runtime": "v0.7.1",
                 "status": status,
                 "reason": reason,
             },
@@ -1139,16 +1157,46 @@ def supervise_v6(
                 active_sha_before = _sha_file(root / "ACTIVE.md")
                 dirty_before = _dirty_hashes(root)
                 prompt = _v6_prompt(state, envelope)
+                turn_environment = {
+                    "RSAW_SUPERVISED": "1",
+                    "RSAW_V6": "1",
+                    "RSAW_V7": "1",
+                    "RSAW_RUNTIME_VERSION": "0.7.1",
+                    "RSAW_RUN_ID": run_id,
+                    "RSAW_TASK_ID": state.task_id,
+                    "RSAW_ROLE": state.current_role or state.next_role,
+                }
+                try:
+                    turn_settings = _resolve_adapter_turn_settings(adapter, turn_environment)
+                except (TypeError, ValueError) as exc:
+                    return finish("FAILED", f"SANDBOX_RESOLUTION_FAILED:{exc}", 22)
+                if turn_settings:
+                    turn_environment["RSAW_RESOLVED_SANDBOX"] = turn_settings["sandbox"]
+                    turn_environment["RSAW_SANDBOX_SOURCE"] = turn_settings["source"]
+                    resolution = {
+                        "turn": summary.agent_turns,
+                        "task": turn_settings["task"],
+                        "sandbox": turn_settings["sandbox"],
+                        "source": turn_settings["source"],
+                    }
+                    summary.sandbox_resolutions.append(resolution)
+                    _emit(
+                        store,
+                        event_sink,
+                        {"type": "v7.sandbox.resolved", "runtime": "v0.7.1", **resolution},
+                    )
                 _emit(
                     store,
                     event_sink,
                     {
                         "type": "v6.agent.turn.started",
-                        "runtime": "v0.7",
+                        "runtime": "v0.7.1",
                         "turn": summary.agent_turns,
                         "mode": next_mode,
                         "task": state.task_id,
                         "role": state.current_role,
+                        "sandbox": turn_settings.get("sandbox"),
+                        "sandboxSource": turn_settings.get("source"),
                     },
                 )
                 turn = adapter.run_turn(
@@ -1157,15 +1205,7 @@ def supervise_v6(
                     run_dir=store.run_dir,
                     turn_index=summary.agent_turns,
                     thread_id=thread_id,
-                    environment={
-                        "RSAW_SUPERVISED": "1",
-                        "RSAW_V6": "1",
-                        "RSAW_V7": "1",
-                        "RSAW_RUNTIME_VERSION": "0.7",
-                        "RSAW_RUN_ID": run_id,
-                        "RSAW_TASK_ID": state.task_id,
-                        "RSAW_ROLE": state.current_role or state.next_role,
-                    },
+                    environment=turn_environment,
                 )
                 summary.total_usage = summary.total_usage + turn.usage
                 event_info = inspect_turn_events(turn, root)
@@ -1278,6 +1318,41 @@ def supervise_v6(
                     thread_turns=thread_turns,
                     hard_turn_ceiling=options.hard_turn_ceiling,
                 )
+                next_task_id = result.next_task.task_id if result.next_task else state.task_id
+                next_environment = {
+                    "RSAW_TASK_ID": next_task_id,
+                    "RSAW_ROLE": next_role,
+                }
+                try:
+                    next_turn_settings = _resolve_adapter_turn_settings(adapter, next_environment)
+                except (TypeError, ValueError) as exc:
+                    return finish("FAILED", f"NEXT_SANDBOX_RESOLUTION_FAILED:{exc}", 22)
+                if (
+                    turn_settings
+                    and next_turn_settings
+                    and turn_settings["sandbox"] != next_turn_settings["sandbox"]
+                    and decision.action in {"CONTINUE", "COMPACT"}
+                ):
+                    decision = GovernorDecision(
+                        "ROTATE",
+                        "SANDBOX_BOUNDARY",
+                        decision.occupancy_ratio,
+                        decision.occupancy_tokens,
+                        source="sandbox-policy",
+                    )
+                    summary.forced_rotations += 1
+                    _emit(
+                        store,
+                        event_sink,
+                        {
+                            "type": "v7.sandbox.boundary",
+                            "runtime": "v0.7.1",
+                            "fromTask": state.task_id,
+                            "fromSandbox": turn_settings["sandbox"],
+                            "toTask": next_task_id,
+                            "toSandbox": next_turn_settings["sandbox"],
+                        },
+                    )
                 summary.occupancy_samples.append(decision.occupancy_ratio)
                 if decision.action == "COMPACT":
                     summary.context_compactions += 1
@@ -1461,22 +1536,18 @@ def synthetic_acceptance(root: Path, horizon: int) -> dict[str, Any]:
     options = V6Options.from_root(root)
     actions: list[str] = []
     phases = ("Explore", "Plan", "Implement", "Review")
-    current_role = "Builder"
+    roles = {
+        "Explore": "Builder",
+        "Plan": "Builder",
+        "Implement": "Builder",
+        "Review": "Reviewer",
+    }
+    current_role = roles[phases[0]]
     for index in range(1, horizon + 1):
-        phase = phases[(index - 1) % len(phases)]
         final = index == horizon
-        if final:
-            requested = "COMPLETE"
-            next_role = current_role
-        elif phase == "Implement":
-            requested = "CONTINUE"
-            next_role = "Reviewer"
-        elif phase == "Review":
-            requested = "CONTINUE"
-            next_role = "Builder"
-        else:
-            requested = "CONTINUE"
-            next_role = current_role
+        next_phase = phases[index % len(phases)]
+        next_role = current_role if final else roles[next_phase]
+        requested = "COMPLETE" if final else "CONTINUE"
         turns_in_role = 1 + sum(1 for previous in actions[-2:] if previous == "CONTINUE")
         simulated_ratio = 0.80 if horizon >= 16 and index % 5 == 0 else 0.35
         decision = governor_decision(

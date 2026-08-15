@@ -1,5 +1,17 @@
 # RSAW Roadmap
 
+## v0.7.1 — GPU sandbox boundary repair
+
+Status: implemented patch line; release remains CI- and clean-install-gated.
+
+- [x] Per-turn task sandbox resolution
+- [x] Fresh rotation across sandbox-class changes
+- [x] Content-bound sandbox set/clear audits
+- [x] Non-TUI expected-state clean exits
+- [x] Explicit launcher version output
+- [x] Next-phase 4 / 16 / 64 lifecycle acceptance
+- [ ] Matched prospective efficiency study
+
 ## v0.7 — Operator-Hardened Repository Context Runtime
 
 Status: implementation and release validation complete on the release branch; empirical efficiency promotion remains evidence-gated.

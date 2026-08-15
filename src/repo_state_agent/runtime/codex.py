@@ -15,6 +15,7 @@ from .model import AdapterDoctorResult, AgentTurnResult
 
 CodexEventSink = Callable[[dict[str, Any]], None]
 CodexEventGuard = Callable[[dict[str, Any]], str | None]
+_SANDBOXES = {"read-only", "workspace-write", "danger-full-access"}
 
 
 class CodexAdapter:
@@ -27,6 +28,8 @@ class CodexAdapter:
         model: str | None = None,
         profile: str | None = None,
         sandbox: str = "workspace-write",
+        task_sandbox_overrides: dict[str, str] | None = None,
+        forced_sandbox: str | None = None,
         approve_for_me: bool = False,
         quiet: bool = False,
         event_sink: CodexEventSink | None = None,
@@ -42,12 +45,42 @@ class CodexAdapter:
         self.model = model
         self.profile = profile
         self.sandbox = sandbox
+        self.task_sandbox_overrides = {
+            str(task): str(mode) for task, mode in (task_sandbox_overrides or {}).items()
+        }
+        self.forced_sandbox = forced_sandbox
+        for label, mode in {
+            "default": self.sandbox,
+            "forced": self.forced_sandbox,
+            **{f"task:{task}": value for task, value in self.task_sandbox_overrides.items()},
+        }.items():
+            if mode is not None and mode not in _SANDBOXES:
+                raise ValueError(f"unsupported Codex sandbox for {label}: {mode}")
         self.approve_for_me = approve_for_me
         self.quiet = quiet
         self.event_sink = event_sink
         self.event_guard = event_guard
         self.turn_timeout_seconds = turn_timeout_seconds
         self.stdout_eof_grace_seconds = stdout_eof_grace_seconds
+
+    def resolve_turn_settings(self, environment: dict[str, str]) -> dict[str, str]:
+        task_id = str(environment.get("RSAW_TASK_ID") or "")
+        pre_resolved = str(environment.get("RSAW_RESOLVED_SANDBOX") or "")
+        if pre_resolved:
+            sandbox = pre_resolved
+            source = str(environment.get("RSAW_SANDBOX_SOURCE") or "supervisor")
+        elif self.forced_sandbox:
+            sandbox = self.forced_sandbox
+            source = "CLI"
+        elif task_id and task_id in self.task_sandbox_overrides:
+            sandbox = self.task_sandbox_overrides[task_id]
+            source = "task override"
+        else:
+            sandbox = self.sandbox
+            source = "default"
+        if sandbox not in _SANDBOXES:
+            raise ValueError(f"unsupported Codex sandbox mode: {sandbox}")
+        return {"task": task_id, "sandbox": sandbox, "source": source}
 
     def doctor(self) -> AdapterDoctorResult:
         resolved = shutil.which(self.binary)
@@ -132,6 +165,7 @@ class CodexAdapter:
         root: Path,
         last_message_path: Path,
         thread_id: str | None,
+        sandbox: str | None = None,
     ) -> list[str]:
         command = [
             self.binary,
@@ -151,7 +185,7 @@ class CodexAdapter:
         if self.approve_for_me:
             command.append("--approve-for-me")
         else:
-            command.extend(["--sandbox", self.sandbox])
+            command.extend(["--sandbox", sandbox or self.sandbox])
         if thread_id:
             command.extend(["resume", thread_id, "-"])
         else:
@@ -172,13 +206,17 @@ class CodexAdapter:
         _reset_bound_guard(self.event_guard)
         events_path = run_dir / f"turn-{turn_index:04d}.jsonl"
         last_message_path = run_dir / f"turn-{turn_index:04d}-last-message.txt"
+        turn_settings = self.resolve_turn_settings(environment)
         command = self.build_command(
             root=root,
             last_message_path=last_message_path,
             thread_id=thread_id,
+            sandbox=turn_settings["sandbox"],
         )
         env = os.environ.copy()
         env.update(environment)
+        env["RSAW_RESOLVED_SANDBOX"] = turn_settings["sandbox"]
+        env["RSAW_SANDBOX_SOURCE"] = turn_settings["source"]
         accumulator = CodexEventAccumulator()
         reader_errors: list[str] = []
         guard_errors: list[str] = []

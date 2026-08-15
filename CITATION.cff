@@ -7,7 +7,7 @@ authors:
 repository-code: "https://github.com/hanklin9188/repository-state-agent-workflow"
 url: "https://github.com/hanklin9188/repository-state-agent-workflow"
 license: MIT
-version: 0.7.0
+version: 0.7.1
 date-released: 2026-08-15
 keywords:
   - coding agents

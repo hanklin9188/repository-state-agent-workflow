@@ -10,15 +10,15 @@
 
 <p align="center">
   <img alt="Python 3.10–3.13" src="https://img.shields.io/badge/Python-3.10%E2%80%933.13-3776AB?logo=python&logoColor=white" />
-  <img alt="Version 0.7.0" src="https://img.shields.io/badge/RSAW-0.7.0-14b8a6" />
+  <img alt="Version 0.7.1" src="https://img.shields.io/badge/RSAW-0.7.1-14b8a6" />
   <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-22c55e" />
   <img alt="Codex adapter" src="https://img.shields.io/badge/Adapter-Codex-6366f1" />
 </p>
 
 <p align="center">
   <a href="README.zh-TW.md">繁體中文</a> ·
-  <a href="docs/edgeflow-v07-deployment.md">EdgeFlow deployment</a> ·
-  <a href="docs/releases/v070-edgeflow-hardening.md">v0.7 hardening</a> ·
+  <a href="docs/edgeflow-v071-deployment.md">EdgeFlow deployment</a> ·
+  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7 hardening</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -50,7 +50,7 @@ The core rule is simple:
 
 ```bash
 python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.0"
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
 ```
 
 ### Existing RSAW repository
@@ -98,7 +98,7 @@ The terminal shows observable runtime state, not hidden reasoning:
 | **EFFICIENCY GUARD** | How much provider input and tool output is accumulating? |
 | **RECENT** | Which durable runtime events just occurred? |
 
-A new terminal no longer starts visually at checkpoint zero when durable checkpoints already exist. Expected `PAUSED` and `COMPLETE` states also exit cleanly in normal TUI use instead of appearing as VS Code terminal failures.
+A new terminal no longer starts visually at checkpoint zero when durable checkpoints already exist. Expected `PAUSED`, `COMPLETE`, `LIMIT_REACHED`, and `DRY_RUN` states exit cleanly in both TUI and non-TUI operator use instead of appearing as VS Code terminal failures. `--strict-exit-codes` preserves machine-oriented codes.
 
 ---
 
@@ -119,7 +119,7 @@ v0.7 was derived from a real EdgeFlow adoption, not a synthetic feature wishlist
 | A 1–2k compiled envelope still grew into a very large tool-driven context | live per-turn tool and output budgets stop runaway rediscovery |
 | started/completed command events inflated telemetry | event accounting is deduplicated by tool identity |
 
-The detailed release gate is documented in [v0.7 EdgeFlow-derived hardening](docs/releases/v070-edgeflow-hardening.md).
+The detailed release gate is documented in [v0.7 EdgeFlow-derived hardening](docs/releases/v071-gpu-sandbox-boundary.md).
 
 ---
 
@@ -280,6 +280,7 @@ A reviewed task that genuinely requires direct GPU/NVML access can receive a per
 rsaw sandbox set . \
   --task current \
   --mode danger-full-access \
+  --reason "reviewed GPU/NVML boundary" \
   --yes
 
 rsaw preflight .
@@ -290,10 +291,22 @@ Inspect or remove it:
 
 ```bash
 rsaw sandbox show . --json
-rsaw sandbox clear . --task current --yes
+rsaw sandbox clear . --task current --reason "boundary closed" --yes
 ```
 
-The override is keyed to the task ID. It does not automatically broaden a later Analyst or Builder task.
+The override is keyed to the task ID and is resolved again before every Codex turn. A sandbox-class change forces a fresh context boundary, so a broader Runner profile cannot silently continue into a later Analyst or Builder task. Set and clear operations are content-bound operator actions and roll back if the audit cannot be written.
+
+---
+
+## Host capability is not worker capability
+
+A GPU/NVML failure inside `workspace-write` does not by itself prove that WSL, the driver, or the host GPU is unavailable. Diagnose the two boundaries separately:
+
+```text
+host visibility  ≠  Codex worker-sandbox visibility
+```
+
+Capability smoke is workflow infrastructure evidence only. It cannot authorize a formal retry, consume or replace an experiment nonce, modify sealed evidence, or become a scientific result. See the [EdgeFlow GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md).
 
 ---
 
@@ -315,7 +328,7 @@ The repository is authoritative. The TUI, chat transcript, and model memory are 
 
 ```bash
 python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.0"
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
 ```
 
 ### Upgrade an existing repository
@@ -328,7 +341,7 @@ rsaw preflight .
 rsaw start .
 ```
 
-Migration preserves `ACTIVE.md` and writes a v0.6 configuration backup. See the complete [EdgeFlow v0.7 deployment guide](docs/edgeflow-v07-deployment.md) for process/lock checks, sandbox configuration, Human Gate handling, validation, and rollback.
+Migration preserves `ACTIVE.md` and writes a v0.6 configuration backup. See the complete [EdgeFlow v0.7 deployment guide](docs/edgeflow-v071-deployment.md) for process/lock checks, sandbox configuration, Human Gate handling, validation, and rollback.
 
 ---
 
@@ -369,8 +382,8 @@ recovery rediscovery commands
 
 ## Documentation
 
-- [EdgeFlow v0.7 deployment](docs/edgeflow-v07-deployment.md)
-- [v0.7 release hardening](docs/releases/v070-edgeflow-hardening.md)
+- [EdgeFlow v0.7 deployment](docs/edgeflow-v071-deployment.md)
+- [v0.7 release hardening](docs/releases/v071-gpu-sandbox-boundary.md)
 - [Architecture](docs/architecture.md)
 - [Concepts](docs/concepts.md)
 - [Adoption guide](docs/adoption-guide.md)
