@@ -1,0 +1,280 @@
+name: Finalize RSAW v0.7.1 operator audit integrity
+
+on:
+  push:
+    branches: ["fix/v0.7.1-gpu-sandbox-boundary"]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.7.1-gpu-sandbox-boundary
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply operator audit integrity hardening
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+
+          def replace_once(path_value: str, old: str, new: str) -> None:
+              path = Path(path_value)
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path_value}: expected one replacement, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+          cli = "src/repo_state_agent/v7_cli.py"
+          replace_once(
+              cli,
+              "import argparse\nimport hashlib\nimport json\nimport shutil\nimport sys\n",
+              "import argparse\nimport getpass\nimport hashlib\nimport json\nimport os\nimport shutil\nimport socket\nimport sys\n",
+          )
+          replace_once(
+              cli,
+              "_EXPECTED_OPERATOR_STATUSES = {\"PAUSED\", \"COMPLETE\", \"LIMIT_REACHED\", \"DRY_RUN\"}\n\n\n",
+              "_EXPECTED_OPERATOR_STATUSES = {\"PAUSED\", \"COMPLETE\", \"LIMIT_REACHED\", \"DRY_RUN\"}\n\n\n"
+              "def _nonempty_reason(value: str) -> str:\n"
+              "    reason = value.strip()\n"
+              "    if not reason:\n"
+              "        raise argparse.ArgumentTypeError(\"reason must contain non-whitespace text\")\n"
+              "    return reason\n\n\n"
+              "def _operator_identity() -> dict[str, Any]:\n"
+              "    try:\n"
+              "        user = getpass.getuser()\n"
+              "    except (KeyError, OSError):\n"
+              "        user = os.environ.get(\"USER\") or os.environ.get(\"USERNAME\") or \"unknown\"\n"
+              "    identity: dict[str, Any] = {\n"
+              "        \"user\": user,\n"
+              "        \"hostname\": socket.gethostname(),\n"
+              "        \"pid\": os.getpid(),\n"
+              "        \"python\": str(Path(sys.executable).resolve()),\n"
+              "    }\n"
+              "    if hasattr(os, \"getuid\"):\n"
+              "        identity[\"uid\"] = os.getuid()\n"
+              "    if hasattr(os, \"getgid\"):\n"
+              "        identity[\"gid\"] = os.getgid()\n"
+              "    return identity\n\n\n",
+          )
+          replace_once(
+              cli,
+              "    bound = {\"schemaVersion\": \"rsaw.operator-action.v2\", **payload, \"timestamp\": timestamp}\n",
+              "    bound = {\n"
+              "        \"schemaVersion\": \"rsaw.operator-action.v2\",\n"
+              "        \"operator\": _operator_identity(),\n"
+              "        **payload,\n"
+              "        \"timestamp\": timestamp,\n"
+              "    }\n",
+          )
+          text = Path(cli).read_text(encoding="utf-8")
+          replacements = {
+              'clear.add_argument("--reason", required=True)': (
+                  'clear.add_argument("--reason", required=True, type=_nonempty_reason)'
+              ),
+              'set_parser.add_argument("--reason", required=True)': (
+                  'set_parser.add_argument("--reason", required=True, type=_nonempty_reason)'
+              ),
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              expected = 2 if old.startswith("clear.") else 1
+              if count != expected:
+                  raise SystemExit(f"{old}: expected {expected}, found {count}")
+              text = text.replace(old, new)
+          Path(cli).write_text(text, encoding="utf-8")
+
+          verify = "src/repo_state_agent/verify.py"
+          replace_once(
+              verify,
+              "import re\nfrom dataclasses import dataclass, field\n",
+              "import hashlib\nimport json\nimport re\nfrom dataclasses import dataclass, field\n",
+          )
+          replace_once(
+              verify,
+              "def _role(value: str) -> str:\n    return value.strip().lower().replace(\"_\", \"-\")\n\n\n",
+              "def _role(value: str) -> str:\n"
+              "    return value.strip().lower().replace(\"_\", \"-\")\n\n\n"
+              "def _verify_operator_actions(root: Path, result: VerificationResult) -> None:\n"
+              "    actions = root / \".rsaw/state/operator-actions\"\n"
+              "    if not actions.is_dir():\n"
+              "        return\n"
+              "    for path in sorted(actions.glob(\"*.json\")):\n"
+              "        relative = path.relative_to(root).as_posix()\n"
+              "        try:\n"
+              "            payload = json.loads(path.read_text(encoding=\"utf-8\"))\n"
+              "        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:\n"
+              "            result.errors.append(f\"Operator action is unreadable: {relative}: {exc}\")\n"
+              "            continue\n"
+              "        if not isinstance(payload, dict):\n"
+              "            result.errors.append(f\"Operator action must be an object: {relative}\")\n"
+              "            continue\n"
+              "        schema = str(payload.get(\"schemaVersion\") or \"\")\n"
+              "        if schema == \"rsaw.operator-action.v1\":\n"
+              "            result.warnings.append(\n"
+              "                f\"Legacy operator action is not content-bound: {relative}\"\n"
+              "            )\n"
+              "            continue\n"
+              "        if schema != \"rsaw.operator-action.v2\":\n"
+              "            result.errors.append(\n"
+              "                f\"Unsupported operator action schema {schema!r}: {relative}\"\n"
+              "            )\n"
+              "            continue\n"
+              "        expected = str(payload.get(\"contentSha256\") or \"\")\n"
+              "        unsigned = dict(payload)\n"
+              "        unsigned.pop(\"contentSha256\", None)\n"
+              "        canonical = json.dumps(\n"
+              "            unsigned, sort_keys=True, separators=(\",\", \":\")\n"
+              "        ).encode(\"utf-8\")\n"
+              "        actual = hashlib.sha256(canonical).hexdigest()\n"
+              "        if not expected or expected != actual:\n"
+              "            result.errors.append(f\"Operator action checksum mismatch: {relative}\")\n"
+              "        for field_name in (\"action\", \"reason\", \"timestamp\"):\n"
+              "            if not str(payload.get(field_name) or \"\").strip():\n"
+              "                result.errors.append(\n"
+              "                    f\"Operator action is missing {field_name}: {relative}\"\n"
+              "                )\n"
+              "        operator = payload.get(\"operator\")\n"
+              "        if not isinstance(operator, dict) or not str(operator.get(\"user\") or \"\").strip():\n"
+              "            result.warnings.append(f\"Operator identity is incomplete: {relative}\")\n\n\n",
+          )
+          replace_once(
+              verify,
+              "    for marker in suspicious:\n        if marker in text:\n            result.warnings.append(f\"ACTIVE.md may contain raw log content: {marker}\")\n\n    return result\n",
+              "    for marker in suspicious:\n"
+              "        if marker in text:\n"
+              "            result.warnings.append(f\"ACTIVE.md may contain raw log content: {marker}\")\n\n"
+              "    _verify_operator_actions(root, result)\n"
+              "    return result\n",
+          )
+
+          tests = "tests/test_v71_gpu_sandbox_boundary.py"
+          replace_once(
+              tests,
+              "    assert audit[\"reason\"] == \"reviewed GPU boundary\"\n",
+              "    assert audit[\"reason\"] == \"reviewed GPU boundary\"\n"
+              "    assert audit[\"operator\"][\"user\"]\n"
+              "    assert audit[\"operator\"][\"hostname\"]\n"
+              "    assert isinstance(audit[\"operator\"][\"pid\"], int)\n",
+          )
+          with Path(tests).open("a", encoding="utf-8") as handle:
+              handle.write(
+                  '\n\ndef test_operator_reasons_reject_whitespace(tmp_path: Path) -> None:\n'
+                  '    _repo(tmp_path)\n'
+                  '    with pytest.raises(SystemExit):\n'
+                  '        cli_main(\n'
+                  '            [\n'
+                  '                "sandbox",\n'
+                  '                "set",\n'
+                  '                str(tmp_path),\n'
+                  '                "--mode",\n'
+                  '                "danger-full-access",\n'
+                  '                "--reason",\n'
+                  '                "   ",\n'
+                  '                "--yes",\n'
+                  '            ]\n'
+                  '        )\n'
+                  '    with pytest.raises(SystemExit):\n'
+                  '        cli_main(\n'
+                  '            [\n'
+                  '                "gate",\n'
+                  '                "clear",\n'
+                  '                str(tmp_path),\n'
+                  '                "--reason",\n'
+                  '                "\\t",\n'
+                  '                "--yes",\n'
+                  '            ]\n'
+                  '        )\n'
+                  '\n\ndef test_verify_detects_operator_action_tampering(tmp_path: Path, capsys) -> None:\n'
+                  '    _repo(tmp_path)\n'
+                  '    assert (\n'
+                  '        cli_main(\n'
+                  '            [\n'
+                  '                "sandbox",\n'
+                  '                "set",\n'
+                  '                str(tmp_path),\n'
+                  '                "--mode",\n'
+                  '                "danger-full-access",\n'
+                  '                "--reason",\n'
+                  '                "reviewed GPU boundary",\n'
+                  '                "--yes",\n'
+                  '                "--json",\n'
+                  '            ]\n'
+                  '        )\n'
+                  '        == 0\n'
+                  '    )\n'
+                  '    payload = json.loads(capsys.readouterr().out)\n'
+                  '    audit_path = tmp_path / payload["audit"]\n'
+                  '    audit = json.loads(audit_path.read_text(encoding="utf-8"))\n'
+                  '    audit["reason"] = "tampered"\n'
+                  '    audit_path.write_text(json.dumps(audit, indent=2) + "\\n", encoding="utf-8")\n'
+                  '    result = cli_module.verify_repository(tmp_path)\n'
+                  '    assert not result.ok\n'
+                  '    assert any("Operator action checksum mismatch" in error for error in result.errors)\n'
+              )
+
+          for path_value in ("README.md", "README.zh-TW.md"):
+              path = Path(path_value)
+              text = path.read_text(encoding="utf-8")
+              if path_value == "README.md":
+                  old = (
+                      "Set and clear operations are content-bound operator actions and roll back if the audit cannot be written."
+                  )
+                  new = (
+                      "Set and clear operations record operator identity, reject empty reasons, create content-bound operator actions, "
+                      "are checked by `rsaw verify`, and roll back if the audit cannot be written."
+                  )
+              else:
+                  old = (
+                      "Set／clear 都必須提供 reason、建立 content-bound operator audit；audit 寫入失敗時設定會 rollback。"
+                  )
+                  new = (
+                      "Set／clear 會記錄 operator identity、拒絕空白 reason、建立由 `rsaw verify` 驗證的 content-bound operator audit；"
+                      "audit 寫入失敗時設定會 rollback。"
+                  )
+              if text.count(old) != 1:
+                  raise SystemExit(f"README audit sentence changed: {path_value}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          changelog = Path("CHANGELOG.md")
+          text = changelog.read_text(encoding="utf-8")
+          old = "- mandatory reasons and content-bound operator audits for sandbox set/clear;"
+          new = "- mandatory non-empty reasons, operator identity, and verifiable content-bound audits for sandbox set/clear;"
+          if text.count(old) != 1:
+              raise SystemExit("CHANGELOG audit bullet changed")
+          changelog.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff format .
+          python -m compileall -q src tests
+          ruff format --check .
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw acceptance . --horizon all --json
+          python scripts/check_markdown_links.py .
+          rm -rf dist build src/*.egg-info
+          python -m build
+      - name: Commit validated non-workflow changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- .github/workflows; then
+            git diff -- .github/workflows
+            exit 1
+          fi
+          git add -A
+          git commit -m "fix: make operator audits attributable and tamper-evident"
+          git push origin HEAD:fix/v0.7.1-gpu-sandbox-boundary
