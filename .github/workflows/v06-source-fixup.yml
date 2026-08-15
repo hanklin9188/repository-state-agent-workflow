@@ -19,34 +19,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Patch v0.6 source invariants
+      - name: Patch validation provenance
         run: |
           python - <<'PY'
           from pathlib import Path
 
           p = Path("src/repo_state_agent/runtime/v6.py")
           s = p.read_text(encoding="utf-8")
-
-          # Durable checkpoint numbering is repository-global, not per process run.
-          s = s.replace("    checkpoint_index = 0\n", "    checkpoint_index = _next_checkpoint_index(root)\n", 1)
-          old = '''                checkpoint_path = root / ".rsaw/state/checkpoints" / f"{checkpoint_id}.json"\n                atomic_write_json(checkpoint_path, checkpoint)\n'''
-          new = '''                checkpoint_path = root / ".rsaw/state/checkpoints" / f"{checkpoint_id}.json"\n                if checkpoint_path.exists():\n                    return finish("FAILED", f"CHECKPOINT_ALREADY_EXISTS:{checkpoint_id}", 29)\n                atomic_write_json(checkpoint_path, checkpoint)\n'''
+          old = '''    executed = [_s(x.get("command")) for x in event_info.get("commands", []) if isinstance(x, dict)]\n    for required in contract.get("validations", []):\n        if not any(_command_matches(required, command) for command in executed):\n            errors.append(f"VALIDATION_NOT_EXECUTED:{required}")\n'''
+          new = '''    command_records = [x for x in event_info.get("commands", []) if isinstance(x, dict)]\n    executed = [_s(x.get("command")) for x in command_records]\n    for required in contract.get("validations", []):\n        matched = [\n            record\n            for record in command_records\n            if _command_matches(required, _s(record.get("command")))\n        ]\n        if not matched:\n            errors.append(f"VALIDATION_NOT_EXECUTED:{required}")\n            continue\n        completed = [\n            record\n            for record in matched\n            if _s(record.get("eventType")).endswith(".completed")\n        ]\n        if any(record.get("exitCode") not in {None, 0} for record in completed):\n            errors.append(f"VALIDATION_FAILED:{required}")\n        elif not completed:\n            warnings.append(f"VALIDATION_COMPLETION_STATUS_UNAVAILABLE:{required}")\n'''
           if old not in s:
-              raise SystemExit("checkpoint write anchor not found")
+              raise SystemExit("validation gate anchor not found")
           s = s.replace(old, new, 1)
-
-          anchor = '''def _write_sha_sidecar(path: Path) -> None:\n    path.with_suffix(path.suffix + ".sha256").write_text(_sha_file(path) + "\\n", encoding="utf-8")\n\n\n'''
-          helper = '''def _next_checkpoint_index(root: Path) -> int:\n    directory = root / ".rsaw/state/checkpoints"\n    maximum = 0\n    if directory.is_dir():\n        for path in directory.glob("CP-*.json"):\n            match = re.fullmatch(r"CP-(\\d+)\\.json", path.name)\n            if match:\n                maximum = max(maximum, int(match.group(1)))\n    return maximum\n\n\n'''
-          if anchor not in s:
-              raise SystemExit("sha sidecar anchor not found")
-          s = s.replace(anchor, helper + anchor, 1)
           p.write_text(s, encoding="utf-8")
 
-          # Add a regression test proving checkpoints never reuse an existing ID.
           t = Path("tests/test_v6_runtime.py")
           text = t.read_text(encoding="utf-8")
-          if "test_next_checkpoint_index_is_repository_global" not in text:
-              text += '''\n\ndef test_next_checkpoint_index_is_repository_global(tmp_path: Path) -> None:\n    from repo_state_agent.runtime.v6 import _next_checkpoint_index\n\n    directory = tmp_path / ".rsaw/state/checkpoints"\n    directory.mkdir(parents=True)\n    (directory / "CP-0001.json").write_text("{}", encoding="utf-8")\n    (directory / "CP-0042.json").write_text("{}", encoding="utf-8")\n    assert _next_checkpoint_index(tmp_path) == 42\n'''
+          if "test_deterministic_gate_rejects_observed_validation_failure" not in text:
+              text += '''\n\ndef test_deterministic_gate_rejects_observed_validation_failure(tmp_path: Path) -> None:\n    _repo(tmp_path)\n    state = ActiveState(\n        root=tmp_path,\n        active_path=tmp_path / "ACTIVE.md",\n        task_id="T1",\n        task_spec=tmp_path / "docs/tasks/T1.md",\n        required_reads=(),\n        next_action="implement",\n        stop_condition="pass",\n        next_role="Reviewer",\n        reasoning="Medium",\n        workstream_id="W",\n        epoch_id="E-1",\n        current_role="Builder",\n    )\n    before = hashlib.sha256((tmp_path / "ACTIVE.md").read_bytes()).hexdigest()\n    gate = deterministic_gate(\n        tmp_path,\n        state=state,\n        result=_result(changedFiles=[]),\n        active_sha_before=before,\n        changed_files=(),\n        event_info={\n            "commands": [\n                {\n                    "command": "python -m pytest -q",\n                    "eventType": "item.completed",\n                    "exitCode": 1,\n                }\n            ]\n        },\n        evidence_ids=set(),\n    )\n    assert gate.accepted is False\n    assert "VALIDATION_FAILED:python -m pytest -q" in gate.errors\n'''
               t.write_text(text, encoding="utf-8")
           PY
       - name: Validate patch
@@ -64,5 +54,5 @@ jobs:
             echo "No fixup required"
             exit 0
           fi
-          git commit -m "fix: enforce immutable repository-global v0.6 checkpoints"
+          git commit -m "fix: bind v0.6 validation gates to observed command status"
           git push origin HEAD:feat/v0.6.0-context-operating-system
