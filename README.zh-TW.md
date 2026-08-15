@@ -18,7 +18,7 @@
 <p align="center">
   <a href="README.md">English</a> ·
   <a href="docs/edgeflow-v071-deployment.md">EdgeFlow 部署</a> ·
-  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7 強化規格</a> ·
+  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7.1 強化規格</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -116,7 +116,7 @@ v0.7 不是憑空想出來的 feature list，而是把真實 EdgeFlow 上機時�
 | 1–2k envelope 最後仍膨脹成巨大 provider context | 加入 live per-turn tool/output budget，阻止失控 rediscovery |
 | started/completed events 重複計數 | 依 tool identity 去重 telemetry |
 
-完整規格見：[v0.7 EdgeFlow-derived hardening](docs/releases/v071-gpu-sandbox-boundary.md)。
+完整規格見：[v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md)。
 
 ---
 
@@ -298,7 +298,7 @@ rsaw sandbox show . --json
 rsaw sandbox clear . --task current --reason "boundary closed" --yes
 ```
 
-設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 會記錄 operator identity、拒絕空白 reason、建立由 `rsaw verify` 驗證的 content-bound operator audit；audit 寫入失敗時設定會 rollback。 顯式 `--sandbox` 也只綁定 run 啟動時的 active task；進入下一個 task 後，會回到該 task 自己的 override 或 repository default。
+設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 會記錄 operator identity、拒絕空白 reason、建立由 `rsaw verify` 驗證的 content-bound operator audit；audit 寫入失敗時設定會 rollback。顯式 `--sandbox` 也只綁定 run 啟動時的 active task；進入下一個 task 後，會回到該 task 自己的 override 或 repository default。
 
 ---
 
@@ -345,7 +345,7 @@ rsaw preflight .
 rsaw start .
 ```
 
-Migration 會保留 `ACTIVE.md`，並建立 v0.6 config backup。完整的 process/lock、安全 gate、GPU sandbox、驗證與 rollback 流程見：[EdgeFlow v0.7 部署指南](docs/edgeflow-v071-deployment.md)。
+Migration 會保留 `ACTIVE.md`，並建立 v0.6 config backup。完整的 process/lock、安全 gate、GPU sandbox、驗證與 rollback 流程見：[EdgeFlow v0.7.1 部署指南](docs/edgeflow-v071-deployment.md)。
 
 ---
 
