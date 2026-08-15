@@ -2,6 +2,61 @@
 
 All notable changes to the public reference implementation are documented here.
 
+## 0.7.0 — Operator-Hardened Repository Context Runtime
+
+### Added
+
+- unified `rsaw` / `python -m repo_state_agent` operator CLI;
+- `rsaw start` for preflight plus supervised Codex and Live Runtime Console;
+- `rsaw preflight` for repository, Codex, authentication, launcher, sandbox, checkpoint, gate, and budget checks;
+- audited `rsaw gate show/clear` commands;
+- persistent task-specific `rsaw sandbox show/set/clear` profiles;
+- `rsaw state normalize` for canonical ACTIVE formatting;
+- v0.7 migration and `rsaw upgrade` shortcut;
+- live per-turn budgets for tool calls, total tool output, peak single output, and broad repository discovery;
+- tool-output, peak-output, budget-abort, and deduplicated broad-discovery telemetry;
+- repository-global durable checkpoint initialization in the TUI;
+- operator-safe TUI exit behavior for expected PAUSE / COMPLETE states;
+- isolated wheel installation and launcher validation in CI;
+- v0.7 banner, architecture, lifecycle, terminal-console, EdgeFlow deployment, and release-hardening documentation.
+
+### Fixed
+
+- stale user-local `rsaw` launcher ambiguity is surfaced during preflight;
+- source-path evidence references no longer fail as unknown authoritative handles;
+- explicit unobserved `EV-*` evidence claims remain rejected;
+- Semantic Capsule persists only Supervisor-bound evidence handles;
+- `nextTask` accepts both `id` / `taskId` and `task_id`, plus matching spec variants;
+- started/completed command lifecycle events are deduplicated for tool and validation accounting;
+- per-turn tool budgets reset at every Codex turn;
+- repeated ACTIVE updates no longer accumulate blank lines;
+- ACTIVE budget checks use canonical representation;
+- proposed ACTIVE state is validated before checkpoint commit;
+- checkpoint, sidecar, capsule, active pointer, review manifest, and ACTIVE advancement are rolled back together when post-write verification fails;
+- Human Gate clearing selects `CONTINUE_ALLOWED` only for same-role work and `ROTATE_REQUIRED` across role boundaries;
+- TUI no longer displays checkpoint zero when repository checkpoints already exist;
+- task-scoped sandbox configuration removes the need to repeat long GPU-visible run commands.
+
+### Changed
+
+- normal daily use is now `rsaw start .`;
+- `rsaw --help` exposes v0.7 commands directly instead of delegating top-level help to the legacy parser;
+- `rsaw run --sandbox auto` resolves a task override or the repository default;
+- normal interactive TUI use returns a clean shell exit for expected PAUSE / COMPLETE states; `--strict-exit-codes` preserves machine-oriented codes;
+- the supervised prompt explicitly prohibits broad rediscovery, bulk file concatenation, unbounded tool output, unchanged-file rereads, model-owned evidence IDs, and noncanonical next-task keys;
+- the Live Runtime Console shows durable checkpoint state and live tool/output limits.
+
+### Validation
+
+- generated runtime source must pass `py_compile` before installation;
+- Python 3.10, 3.12, and 3.13 run formatting, lint, full pytest, repository/context checks, lifecycle acceptance, documentation links, and package build;
+- a separate clean-install job builds the wheel, installs it in an isolated environment, verifies version identity, and starts both CLI entrypoints;
+- regression tests cover every EdgeFlow-derived failure listed in `docs/releases/v070-edgeflow-hardening.md`.
+
+### Claim boundary
+
+v0.7 validates runtime safety, operator behavior, migration, packaging, transactional state advancement, and tool-budget enforcement. It does **not** claim a universal causal reduction in provider tokens, wall time, or semantic failure rate before matched prospective evaluation.
+
 ## 0.6.0 — Compiled Working Memory Runtime
 
 ### Added
