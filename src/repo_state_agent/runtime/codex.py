@@ -169,6 +169,7 @@ class CodexAdapter:
         environment: dict[str, str],
     ) -> AgentTurnResult:
         run_dir.mkdir(parents=True, exist_ok=True)
+        _reset_bound_guard(self.event_guard)
         events_path = run_dir / f"turn-{turn_index:04d}.jsonl"
         last_message_path = run_dir / f"turn-{turn_index:04d}-last-message.txt"
         command = self.build_command(
@@ -299,6 +300,15 @@ class CodexAdapter:
             error=error,
             interrupted=interrupted,
         )
+
+
+def _reset_bound_guard(guard: CodexEventGuard | None) -> None:
+    if guard is None:
+        return
+    owner = getattr(guard, "__self__", None)
+    reset = getattr(owner, "reset", None)
+    if callable(reset):
+        reset()
 
 
 def _notify_event(sink: CodexEventSink | None, event: dict[str, Any]) -> None:
