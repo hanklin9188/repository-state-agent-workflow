@@ -28,6 +28,7 @@ The release must prevent or safely contain all of the following:
 - Checkpoint-result compatibility for camelCase and snake_case task references.
 - Repository-global checkpoint initialization in the Live Runtime Console.
 - `rsaw preflight`, `rsaw start`, audited `rsaw gate`, and persistent task sandbox profiles.
+- Role-aware gate clearing: same-role work resumes with `CONTINUE_ALLOWED`; a role boundary restores `ROTATE_REQUIRED`.
 - A live per-turn tool budget for calls, output, single-output size, and broad discovery.
 - Deduplicated event accounting and explicit tool-output telemetry.
 - Operator-safe exit behavior for expected interactive terminal states.
