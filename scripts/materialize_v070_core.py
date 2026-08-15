@@ -17,7 +17,13 @@ def replace_once(path: str, old: str, new: str, label: str) -> None:
 def regex_once(path: str, pattern: str, replacement: str, label: str) -> None:
     target = ROOT / path
     text = target.read_text(encoding="utf-8")
-    updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE | re.DOTALL)
+    updated, count = re.subn(
+        pattern,
+        lambda _match: replacement,
+        text,
+        count=1,
+        flags=re.MULTILINE | re.DOTALL,
+    )
     if count != 1:
         raise SystemExit(f"regex anchor count={count} for {label}: {path}")
     target.write_text(updated, encoding="utf-8")
