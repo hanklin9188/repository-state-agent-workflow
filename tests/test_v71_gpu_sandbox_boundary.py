@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 import repo_state_agent.v7_cli as cli_module
+from repo_state_agent.runtime.codex import CodexAdapter
 from repo_state_agent.runtime.model import AdapterDoctorResult, AgentTurnResult, TokenUsage
+from repo_state_agent.runtime.tui.v6 import LiveDashboardV6
 from repo_state_agent.runtime.v6 import (
     V6Options,
     V6SupervisorResult,
@@ -274,6 +276,10 @@ def test_sandbox_set_and_clear_require_reason_and_write_content_bound_audits(
     assert digest == hashlib.sha256(canonical).hexdigest()
     assert audit["reason"] == "reviewed GPU boundary"
     assert (
+        audit["afterConfigSha256"]
+        == hashlib.sha256((tmp_path / ".rsaw/config.json").read_bytes()).hexdigest()
+    )
+    assert (
         cli_main(
             [
                 "sandbox",
@@ -336,6 +342,7 @@ def test_expected_non_tui_pause_exits_zero_unless_strict(
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "PAUSED"
     assert payload["exit_code"] == 20
+    assert payload["runtime"] == "v0.7.1"
     assert (
         cli_main(
             [
@@ -358,3 +365,35 @@ def test_acceptance_uses_next_phase_and_version_is_explicit(tmp_path: Path, caps
     assert results[0]["rotations"] >= 1
     assert cli_main(["--version"]) == 0
     assert capsys.readouterr().out.strip() == "RSAW 0.7.1"
+
+
+def test_explicit_cli_sandbox_is_scoped_to_one_task() -> None:
+    adapter = CodexAdapter(
+        sandbox="workspace-write",
+        forced_sandbox="danger-full-access",
+        forced_sandbox_task="GPU",
+    )
+    assert adapter.resolve_turn_settings({"RSAW_TASK_ID": "GPU"}) == {
+        "task": "GPU",
+        "sandbox": "danger-full-access",
+        "source": "CLI task override",
+    }
+    assert adapter.resolve_turn_settings({"RSAW_TASK_ID": "ANALYST"}) == {
+        "task": "ANALYST",
+        "sandbox": "workspace-write",
+        "source": "default",
+    }
+
+
+def test_tui_tracks_resolved_sandbox(tmp_path: Path) -> None:
+    dashboard = LiveDashboardV6(tmp_path)
+    dashboard.handle_supervisor_event(
+        {
+            "type": "v7.sandbox.resolved",
+            "task": "GPU",
+            "sandbox": "danger-full-access",
+            "source": "task override",
+        }
+    )
+    assert dashboard._state["sandbox"] == "danger-full-access"
+    assert dashboard._state["sandbox_source"] == "task override"

@@ -298,7 +298,7 @@ rsaw sandbox show . --json
 rsaw sandbox clear . --task current --reason "boundary closed" --yes
 ```
 
-設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 都必須提供 reason、建立 content-bound operator audit；audit 寫入失敗時設定會 rollback。
+設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 都必須提供 reason、建立 content-bound operator audit；audit 寫入失敗時設定會 rollback。 顯式 `--sandbox` 也只綁定 run 啟動時的 active task；進入下一個 task 後，會回到該 task 自己的 override 或 repository default。
 
 ---
 

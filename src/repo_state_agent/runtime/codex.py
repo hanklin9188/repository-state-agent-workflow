@@ -30,6 +30,7 @@ class CodexAdapter:
         sandbox: str = "workspace-write",
         task_sandbox_overrides: dict[str, str] | None = None,
         forced_sandbox: str | None = None,
+        forced_sandbox_task: str | None = None,
         approve_for_me: bool = False,
         quiet: bool = False,
         event_sink: CodexEventSink | None = None,
@@ -49,6 +50,7 @@ class CodexAdapter:
             str(task): str(mode) for task, mode in (task_sandbox_overrides or {}).items()
         }
         self.forced_sandbox = forced_sandbox
+        self.forced_sandbox_task = str(forced_sandbox_task or "")
         for label, mode in {
             "default": self.sandbox,
             "forced": self.forced_sandbox,
@@ -69,9 +71,9 @@ class CodexAdapter:
         if pre_resolved:
             sandbox = pre_resolved
             source = str(environment.get("RSAW_SANDBOX_SOURCE") or "supervisor")
-        elif self.forced_sandbox:
+        elif self.forced_sandbox and task_id == self.forced_sandbox_task:
             sandbox = self.forced_sandbox
-            source = "CLI"
+            source = "CLI task override"
         elif task_id and task_id in self.task_sandbox_overrides:
             sandbox = self.task_sandbox_overrides[task_id]
             source = "task override"

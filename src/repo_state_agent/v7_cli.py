@@ -108,6 +108,7 @@ def _codex_profile(
     *,
     requested_binary: str = "auto",
     requested_sandbox: str = "auto",
+    forced_sandbox_task: str | None = None,
 ) -> dict[str, Any]:
     runtime = _runtime_config(root)
     codex = runtime.get("codex", {})
@@ -140,13 +141,15 @@ def _codex_profile(
         "defaultSandbox": default_sandbox,
         "taskSandboxOverrides": overrides,
         "forcedSandbox": forced,
+        "forcedSandboxTask": forced_sandbox_task if forced else None,
     }
 
 
 def _resolve_profile_sandbox(profile: dict[str, Any], task_id: str) -> tuple[str, str]:
     forced = profile.get("forcedSandbox")
-    if forced:
-        return str(forced), "CLI"
+    forced_task = str(profile.get("forcedSandboxTask") or "")
+    if forced and task_id == forced_task:
+        return str(forced), "CLI task override"
     overrides = profile.get("taskSandboxOverrides", {})
     if isinstance(overrides, dict) and task_id in overrides:
         return str(overrides[task_id]), "task override"
@@ -159,12 +162,13 @@ def _resolve_codex_settings(
     requested_binary: str = "auto",
     requested_sandbox: str = "auto",
 ) -> tuple[str, str, str]:
+    state = parse_active(root)
     profile = _codex_profile(
         root,
         requested_binary=requested_binary,
         requested_sandbox=requested_sandbox,
+        forced_sandbox_task=state.task_id,
     )
-    state = parse_active(root)
     sandbox, source = _resolve_profile_sandbox(profile, state.task_id)
     return str(profile["binary"]), sandbox, source
 
@@ -209,6 +213,7 @@ def _preflight_payload(
         root,
         requested_binary=codex_binary,
         requested_sandbox=sandbox,
+        forced_sandbox_task=state.task_id,
     )
     resolved_sandbox, sandbox_source = _resolve_profile_sandbox(profile, state.task_id)
     binary = str(profile["binary"])
@@ -217,6 +222,7 @@ def _preflight_payload(
         sandbox=str(profile["defaultSandbox"]),
         task_sandbox_overrides=dict(profile["taskSandboxOverrides"]),
         forced_sandbox=profile.get("forcedSandbox"),
+        forced_sandbox_task=profile.get("forcedSandboxTask"),
         quiet=True,
     )
     doctor = adapter.doctor()
@@ -244,7 +250,7 @@ def _preflight_payload(
             "requestedBinary": codex_binary,
             "resolvedSandbox": resolved_sandbox,
             "sandboxSource": sandbox_source,
-            "sandboxPolicy": ("CLI" if profile.get("forcedSandbox") else "task-aware"),
+            "sandboxPolicy": ("task-scoped CLI" if profile.get("forcedSandbox") else "task-aware"),
             "taskSandboxOverrideCount": len(profile["taskSandboxOverrides"]),
         },
         "toolBudget": _tool_budget(options).__dict__,
@@ -403,12 +409,13 @@ def _run(argv: list[str]) -> int:
 
     root = _root(args.path)
     options = V6Options.from_root(root, quiet=args.quiet, dry_run=args.dry_run)
+    state = parse_active(root)
     profile = _codex_profile(
         root,
         requested_binary=args.codex_bin,
         requested_sandbox=args.sandbox,
+        forced_sandbox_task=state.task_id,
     )
-    state = parse_active(root)
     sandbox, sandbox_source = _resolve_profile_sandbox(profile, state.task_id)
     binary = str(profile["binary"])
     use_tui = should_use_v6_tui(
@@ -438,6 +445,7 @@ def _run(argv: list[str]) -> int:
         sandbox=str(profile["defaultSandbox"]),
         task_sandbox_overrides=dict(profile["taskSandboxOverrides"]),
         forced_sandbox=profile.get("forcedSandbox"),
+        forced_sandbox_task=profile.get("forcedSandboxTask"),
         approve_for_me=args.approve_for_me,
         quiet=bool(args.quiet or dashboard),
         event_sink=dashboard.handle_codex_event if dashboard else None,
@@ -463,10 +471,10 @@ def _run(argv: list[str]) -> int:
             str(result.summary_path.relative_to(root)) if result.summary_path else None
         ),
         "exit_code": result.exit_code,
-        "runtime": "v0.7",
+        "runtime": f"v{__version__}",
         "sandbox": sandbox,
         "sandbox_source": sandbox_source,
-        "sandbox_policy": ("CLI" if profile.get("forcedSandbox") else "task-aware"),
+        "sandbox_policy": ("task-scoped CLI" if profile.get("forcedSandbox") else "task-aware"),
     }
     if args.json:
         print(json.dumps(payload, indent=2))
