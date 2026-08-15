@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   harden:
-    if: github.actor != 'github-actions[bot]'
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,88 +19,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Make synthetic horizons exercise real lifecycle boundaries
+      - name: Patch synthetic horizon acceptance
+        env:
+          NEW_FUNC_B64: "ZGVmIHN5bnRoZXRpY19hY2NlcHRhbmNlKHJvb3Q6IFBhdGgsIGNoZWNrcG9pbnRzOiBpbnQpIC0+IGRpY3Rbc3RyLCBBbnldOgogICAgaWYgY2hlY2twb2ludHMgbm90IGluIHs0LCAxNiwgNjR9OgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoInN5bnRoZXRpYyBhY2NlcHRhbmNlIHN1cHBvcnRzIDQsIDE2LCBvciA2NCBjaGVja3BvaW50cyIpCiAgICBjb250ZXh0X3dpbmRvdyA9IDEyOF8wMDAKICAgIG9jY3VwYW5jeSA9IDRfMDAwCiAgICBjb21wYWN0aW9ucyA9IDAKICAgIHJvdGF0aW9ucyA9IDAKICAgIGNvbnRpbnVlcyA9IDAKICAgIGNvbXBsZXRlX2NvdW50ID0gMAogICAgYWN0aW9uX3RyYWNlOiBsaXN0W3N0cl0gPSBbXQogICAgZm9yIGluZGV4IGluIHJhbmdlKDEsIGNoZWNrcG9pbnRzICsgMSk6CiAgICAgICAgaWYgY2hlY2twb2ludHMgPT0gNDoKICAgICAgICAgICAgaWYgaW5kZXggPD0gMjoKICAgICAgICAgICAgICAgIGN1cnJlbnRfcm9sZSA9IG5leHRfcm9sZSA9ICJCdWlsZGVyIgogICAgICAgICAgICBlbGlmIGluZGV4ID09IDM6CiAgICAgICAgICAgICAgICBjdXJyZW50X3JvbGUsIG5leHRfcm9sZSA9ICJCdWlsZGVyIiwgIlJldmlld2VyIgogICAgICAgICAgICBlbHNlOgogICAgICAgICAgICAgICAgY3VycmVudF9yb2xlID0gbmV4dF9yb2xlID0gIlJldmlld2VyIgogICAgICAgIGVsc2U6CiAgICAgICAgICAgIHBvc2l0aW9uID0gKGluZGV4IC0gMSkgJSA4CiAgICAgICAgICAgIGN1cnJlbnRfcm9sZSA9ICJSZXZpZXdlciIgaWYgcG9zaXRpb24gPT0gNyBlbHNlICJCdWlsZGVyIgogICAgICAgICAgICBuZXh0X3JvbGUgPSAiUmV2aWV3ZXIiIGlmIHBvc2l0aW9uID09IDYgZWxzZSAiQnVpbGRlciIKICAgICAgICBkZWNpc2lvbiA9IGdvdmVybm9yX2RlY2lzaW9uKAogICAgICAgICAgICBjdXJyZW50X3JvbGU9Y3VycmVudF9yb2xlLAogICAgICAgICAgICBuZXh0X3JvbGU9bmV4dF9yb2xlLAogICAgICAgICAgICByZXF1ZXN0ZWRfYWN0aW9uPSJDT05USU5VRSIsCiAgICAgICAgICAgIGh1bWFuX2dhdGU9IiIsCiAgICAgICAgICAgIGNvbXBsZXRlPWluZGV4ID09IGNoZWNrcG9pbnRzLAogICAgICAgICAgICBlc3RpbWF0ZWRfb2NjdXBhbmN5X3Rva2Vucz1vY2N1cGFuY3ksCiAgICAgICAgICAgIGNvbnRleHRfd2luZG93X3Rva2Vucz1jb250ZXh0X3dpbmRvdywKICAgICAgICAgICAgY29tcGFjdF9jYW5kaWRhdGVfcmF0aW89MC43NSwKICAgICAgICAgICAgY29tcGFjdF9yZXF1aXJlZF9yYXRpbz0wLjg1LAogICAgICAgICAgICB0aHJlYWRfdHVybnM9KChpbmRleCAtIDEpICUgOCkgKyAxLAogICAgICAgICAgICBoYXJkX3R1cm5fY2VpbGluZz04LAogICAgICAgICkKICAgICAgICBhY3Rpb25fdHJhY2UuYXBwZW5kKGRlY2lzaW9uLmFjdGlvbikKICAgICAgICBpZiBkZWNpc2lvbi5hY3Rpb24gPT0gIkNPTVBBQ1QiOgogICAgICAgICAgICBjb21wYWN0aW9ucyArPSAxCiAgICAgICAgICAgIG9jY3VwYW5jeSA9IDVfMDAwCiAgICAgICAgZWxpZiBkZWNpc2lvbi5hY3Rpb24gPT0gIlJPVEFURSI6CiAgICAgICAgICAgIHJvdGF0aW9ucyArPSAxCiAgICAgICAgICAgIG9jY3VwYW5jeSA9IDVfMDAwCiAgICAgICAgZWxpZiBkZWNpc2lvbi5hY3Rpb24gPT0gIkNPTlRJTlVFIjoKICAgICAgICAgICAgY29udGludWVzICs9IDEKICAgICAgICAgICAgb2NjdXBhbmN5ICs9IDIwXzAwMAogICAgICAgIGVsaWYgZGVjaXNpb24uYWN0aW9uID09ICJDT01QTEVURSI6CiAgICAgICAgICAgIGNvbXBsZXRlX2NvdW50ICs9IDEKICAgIGV4cGVjdGVkID0gKAogICAgICAgIHJvdGF0aW9ucyA+PSAxIGFuZCBjb21wYWN0aW9ucyA9PSAwCiAgICAgICAgaWYgY2hlY2twb2ludHMgPT0gNAogICAgICAgIGVsc2Ugcm90YXRpb25zID49IDEgYW5kIGNvbXBhY3Rpb25zID49IDEKICAgICkKICAgIHJldHVybiB7CiAgICAgICAgImNoZWNrcG9pbnRzIjogY2hlY2twb2ludHMsCiAgICAgICAgImNvbnRpbnVlcyI6IGNvbnRpbnVlcywKICAgICAgICAiY29tcGFjdGlvbnMiOiBjb21wYWN0aW9ucywKICAgICAgICAicm90YXRpb25zIjogcm90YXRpb25zLAogICAgICAgICJjb21wbGV0ZXMiOiBjb21wbGV0ZV9jb3VudCwKICAgICAgICAibWFudWFsUmVsYXkiOiAwLAogICAgICAgICJhZ2dyZWdhdGVJbnB1dFVzZWRBc09jY3VwYW5jeSI6IEZhbHNlLAogICAgICAgICJhY3Rpb25UcmFjZSI6IGFjdGlvbl90cmFjZSwKICAgICAgICAicGFzcyI6IGV4cGVjdGVkIGFuZCBjb21wbGV0ZV9jb3VudCA9PSAxLAogICAgfQo="
+          OLD_TEST_B64: "ZGVmIHRlc3Rfc3ludGhldGljX2hvcml6b25zX3ByZXNlcnZlX3plcm9fbWFudWFsX3JlbGF5KHRtcF9wYXRoOiBQYXRoKSAtPiBOb25lOgogICAgZm9yIGhvcml6b24gaW4gKDQsIDE2LCA2NCk6CiAgICAgICAgcmVzdWx0ID0gc3ludGhldGljX2FjY2VwdGFuY2UodG1wX3BhdGgsIGhvcml6b24pCiAgICAgICAgYXNzZXJ0IHJlc3VsdFsicGFzcyJdIGlzIFRydWUKICAgICAgICBhc3NlcnQgcmVzdWx0WyJtYW51YWxSZWxheSJdID09IDAKICAgICAgICBhc3NlcnQgcmVzdWx0WyJhZ2dyZWdhdGVJbnB1dFVzZWRBc09jY3VwYW5jeSJdIGlzIEZhbHNlCg=="
+          NEW_TEST_B64: "ZGVmIHRlc3Rfc3ludGhldGljX2hvcml6b25zX3ByZXNlcnZlX3plcm9fbWFudWFsX3JlbGF5KHRtcF9wYXRoOiBQYXRoKSAtPiBOb25lOgogICAgcmVzdWx0cyA9IHtob3Jpem9uOiBzeW50aGV0aWNfYWNjZXB0YW5jZSh0bXBfcGF0aCwgaG9yaXpvbikgZm9yIGhvcml6b24gaW4gKDQsIDE2LCA2NCl9CiAgICBmb3IgcmVzdWx0IGluIHJlc3VsdHMudmFsdWVzKCk6CiAgICAgICAgYXNzZXJ0IHJlc3VsdFsicGFzcyJdIGlzIFRydWUKICAgICAgICBhc3NlcnQgcmVzdWx0WyJtYW51YWxSZWxheSJdID09IDAKICAgICAgICBhc3NlcnQgcmVzdWx0WyJhZ2dyZWdhdGVJbnB1dFVzZWRBc09jY3VwYW5jeSJdIGlzIEZhbHNlCiAgICAgICAgYXNzZXJ0IHJlc3VsdFsiY29tcGxldGVzIl0gPT0gMQogICAgYXNzZXJ0IHJlc3VsdHNbNF1bInJvdGF0aW9ucyJdID49IDEKICAgIGFzc2VydCByZXN1bHRzWzRdWyJjb21wYWN0aW9ucyJdID09IDAKICAgIGFzc2VydCByZXN1bHRzWzE2XVsicm90YXRpb25zIl0gPj0gMQogICAgYXNzZXJ0IHJlc3VsdHNbMTZdWyJjb21wYWN0aW9ucyJdID49IDEKICAgIGFzc2VydCByZXN1bHRzWzY0XVsicm90YXRpb25zIl0gPiByZXN1bHRzWzE2XVsicm90YXRpb25zIl0KICAgIGFzc2VydCByZXN1bHRzWzY0XVsiY29tcGFjdGlvbnMiXSA+IHJlc3VsdHNbMTZdWyJjb21wYWN0aW9ucyJdCg=="
         run: |
           python - <<'PY'
+          import base64
+          import os
           from pathlib import Path
-
           p = Path("src/repo_state_agent/runtime/v6.py")
           s = p.read_text(encoding="utf-8")
           start = s.index("def synthetic_acceptance(root: Path, checkpoints: int) -> dict[str, Any]:")
           end = s.index("\n\ndef _v6_prompt", start)
-          new = '''def synthetic_acceptance(root: Path, checkpoints: int) -> dict[str, Any]:
-    if checkpoints not in {4, 16, 64}:
-        raise ValueError("synthetic acceptance supports 4, 16, or 64 checkpoints")
-    context_window = 128_000
-    occupancy = 4_000
-    compactions = 0
-    rotations = 0
-    continues = 0
-    complete_count = 0
-    action_trace: list[str] = []
-    for index in range(1, checkpoints + 1):
-        if checkpoints == 4:
-            if index <= 2:
-                current_role = next_role = "Builder"
-            elif index == 3:
-                current_role, next_role = "Builder", "Reviewer"
-            else:
-                current_role = next_role = "Reviewer"
-        else:
-            position = (index - 1) % 8
-            current_role = "Reviewer" if position == 7 else "Builder"
-            next_role = "Reviewer" if position == 6 else "Builder"
-        decision = governor_decision(
-            current_role=current_role,
-            next_role=next_role,
-            requested_action="CONTINUE",
-            human_gate="",
-            complete=index == checkpoints,
-            estimated_occupancy_tokens=occupancy,
-            context_window_tokens=context_window,
-            compact_candidate_ratio=0.75,
-            compact_required_ratio=0.85,
-            thread_turns=((index - 1) % 8) + 1,
-            hard_turn_ceiling=8,
-        )
-        action_trace.append(decision.action)
-        if decision.action == "COMPACT":
-            compactions += 1
-            occupancy = 5_000
-        elif decision.action == "ROTATE":
-            rotations += 1
-            occupancy = 5_000
-        elif decision.action == "CONTINUE":
-            continues += 1
-            occupancy += 20_000
-        elif decision.action == "COMPLETE":
-            complete_count += 1
-    expected = (
-        rotations >= 1 and compactions == 0
-        if checkpoints == 4
-        else rotations >= 1 and compactions >= 1
-    )
-    return {
-        "checkpoints": checkpoints,
-        "continues": continues,
-        "compactions": compactions,
-        "rotations": rotations,
-        "completes": complete_count,
-        "manualRelay": 0,
-        "aggregateInputUsedAsOccupancy": False,
-        "actionTrace": action_trace,
-        "pass": expected and complete_count == 1,
-    }
-'''
-          p.write_text(s[:start] + new + s[end:], encoding="utf-8")
-
+          new_func = base64.b64decode(os.environ["NEW_FUNC_B64"]).decode()
+          p.write_text(s[:start] + new_func + s[end:], encoding="utf-8")
           t = Path("tests/test_v6_runtime.py")
           text = t.read_text(encoding="utf-8")
-          old = '''def test_synthetic_horizons_preserve_zero_manual_relay(tmp_path: Path) -> None:\n    for horizon in (4, 16, 64):\n        result = synthetic_acceptance(tmp_path, horizon)\n        assert result["pass"] is True\n        assert result["manualRelay"] == 0\n        assert result["aggregateInputUsedAsOccupancy"] is False\n'''
-          new_test = '''def test_synthetic_horizons_preserve_zero_manual_relay(tmp_path: Path) -> None:\n    results = {horizon: synthetic_acceptance(tmp_path, horizon) for horizon in (4, 16, 64)}\n    for result in results.values():\n        assert result["pass"] is True\n        assert result["manualRelay"] == 0\n        assert result["aggregateInputUsedAsOccupancy"] is False\n        assert result["completes"] == 1\n    assert results[4]["rotations"] >= 1\n    assert results[4]["compactions"] == 0\n    assert results[16]["rotations"] >= 1\n    assert results[16]["compactions"] >= 1\n    assert results[64]["rotations"] > results[16]["rotations"]\n    assert results[64]["compactions"] > results[16]["compactions"]\n'''
+          old = base64.b64decode(os.environ["OLD_TEST_B64"]).decode()
+          new = base64.b64decode(os.environ["NEW_TEST_B64"]).decode()
           if old not in text:
               raise SystemExit("synthetic acceptance test anchor not found")
-          t.write_text(text.replace(old, new_test, 1), encoding="utf-8")
+          t.write_text(text.replace(old, new, 1), encoding="utf-8")
           PY
       - name: Validate hardening
         run: |
