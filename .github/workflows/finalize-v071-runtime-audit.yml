@@ -1,0 +1,330 @@
+name: Finalize RSAW v0.7.1 runtime consistency
+
+on:
+  push:
+    branches: ["fix/v0.7.1-gpu-sandbox-boundary"]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.7.1-gpu-sandbox-boundary
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply final consistency hardening
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+
+          def replace_once(path_value: str, old: str, new: str) -> None:
+              path = Path(path_value)
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path_value}: expected one replacement, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+          cli = "src/repo_state_agent/v7_cli.py"
+          replace_once(
+              cli,
+              '    requested_sandbox: str = "auto",\n) -> dict[str, Any]:',
+              '    requested_sandbox: str = "auto",\n'
+              '    forced_sandbox_task: str | None = None,\n'
+              ') -> dict[str, Any]:',
+          )
+          replace_once(
+              cli,
+              '        "forcedSandbox": forced,\n    }',
+              '        "forcedSandbox": forced,\n'
+              '        "forcedSandboxTask": forced_sandbox_task if forced else None,\n'
+              '    }',
+          )
+          replace_once(
+              cli,
+              '    forced = profile.get("forcedSandbox")\n'
+              '    if forced:\n'
+              '        return str(forced), "CLI"',
+              '    forced = profile.get("forcedSandbox")\n'
+              '    forced_task = str(profile.get("forcedSandboxTask") or "")\n'
+              '    if forced and task_id == forced_task:\n'
+              '        return str(forced), "CLI task override"',
+          )
+          replace_once(
+              cli,
+              '    profile = _codex_profile(\n'
+              '        root,\n'
+              '        requested_binary=requested_binary,\n'
+              '        requested_sandbox=requested_sandbox,\n'
+              '    )\n'
+              '    state = parse_active(root)\n',
+              '    state = parse_active(root)\n'
+              '    profile = _codex_profile(\n'
+              '        root,\n'
+              '        requested_binary=requested_binary,\n'
+              '        requested_sandbox=requested_sandbox,\n'
+              '        forced_sandbox_task=state.task_id,\n'
+              '    )\n',
+          )
+          replace_once(
+              cli,
+              '    profile = _codex_profile(\n'
+              '        root,\n'
+              '        requested_binary=codex_binary,\n'
+              '        requested_sandbox=sandbox,\n'
+              '    )',
+              '    profile = _codex_profile(\n'
+              '        root,\n'
+              '        requested_binary=codex_binary,\n'
+              '        requested_sandbox=sandbox,\n'
+              '        forced_sandbox_task=state.task_id,\n'
+              '    )',
+          )
+          replace_once(
+              cli,
+              '        forced_sandbox=profile.get("forcedSandbox"),\n'
+              '        quiet=True,',
+              '        forced_sandbox=profile.get("forcedSandbox"),\n'
+              '        forced_sandbox_task=profile.get("forcedSandboxTask"),\n'
+              '        quiet=True,',
+          )
+          replace_once(
+              cli,
+              '    profile = _codex_profile(\n'
+              '        root,\n'
+              '        requested_binary=args.codex_bin,\n'
+              '        requested_sandbox=args.sandbox,\n'
+              '    )\n'
+              '    state = parse_active(root)\n',
+              '    state = parse_active(root)\n'
+              '    profile = _codex_profile(\n'
+              '        root,\n'
+              '        requested_binary=args.codex_bin,\n'
+              '        requested_sandbox=args.sandbox,\n'
+              '        forced_sandbox_task=state.task_id,\n'
+              '    )\n',
+          )
+          replace_once(
+              cli,
+              '        forced_sandbox=profile.get("forcedSandbox"),\n'
+              '        approve_for_me=args.approve_for_me,',
+              '        forced_sandbox=profile.get("forcedSandbox"),\n'
+              '        forced_sandbox_task=profile.get("forcedSandboxTask"),\n'
+              '        approve_for_me=args.approve_for_me,',
+          )
+          text = Path(cli).read_text(encoding="utf-8")
+          text = text.replace(
+              '("CLI" if profile.get("forcedSandbox") else "task-aware")',
+              '("task-scoped CLI" if profile.get("forcedSandbox") else "task-aware")',
+          )
+          count = text.count('"runtime": "v0.7",')
+          if count != 1:
+              raise SystemExit(f"expected one stale CLI runtime field, found {count}")
+          text = text.replace('"runtime": "v0.7",', '"runtime": f"v{__version__}",', 1)
+          Path(cli).write_text(text, encoding="utf-8")
+
+          codex = "src/repo_state_agent/runtime/codex.py"
+          replace_once(
+              codex,
+              '        forced_sandbox: str | None = None,\n'
+              '        approve_for_me: bool = False,',
+              '        forced_sandbox: str | None = None,\n'
+              '        forced_sandbox_task: str | None = None,\n'
+              '        approve_for_me: bool = False,',
+          )
+          replace_once(
+              codex,
+              '        self.forced_sandbox = forced_sandbox\n'
+              '        for label, mode in {',
+              '        self.forced_sandbox = forced_sandbox\n'
+              '        self.forced_sandbox_task = str(forced_sandbox_task or "")\n'
+              '        for label, mode in {',
+          )
+          replace_once(
+              codex,
+              '        elif self.forced_sandbox:\n'
+              '            sandbox = self.forced_sandbox\n'
+              '            source = "CLI"',
+              '        elif self.forced_sandbox and task_id == self.forced_sandbox_task:\n'
+              '            sandbox = self.forced_sandbox\n'
+              '            source = "CLI task override"',
+          )
+
+          tui = "src/repo_state_agent/runtime/tui/v6.py"
+          replace_once(
+              tui,
+              'from ...parsing import parse_active',
+              'from ... import __version__\nfrom ...parsing import parse_active',
+          )
+          replace_once(
+              tui,
+              '            "mode": "FRESH",\n        }',
+              '            "mode": "FRESH",\n'
+              '            "sandbox": "—",\n'
+              '            "sandbox_source": "",\n'
+              '        }',
+          )
+          replace_once(
+              tui,
+              '            elif event_type == "v6.agent.turn.started":\n'
+              '                self._state["status"] = "WORKING"',
+              '            elif event_type == "v7.sandbox.resolved":\n'
+              '                self._state["sandbox"] = str(event.get("sandbox") or "—")\n'
+              '                self._state["sandbox_source"] = str(event.get("source") or "")\n'
+              '                self._push(\n'
+              '                    f"Sandbox {self._state[\'sandbox\']} · "\n'
+              '                    f"{self._state[\'sandbox_source\']}"\n'
+              '                )\n'
+              '            elif event_type == "v6.agent.turn.started":\n'
+              '                self._state["status"] = "WORKING"',
+          )
+          replace_once(
+              tui,
+              '                self._state["role"] = event.get("role") or self._state["role"]\n'
+              '                self._state["model_calls"] += 1',
+              '                self._state["role"] = event.get("role") or self._state["role"]\n'
+              '                self._state["sandbox"] = event.get("sandbox") or self._state["sandbox"]\n'
+              '                self._state["sandbox_source"] = (\n'
+              '                    event.get("sandboxSource") or self._state["sandbox_source"]\n'
+              '                )\n'
+              '                self._state["model_calls"] += 1',
+          )
+          replace_once(
+              tui,
+              '            ("RSAW 0.7", "bold"),',
+              '            (f"RSAW {__version__}", "bold"),',
+          )
+          replace_once(
+              tui,
+              '            f"Task  {state[\'task\']}\\nRole  {state[\'role\']} · Mode {state[\'mode\']}",',
+              '            f"Task  {state[\'task\']}\\n"\n'
+              '            f"Role  {state[\'role\']} · Mode {state[\'mode\']}\\n"\n'
+              '            f"Sandbox  {state[\'sandbox\']} · {state[\'sandbox_source\']}",',
+          )
+
+          tests = "tests/test_v71_gpu_sandbox_boundary.py"
+          replace_once(
+              tests,
+              'from repo_state_agent.runtime.model import AdapterDoctorResult, AgentTurnResult, TokenUsage',
+              'from repo_state_agent.runtime.codex import CodexAdapter\n'
+              'from repo_state_agent.runtime.model import AdapterDoctorResult, AgentTurnResult, TokenUsage\n'
+              'from repo_state_agent.runtime.tui.v6 import LiveDashboardV6',
+          )
+          replace_once(
+              tests,
+              '    assert audit["reason"] == "reviewed GPU boundary"',
+              '    assert audit["reason"] == "reviewed GPU boundary"\n'
+              '    assert audit["afterConfigSha256"] == hashlib.sha256(\n'
+              '        (tmp_path / ".rsaw/config.json").read_bytes()\n'
+              '    ).hexdigest()',
+          )
+          replace_once(
+              tests,
+              '    assert payload["exit_code"] == 20',
+              '    assert payload["exit_code"] == 20\n'
+              '    assert payload["runtime"] == "v0.7.1"',
+          )
+          with Path(tests).open("a", encoding="utf-8") as handle:
+              handle.write(
+                  '\n\ndef test_explicit_cli_sandbox_is_scoped_to_one_task() -> None:\n'
+                  '    adapter = CodexAdapter(\n'
+                  '        sandbox="workspace-write",\n'
+                  '        forced_sandbox="danger-full-access",\n'
+                  '        forced_sandbox_task="GPU",\n'
+                  '    )\n'
+                  '    assert adapter.resolve_turn_settings({"RSAW_TASK_ID": "GPU"}) == {\n'
+                  '        "task": "GPU",\n'
+                  '        "sandbox": "danger-full-access",\n'
+                  '        "source": "CLI task override",\n'
+                  '    }\n'
+                  '    assert adapter.resolve_turn_settings({"RSAW_TASK_ID": "ANALYST"}) == {\n'
+                  '        "task": "ANALYST",\n'
+                  '        "sandbox": "workspace-write",\n'
+                  '        "source": "default",\n'
+                  '    }\n'
+                  '\n\ndef test_tui_tracks_resolved_sandbox(tmp_path: Path) -> None:\n'
+                  '    dashboard = LiveDashboardV6(tmp_path)\n'
+                  '    dashboard.handle_supervisor_event(\n'
+                  '        {\n'
+                  '            "type": "v7.sandbox.resolved",\n'
+                  '            "task": "GPU",\n'
+                  '            "sandbox": "danger-full-access",\n'
+                  '            "source": "task override",\n'
+                  '        }\n'
+                  '    )\n'
+                  '    assert dashboard._state["sandbox"] == "danger-full-access"\n'
+                  '    assert dashboard._state["sandbox_source"] == "task override"\n'
+              )
+
+          readme = Path("README.md")
+          text = readme.read_text(encoding="utf-8")
+          old = (
+              "The override is keyed to the task ID and is resolved again before every Codex turn. "
+              "A sandbox-class change forces a fresh context boundary, so a broader Runner profile "
+              "cannot silently continue into a later Analyst or Builder task. Set and clear operations "
+              "are content-bound operator actions and roll back if the audit cannot be written."
+          )
+          new = old + (
+              " An explicit `--sandbox` value is also scoped to the task active when the run starts; "
+              "after a task transition, RSAW reverts to the next task's own override or the repository default."
+          )
+          if text.count(old) != 1:
+              raise SystemExit("README sandbox paragraph changed")
+          readme.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          zh = Path("README.zh-TW.md")
+          text = zh.read_text(encoding="utf-8")
+          old = (
+              "設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，"
+              "因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 都必須提供 reason、"
+              "建立 content-bound operator audit；audit 寫入失敗時設定會 rollback。"
+          )
+          new = old + (
+              " 顯式 `--sandbox` 也只綁定 run 啟動時的 active task；進入下一個 task 後，會回到該 task 自己的 override 或 repository default。"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("README.zh-TW sandbox paragraph changed")
+          zh.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+      - name: Install and validate
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          ruff format .
+          python -m compileall -q src tests
+          ruff format --check .
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw acceptance . --horizon all --json
+          rsaw run . --dry-run --json | tee /tmp/rsaw-dry-run.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/rsaw-dry-run.json').read_text(encoding='utf-8'))
+          assert payload['runtime'] == 'v0.7.1'
+          PY
+          python scripts/check_markdown_links.py .
+          rm -rf dist build src/*.egg-info
+          python -m build
+      - name: Commit validated non-workflow changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- .github/workflows; then
+            git diff -- .github/workflows
+            exit 1
+          fi
+          git add -A
+          git commit -m "fix: scope all sandbox overrides to the active task"
+          git push origin HEAD:fix/v0.7.1-gpu-sandbox-boundary
