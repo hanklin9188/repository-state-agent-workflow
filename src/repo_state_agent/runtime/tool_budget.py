@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from typing import Any, Callable
+from typing import Any
 
 _TOOL_TYPES = {
     "command_execution",
@@ -44,7 +45,7 @@ class ToolBudgetSnapshot:
 
 
 class ToolBudgetGuard:
-    """Observe Codex JSON events and stop a runaway tool loop deterministically."""
+    """Observe one Codex turn and stop a runaway tool loop deterministically."""
 
     def __init__(
         self,
@@ -54,6 +55,11 @@ class ToolBudgetGuard:
     ) -> None:
         self.budget = budget
         self.event_sink = event_sink
+        self.reset()
+
+    def reset(self) -> None:
+        """Begin a new per-turn accounting window."""
+
         self._started: set[str] = set()
         self._completed: set[str] = set()
         self._broad: set[str] = set()
@@ -72,23 +78,29 @@ class ToolBudgetGuard:
         command = _command(payload)
         identity = str(payload.get("id") or event.get("id") or command or item_type)
 
-        if item_type in _TOOL_TYPES and event_type.endswith(".started"):
-            if identity not in self._started:
-                self._started.add(identity)
-                self._tool_calls += 1
-                if command and is_broad_discovery(command):
-                    self._broad.add(identity)
+        if (
+            item_type in _TOOL_TYPES
+            and event_type.endswith(".started")
+            and identity not in self._started
+        ):
+            self._started.add(identity)
+            self._tool_calls += 1
+            if command and is_broad_discovery(command):
+                self._broad.add(identity)
 
-        if item_type in _TOOL_TYPES and event_type.endswith(".completed"):
-            if identity not in self._completed:
-                self._completed.add(identity)
-                output = _output(payload)
-                output_tokens = _tokens(output)
-                self._tool_output_tokens += output_tokens
-                self._peak_tool_output_tokens = max(
-                    self._peak_tool_output_tokens,
-                    output_tokens,
-                )
+        if (
+            item_type in _TOOL_TYPES
+            and event_type.endswith(".completed")
+            and identity not in self._completed
+        ):
+            self._completed.add(identity)
+            output = _output(payload)
+            output_tokens = _tokens(output)
+            self._tool_output_tokens += output_tokens
+            self._peak_tool_output_tokens = max(
+                self._peak_tool_output_tokens,
+                output_tokens,
+            )
 
         violation = self._check()
         if violation:
