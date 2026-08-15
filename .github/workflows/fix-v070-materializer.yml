@@ -23,16 +23,16 @@ jobs:
 
           path = Path("scripts/materialize_v070_core.py")
           text = path.read_text(encoding="utf-8")
-          old = '''    updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE | re.DOTALL)
-'''
-          new = '''    updated, count = re.subn(
-        pattern,
-        lambda _match: replacement,
-        text,
-        count=1,
-        flags=re.MULTILINE | re.DOTALL,
-    )
-'''
+          old = "    updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE | re.DOTALL)\n"
+          new = (
+              "    updated, count = re.subn(\n"
+              "        pattern,\n"
+              "        lambda _match: replacement,\n"
+              "        text,\n"
+              "        count=1,\n"
+              "        flags=re.MULTILINE | re.DOTALL,\n"
+              "    )\n"
+          )
           if old not in text:
               raise SystemExit("materializer helper anchor not found")
           path.write_text(text.replace(old, new, 1), encoding="utf-8")
