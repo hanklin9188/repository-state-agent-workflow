@@ -1,0 +1,370 @@
+name: Polish RSAW v0.7.1 release documentation
+
+on:
+  push:
+    branches: ["docs/v0.7.1-release-polish"]
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/v0.7.1-release-polish
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Align versioned metadata and README labels
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+
+          def replace_once(path_value: str, old: str, new: str) -> None:
+              path = Path(path_value)
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path_value}: expected one replacement for {old!r}, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+
+          metadata_path = Path("REPOSITORY_METADATA.json")
+          metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+          metadata["version"] = "0.7.1"
+          metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+
+          replace_once(
+              "README.md",
+              '<a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7 hardening</a>',
+              '<a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7.1 hardening</a>',
+          )
+          replace_once(
+              "README.md",
+              "[v0.7 EdgeFlow-derived hardening](docs/releases/v071-gpu-sandbox-boundary.md)",
+              "[v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md)",
+          )
+          replace_once(
+              "README.md",
+              "See the complete [EdgeFlow v0.7 deployment guide](docs/edgeflow-v071-deployment.md)",
+              "See the complete [EdgeFlow v0.7.1 deployment guide](docs/edgeflow-v071-deployment.md)",
+          )
+          replace_once(
+              "README.md",
+              "v0.7 is validated for implementation behavior",
+              "v0.7.1 is validated for implementation behavior",
+          )
+          replace_once(
+              "README.md",
+              "- [EdgeFlow v0.7 deployment](docs/edgeflow-v071-deployment.md)\n- [v0.7 release hardening](docs/releases/v071-gpu-sandbox-boundary.md)",
+              "- [EdgeFlow v0.7.1 deployment](docs/edgeflow-v071-deployment.md)\n- [v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md)",
+          )
+
+          replace_once(
+              "README.zh-TW.md",
+              '<a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7 強化規格</a>',
+              '<a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7.1 強化規格</a>',
+          )
+          replace_once(
+              "README.zh-TW.md",
+              "[v0.7 EdgeFlow-derived hardening](docs/releases/v071-gpu-sandbox-boundary.md)",
+              "[v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md)",
+          )
+          replace_once(
+              "README.zh-TW.md",
+              "[EdgeFlow v0.7 部署指南](docs/edgeflow-v071-deployment.md)",
+              "[EdgeFlow v0.7.1 部署指南](docs/edgeflow-v071-deployment.md)",
+          )
+          replace_once(
+              "README.zh-TW.md",
+              "rollback。 顯式 `--sandbox`",
+              "rollback。顯式 `--sandbox`",
+          )
+          PY
+      - name: Rewrite the EdgeFlow deployment guide for copy-paste use
+        run: |
+          cat > docs/edgeflow-v071-deployment.md <<'EOF'
+          # Deploy RSAW v0.7.1 into EdgeFlow
+
+          This procedure upgrades RSAW workflow infrastructure only. It does not authorize or execute an EdgeFlow diagnostic.
+
+          ## 1. Stop at a durable boundary
+
+          Do not replace the active RSAW installation while a Supervisor or Codex worker is live.
+
+          ```bash
+          cd ~/StateFT/EdgeFlow_Full_Project_Plan_RTX4080SUPER
+          ps -ef | grep -E '[r]saw (run|start)|[c]odex exec' || true
+          test ! -e .rsaw/runtime.lock || cat .rsaw/runtime.lock
+          ```
+
+          Continue only after the prior run is durably `PAUSED`, `COMPLETE`, or otherwise stopped and the lock is not live.
+
+          ## 2. Preserve the current repository boundary
+
+          ```bash
+          git status --short > /tmp/edgeflow-pre-rsaw-v071.status
+          git rev-parse HEAD > /tmp/edgeflow-pre-rsaw-v071.head
+          sha256sum ACTIVE.md .rsaw/config.json > /tmp/edgeflow-pre-rsaw-v071.sha256
+          cp ACTIVE.md /tmp/edgeflow-pre-rsaw-v071.ACTIVE.md
+          cp .rsaw/config.json /tmp/edgeflow-pre-rsaw-v071.config.json
+          ```
+
+          Do not reset, clean, restore, stash, or reinitialize the repository.
+
+          ## 3. Use one canonical RSAW environment
+
+          A dedicated virtual environment prevents base/Conda/user-local launcher drift:
+
+          ```bash
+          python3 -m venv /home/hank/.venvs/rsaw-v071
+          /home/hank/.venvs/rsaw-v071/bin/python -m pip install --upgrade pip
+          /home/hank/.venvs/rsaw-v071/bin/python -m pip install --upgrade \
+            "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
+
+          mkdir -p /home/hank/.local/bin
+          ln -sfn /home/hank/.venvs/rsaw-v071/bin/rsaw /home/hank/.local/bin/rsaw
+          export PATH="/home/hank/.local/bin:$PATH"
+          hash -r
+          ```
+
+          Verify identity before touching repository state:
+
+          ```bash
+          command -v rsaw
+          rsaw --version
+
+          /home/hank/.venvs/rsaw-v071/bin/python - <<'PY'
+          from importlib.metadata import version
+          from pathlib import Path
+          import shutil
+          import sys
+          import repo_state_agent
+
+          assert repo_state_agent.__version__ == "0.7.1"
+          assert version("repository-state-agent-workflow") == "0.7.1"
+          assert Path(shutil.which("rsaw")).resolve().parent == Path(sys.executable).resolve().parent
+          print(repo_state_agent.__version__)
+          PY
+          ```
+
+          ## 4. Upgrade repository configuration idempotently
+
+          ```bash
+          rsaw upgrade . --json
+          rsaw upgrade . --apply --json
+          rsaw state normalize . --json
+          rsaw verify .
+          ```
+
+          Schema v4 remains valid. The upgrade must preserve `ACTIVE.md` except for an explicit later normalization or operator action.
+
+          ## 5. Configure only the reviewed GPU Runner
+
+          Keep the repository default at `workspace-write`. Apply the broader sandbox only to the exact reviewed task:
+
+          ```bash
+          rsaw sandbox set . \
+            --task E04-GPU-OBSERVABILITY-DIAGNOSTIC-RUNNER-AFTER-COMPATIBILITY-FIX \
+            --mode danger-full-access \
+            --reason "WSL GPU/NVML is visible only across the reviewed Codex device boundary" \
+            --yes \
+            --json
+          ```
+
+          Inspect the content-bound operator audit and the effective task resolution:
+
+          ```bash
+          rsaw sandbox show . --json
+          rsaw verify .
+          rsaw preflight . --json
+          ```
+
+          `preflight` must show:
+
+          - the exact current task;
+          - `danger-full-access` from the audited task override;
+          - launcher/Python consistency;
+          - overall status `READY`.
+
+          A different task ID must resolve to `workspace-write` unless it has its own separately reviewed override.
+
+          ## 6. Capability smoke is not an experiment
+
+          A constrained worker smoke may verify only that the selected sandbox can execute `nvidia-smi` and import PyTorch CUDA. It must not:
+
+          - load an EdgeFlow model;
+          - run the E04 diagnostic;
+          - consume or replace an authorization nonce;
+          - modify sealed evidence;
+          - produce promotable scientific evidence.
+
+          Before any diagnostic, a fresh Runner must separately re-check GPU process inventory. An unrelated workload that could confound utilization observation requires a fail-closed stop.
+
+          ## 7. Start normal supervised execution
+
+          ```bash
+          rsaw start .
+          ```
+
+          Expected `PAUSED`, `COMPLETE`, `LIMIT_REACHED`, and `DRY_RUN` states return process exit 0 by default. Automation that needs internal semantic exit codes uses:
+
+          ```bash
+          rsaw run . --no-tui --strict-exit-codes
+          ```
+
+          ## 8. Clear the broader boundary when it closes
+
+          ```bash
+          rsaw sandbox clear . \
+            --task E04-GPU-OBSERVABILITY-DIAGNOSTIC-RUNNER-AFTER-COMPATIBILITY-FIX \
+            --reason "reviewed GPU Runner boundary completed or was abandoned" \
+            --yes \
+            --json
+
+          rsaw verify .
+          rsaw preflight . --json
+          ```
+
+          Confirm the task now resolves to the repository default and preserve the generated operator audit record.
+
+          ## 9. Rollback
+
+          Package rollback does not authorize an experiment rollback or retry:
+
+          ```bash
+          /home/hank/.venvs/rsaw-v071/bin/python -m pip install --force-reinstall \
+            "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.0"
+
+          cp /tmp/edgeflow-pre-rsaw-v071.config.json .rsaw/config.json
+          rsaw verify .
+          ```
+
+          Restore `ACTIVE.md` only when the operator explicitly determines that no legitimate post-snapshot state transition occurred.
+          EOF
+      - name: Complete the release and incident records
+        run: |
+          cat > docs/releases/v071-gpu-sandbox-boundary.md <<'EOF'
+          # RSAW v0.7.1 — GPU Sandbox Boundary Repair
+
+          v0.7.1 is a safety and operator-semantics patch release derived from a real EdgeFlow GPU sandbox incident.
+
+          ## Fixed
+
+          - Per-turn task sandbox resolution using the current `RSAW_TASK_ID`.
+          - Exact-task scoping for repository profiles and explicit CLI `--sandbox` overrides.
+          - Automatic fresh rotation across sandbox-class changes, including same-role task transitions.
+          - Durable task/sandbox/source telemetry and Live Runtime Console visibility.
+          - Mandatory non-empty reasons and confirmations for sandbox set/clear.
+          - Operator identity, before/after hashes, and content-bound audit records.
+          - `rsaw verify` rejection of tampered v2 operator actions, with compatibility warnings for legacy v1 records.
+          - Transactional rollback when verification or audit persistence fails.
+          - Clean default shell exits for expected TUI and non-TUI operator states.
+          - Strict machine exit codes through `--strict-exit-codes`.
+          - Explicit `rsaw --version` output to diagnose launcher drift.
+          - Next-phase-based 4/16/64 synthetic lifecycle acceptance.
+
+          ## Preserved
+
+          - Repository default `workspace-write`.
+          - Explicit task scope for `danger-full-access`.
+          - Fail-closed experiment readiness and interference checks.
+          - No conversion of capability smoke into scientific evidence.
+          - No authorization of an E04 retry or nonce reuse.
+
+          ## Validation
+
+          - Python 3.10, 3.12, and 3.13 CI.
+          - 107 tests per matrix entry.
+          - Ruff, compileall, repository/context/CLI/preflight gates.
+          - 4/16/64 lifecycle acceptance.
+          - 121 Markdown files checked.
+          - Isolated wheel, exact-main, and public-tag installation.
+          - Wheel, source distribution, and SHA-256 manifest published with the GitHub Release.
+
+          See the [incident record](../incidents/2026-08-15-edgeflow-gpu-sandbox.md) and [EdgeFlow v0.7.1 deployment guide](../edgeflow-v071-deployment.md).
+          EOF
+
+          cat > docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md <<'EOF'
+          # EdgeFlow GPU Sandbox Incident — Upstream Repair
+
+          Date: 2026-08-15  
+          Upstream release: RSAW v0.7.1  
+          Scope: RSAW workflow infrastructure only  
+          Scientific evidence eligibility: **none**
+
+          ## Incident boundary
+
+          An EdgeFlow Runner paused after host GPU visibility and Codex worker visibility diverged. The host WSL environment could see the RTX-class GPU, CUDA, and NVML, while the Codex `workspace-write` worker could not. The worker-side failure was initially misdescribed as an operating-system failure.
+
+          The associated capability smoke verified execution-boundary visibility only. It did not run EdgeFlow, consume a formal experiment nonce, authorize a diagnostic retry, modify sealed evidence, or support a scientific claim.
+
+          ## Public v0.7.0 audit
+
+          Public v0.7.0 already provided task sandbox profiles, launcher/Python preflight diagnostics, transactional checkpoint advancement, tool budgets, gate auditing, and synthetic lifecycle acceptance. The incident and final upstream audit exposed these remaining gaps:
+
+          1. sandbox resolution occurred once at Supervisor startup rather than before every turn;
+          2. a broader profile could cross an automatic task transition;
+          3. explicit CLI `--sandbox` could behave like a run-wide override;
+          4. sandbox set/clear lacked mandatory non-empty reasons and attributable, content-bound records;
+          5. operator record tampering was not checked by repository verification;
+          6. expected non-TUI `PAUSED` states still surfaced process exit 20 by default;
+          7. launcher identity lacked a direct `--version` command;
+          8. synthetic rotation was derived from the current phase instead of the next phase.
+
+          The locally reported repair commit `bb0b7090a8cb4a0bc91ab80ae8bbddecfe79d7ef` was not reachable from the public GitHub repository during upstream review, so v0.7.1 independently reconstructed and regression-tested the described behavior against public `main`.
+
+          ## v0.7.1 invariants
+
+          - The current `RSAW_TASK_ID` is resolved before every Codex turn.
+          - Task profiles and explicit CLI sandbox overrides are scoped to one exact task.
+          - Changing sandbox class forces a fresh context boundary even when the role is unchanged.
+          - Durable telemetry records turn, task, sandbox, and resolution source.
+          - The Live Runtime Console displays the effective sandbox boundary.
+          - `sandbox set` and `sandbox clear` require a non-empty `--reason` and `--yes`.
+          - Operator records include operator identity, action content, and before/after hashes.
+          - `rsaw verify` rejects tampered v2 operator records and warns about legacy unbound v1 records.
+          - A failed verification or audit write restores the prior configuration.
+          - Expected operator states return shell exit 0 by default in TUI and non-TUI modes; `--strict-exit-codes` retains machine codes.
+          - 4/16/64 synthetic acceptance derives the next role from the next phase.
+
+          ## Host-versus-worker diagnosis rule
+
+          A worker-side GPU/NVML failure must not be attributed to the host operating system without a differential check:
+
+          ```text
+          host capability
+                 versus
+          exact worker sandbox capability
+          ```
+
+          The comparison is infrastructure evidence only. Formal experiment readiness, interference checks, authorization nonces, and evidence promotion remain separate gates.
+
+          ## Residual safety boundary
+
+          `danger-full-access` is materially broader than `workspace-write`. Keep it scoped to one reviewed task ID, provide an operator reason, re-resolve it every turn, and clear it with another audited reason when the boundary closes.
+
+          External GPU workloads remain a fail-closed readiness concern for experiments even when the worker can see the device. RSAW does not terminate or reinterpret unrelated workloads as EdgeFlow evidence.
+          EOF
+      - name: Validate documentation
+        run: |
+          python -m json.tool REPOSITORY_METADATA.json >/dev/null
+          python scripts/check_markdown_links.py .
+          test "$(python -c 'import json; print(json.load(open("REPOSITORY_METADATA.json"))["version"])')" = "0.7.1"
+      - name: Commit documentation-only changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- .github/workflows; then
+            git diff -- .github/workflows
+            exit 1
+          fi
+          git add README.md README.zh-TW.md REPOSITORY_METADATA.json docs/
+          git commit -m "docs: align v0.7.1 release and EdgeFlow deployment guidance"
+          git push origin HEAD:docs/v0.7.1-release-polish
