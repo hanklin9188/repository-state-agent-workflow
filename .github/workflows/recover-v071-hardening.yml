@@ -83,6 +83,28 @@ jobs:
           python -m pip install -e '.[dev]'
       - name: Apply incident-derived patch
         run: python /tmp/apply_v071.py
+      - name: Normalize generated Gate reason newline
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/repo_state_agent/v7_cli.py')
+          text = path.read_text(encoding='utf-8')
+          old = (
+              '        f"Decision: {continuation}\n'
+              'Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",'
+          )
+          new = (
+              '        (\n'
+              '            f"Decision: {continuation}\\n"\n'
+              '            f"Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}"\n'
+              '        ),'
+          )
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one broken Gate reason literal, found {count}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Generated-source syntax preflight
         run: |
           if ! python -m py_compile src/repo_state_agent/v7_cli.py; then
