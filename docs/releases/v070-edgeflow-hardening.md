@@ -37,6 +37,15 @@ The release must prevent or safely contain all of the following:
 
 Generated source must pass `py_compile` immediately after materialization, before editable installation, formatting, tests, or packaging. This prevents staging scripts from being mistaken for a valid implementation when their emitted Python source is syntactically invalid.
 
+The final release matrix additionally requires:
+
+- Python 3.10, 3.12, and 3.13 formatting, lint, and full pytest;
+- short, medium, and long synthetic lifecycle acceptance with a real Builder-to-Reviewer boundary before the final checkpoint;
+- a Git-backed rollback fixture proving that post-advance verification failure removes the candidate checkpoint and restores every authority file;
+- tool budgets that reset for every Codex turn;
+- repository/global checkpoint identity in the TUI and `rsaw-v7-*` runtime evidence;
+- unified CLI, non-mutating upgrade plan, preflight contract, Markdown links, package build, and isolated wheel installation.
+
 ## Claim boundary
 
 These gates prove runtime behavior and regression coverage. They do not establish a causal token or success-rate improvement. Matched prospective evaluation remains required before publishing efficiency claims.
