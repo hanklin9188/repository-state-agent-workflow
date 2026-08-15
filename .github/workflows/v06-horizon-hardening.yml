@@ -1,0 +1,118 @@
+name: v0.6 horizon hardening
+
+on:
+  push:
+    branches: ["fix/v06-horizon-acceptance"]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v06-horizon-acceptance
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Make synthetic horizons exercise real lifecycle boundaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path("src/repo_state_agent/runtime/v6.py")
+          s = p.read_text(encoding="utf-8")
+          start = s.index("def synthetic_acceptance(root: Path, checkpoints: int) -> dict[str, Any]:")
+          end = s.index("\n\ndef _v6_prompt", start)
+          new = '''def synthetic_acceptance(root: Path, checkpoints: int) -> dict[str, Any]:
+    if checkpoints not in {4, 16, 64}:
+        raise ValueError("synthetic acceptance supports 4, 16, or 64 checkpoints")
+    context_window = 128_000
+    occupancy = 4_000
+    compactions = 0
+    rotations = 0
+    continues = 0
+    complete_count = 0
+    action_trace: list[str] = []
+    for index in range(1, checkpoints + 1):
+        if checkpoints == 4:
+            if index <= 2:
+                current_role = next_role = "Builder"
+            elif index == 3:
+                current_role, next_role = "Builder", "Reviewer"
+            else:
+                current_role = next_role = "Reviewer"
+        else:
+            position = (index - 1) % 8
+            current_role = "Reviewer" if position == 7 else "Builder"
+            next_role = "Reviewer" if position == 6 else "Builder"
+        decision = governor_decision(
+            current_role=current_role,
+            next_role=next_role,
+            requested_action="CONTINUE",
+            human_gate="",
+            complete=index == checkpoints,
+            estimated_occupancy_tokens=occupancy,
+            context_window_tokens=context_window,
+            compact_candidate_ratio=0.75,
+            compact_required_ratio=0.85,
+            thread_turns=((index - 1) % 8) + 1,
+            hard_turn_ceiling=8,
+        )
+        action_trace.append(decision.action)
+        if decision.action == "COMPACT":
+            compactions += 1
+            occupancy = 5_000
+        elif decision.action == "ROTATE":
+            rotations += 1
+            occupancy = 5_000
+        elif decision.action == "CONTINUE":
+            continues += 1
+            occupancy += 20_000
+        elif decision.action == "COMPLETE":
+            complete_count += 1
+    expected = (
+        rotations >= 1 and compactions == 0
+        if checkpoints == 4
+        else rotations >= 1 and compactions >= 1
+    )
+    return {
+        "checkpoints": checkpoints,
+        "continues": continues,
+        "compactions": compactions,
+        "rotations": rotations,
+        "completes": complete_count,
+        "manualRelay": 0,
+        "aggregateInputUsedAsOccupancy": False,
+        "actionTrace": action_trace,
+        "pass": expected and complete_count == 1,
+    }
+'''
+          p.write_text(s[:start] + new + s[end:], encoding="utf-8")
+
+          t = Path("tests/test_v6_runtime.py")
+          text = t.read_text(encoding="utf-8")
+          old = '''def test_synthetic_horizons_preserve_zero_manual_relay(tmp_path: Path) -> None:\n    for horizon in (4, 16, 64):\n        result = synthetic_acceptance(tmp_path, horizon)\n        assert result["pass"] is True\n        assert result["manualRelay"] == 0\n        assert result["aggregateInputUsedAsOccupancy"] is False\n'''
+          new_test = '''def test_synthetic_horizons_preserve_zero_manual_relay(tmp_path: Path) -> None:\n    results = {horizon: synthetic_acceptance(tmp_path, horizon) for horizon in (4, 16, 64)}\n    for result in results.values():\n        assert result["pass"] is True\n        assert result["manualRelay"] == 0\n        assert result["aggregateInputUsedAsOccupancy"] is False\n        assert result["completes"] == 1\n    assert results[4]["rotations"] >= 1\n    assert results[4]["compactions"] == 0\n    assert results[16]["rotations"] >= 1\n    assert results[16]["compactions"] >= 1\n    assert results[64]["rotations"] > results[16]["rotations"]\n    assert results[64]["compactions"] > results[16]["compactions"]\n'''
+          if old not in text:
+              raise SystemExit("synthetic acceptance test anchor not found")
+          t.write_text(text.replace(old, new_test, 1), encoding="utf-8")
+          PY
+      - name: Validate hardening
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m compileall -q src tests
+          ruff check .
+          pytest -q
+          rsaw acceptance . --horizon all --json
+      - name: Commit lifecycle hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/repo_state_agent/runtime/v6.py tests/test_v6_runtime.py
+          git commit -m "test: exercise COMPACT and reviewer rotation across horizons"
+          git push origin HEAD:fix/v06-horizon-acceptance
