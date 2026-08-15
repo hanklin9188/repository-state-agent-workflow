@@ -20,7 +20,12 @@ jobs:
         with:
           python-version: "3.12"
       - name: Apply source hardening
-        run: python scripts/materialize_v070_core.py
+        run: |
+          python scripts/materialize_v070_core.py
+          if ! python -m py_compile src/repo_state_agent/runtime/v6.py; then
+            nl -ba src/repo_state_agent/runtime/v6.py | sed -n '1300,1360p'
+            exit 1
+          fi
       - name: Install development package
         run: |
           python -m pip install --upgrade pip
