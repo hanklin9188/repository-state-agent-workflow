@@ -28,13 +28,20 @@ jobs:
           lines = source.read_text(encoding='utf-8').splitlines()
           start_marker = '          cat > "$RUNNER_TEMP/apply_v071.py" <<\'PY\''
           end_marker = '          PY'
+          next_marker = '          python "$RUNNER_TEMP/apply_v071.py"'
           start = lines.index(start_marker) + 1
-          end = lines.index(end_marker, start)
-          body = []
-          for line in lines[start:end]:
-              if line and not line.startswith('          '):
-                  raise SystemExit(f'unexpected materializer indentation: {line!r}')
-              body.append(line[10:] if line else '')
+          candidates = [
+              index
+              for index in range(start, len(lines) - 1)
+              if lines[index] == end_marker and lines[index + 1] == next_marker
+          ]
+          if len(candidates) != 1:
+              raise SystemExit(f'could not identify unique materializer end: {candidates}')
+          end = candidates[0]
+          body = [
+              line[10:] if line.startswith('          ') else line
+              for line in lines[start:end]
+          ]
           target = Path('/tmp/apply_v071.py')
           target.write_text('\n'.join(body) + '\n', encoding='utf-8')
           compile(target.read_text(encoding='utf-8'), str(target), 'exec')
