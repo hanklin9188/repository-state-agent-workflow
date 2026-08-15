@@ -83,27 +83,39 @@ jobs:
           python -m pip install -e '.[dev]'
       - name: Apply incident-derived patch
         run: python /tmp/apply_v071.py
-      - name: Normalize generated Gate reason newline
+      - name: Normalize generated source and version regressions
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('src/repo_state_agent/v7_cli.py')
-          text = path.read_text(encoding='utf-8')
-          old = (
+          cli_path = Path('src/repo_state_agent/v7_cli.py')
+          cli_text = cli_path.read_text(encoding='utf-8')
+          broken_gate = (
               '        f"Decision: {continuation}\n'
               'Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",'
           )
-          new = (
+          fixed_gate = (
               '        (\n'
               '            f"Decision: {continuation}\\n"\n'
               '            f"Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}"\n'
               '        ),'
           )
-          count = text.count(old)
+          count = cli_text.count(broken_gate)
           if count != 1:
               raise SystemExit(f'expected one broken Gate reason literal, found {count}')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          cli_path.write_text(cli_text.replace(broken_gate, fixed_gate, 1), encoding='utf-8')
+
+          test_path = Path('tests/test_v7_runtime_identity.py')
+          test_text = test_path.read_text(encoding='utf-8')
+          old_assertion = '    assert \'"runtime": "v0.7"\' in events'
+          new_assertion = '    assert \'"runtime": "v0.7.1"\' in events'
+          count = test_text.count(old_assertion)
+          if count != 1:
+              raise SystemExit(f'expected one legacy runtime identity assertion, found {count}')
+          test_path.write_text(
+              test_text.replace(old_assertion, new_assertion, 1),
+              encoding='utf-8',
+          )
           PY
       - name: Generated-source syntax preflight
         run: |
