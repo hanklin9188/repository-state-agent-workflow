@@ -20,8 +20,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install ruff
-      - name: Format and verify source
+      - name: Fix, format, and verify source
         run: |
+          ruff check --fix src/repo_state_agent/runtime/v6.py
           ruff format src/repo_state_agent/runtime/v6.py
           python -m py_compile src/repo_state_agent/runtime/v6.py
           ruff check src/repo_state_agent/runtime/v6.py
