@@ -549,10 +549,17 @@ def _gate(argv: list[str]) -> int:
     active_path = root / "ACTIVE.md"
     before = active_path.read_text(encoding="utf-8")
     text = replace_section(before, "Human Gate", "None.")
+    current_role = (state.current_role or "").strip().lower()
+    next_role = (state.next_role or state.current_role or "").strip().lower()
+    continuation = (
+        "ROTATE_REQUIRED"
+        if current_role and next_role and current_role != next_role
+        else "CONTINUE_ALLOWED"
+    )
     text = replace_section(
         text,
         "Continuation Gate",
-        "Decision: CONTINUE_ALLOWED\n"
+        f"Decision: {continuation}\n"
         f"Reason: OPERATOR_GATE_CLEARED:{args.reason.strip()}",
     )
     if "## Blockers" in text:

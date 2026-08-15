@@ -477,7 +477,7 @@ def test_gate_clear_is_atomic_and_audited(tmp_path: Path, capsys) -> None:
     assert payload["status"] == "CLEARED"
     state = parse_active(tmp_path)
     assert state.human_gate == ""
-    assert state.continuation == "CONTINUE_ALLOWED"
+    assert state.continuation == "ROTATE_REQUIRED"
     assert (tmp_path / payload["audit"]).is_file()
 
 
