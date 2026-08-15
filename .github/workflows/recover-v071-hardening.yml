@@ -44,19 +44,16 @@ jobs:
           ]
           text = '\n'.join(body) + '\n'
           helper_anchor = 'ROOT = Path.cwd()\n\n\n'
-          helper = '''ROOT = Path.cwd()
-
-
-def _restore_embedded_block_indent(value: str) -> str:
-    lines = value.splitlines()
-    if not lines:
-        return value
-    return "\\n".join(
-        [lines[0], *[(" " * 10 + line if line else line) for line in lines[1:]]]
-    )
-
-
-'''
+          helper = (
+              'ROOT = Path.cwd()\n\n\n'
+              'def _restore_embedded_block_indent(value: str) -> str:\n'
+              '    lines = value.splitlines()\n'
+              '    if not lines:\n'
+              '        return value\n'
+              '    return "\\n".join(\n'
+              '        [lines[0], *[(" " * 10 + line if line else line) for line in lines[1:]]]\n'
+              '    )\n\n\n'
+          )
           if text.count(helper_anchor) != 1:
               raise SystemExit('materializer helper anchor changed')
           text = text.replace(helper_anchor, helper, 1)
@@ -66,7 +63,11 @@ def _restore_embedded_block_indent(value: str) -> str:
           ):
               if text.count(anchor) != 1:
                   raise SystemExit(f'materializer block anchor changed: {anchor}')
-              names = ('old_turn', 'new_turn') if 'old_turn' in anchor else ('old_decision', 'new_decision')
+              names = (
+                  ('old_turn', 'new_turn')
+                  if 'old_turn' in anchor
+                  else ('old_decision', 'new_decision')
+              )
               prefix = '\n'.join(
                   f'{name} = _restore_embedded_block_indent({name})' for name in names
               )
