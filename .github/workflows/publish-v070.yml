@@ -1,0 +1,127 @@
+name: Publish RSAW v0.7.0
+
+on:
+  push:
+    branches: ["release/v0.7.0-publish"]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_SHA: e577e4f8a8d1d426efbcc0ad813f7fd0ff66626d
+      RELEASE_TAG: v0.7.0
+      REPOSITORY: hanklin9188/repository-state-agent-workflow
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.7.0-publish
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify validated release identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git fetch origin main --tags
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+          init = Path("src/repo_state_agent/__init__.py").read_text(encoding="utf-8")
+          assert re.search(r'^version = "0\.7\.0"$', pyproject, re.MULTILINE)
+          assert '__version__ = "0.7.0"' in init
+          PY
+      - name: Install the exact public commit in a clean environment
+        run: |
+          python -m venv "$RUNNER_TEMP/rsaw-exact"
+          "$RUNNER_TEMP/rsaw-exact/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/rsaw-exact/bin/python" -m pip install --no-cache-dir \
+            "git+https://github.com/$REPOSITORY.git@$RELEASE_SHA"
+          "$RUNNER_TEMP/rsaw-exact/bin/python" - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+
+          assert repo_state_agent.__version__ == "0.7.0"
+          assert version("repository-state-agent-workflow") == "0.7.0"
+          PY
+          "$RUNNER_TEMP/rsaw-exact/bin/rsaw" --help
+          "$RUNNER_TEMP/rsaw-exact/bin/python" -m repo_state_agent --help
+      - name: Create the annotated release tag
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists; refusing ambiguous publication."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$RELEASE_TAG" "$RELEASE_SHA" \
+            -m "RSAW v0.7.0 — Operator-Hardened Repository Context Runtime"
+          git push origin "refs/tags/$RELEASE_TAG"
+      - name: Install from the public tag
+        run: |
+          python -m venv "$RUNNER_TEMP/rsaw-tag"
+          "$RUNNER_TEMP/rsaw-tag/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/rsaw-tag/bin/python" -m pip install --no-cache-dir \
+            "git+https://github.com/$REPOSITORY.git@$RELEASE_TAG"
+          "$RUNNER_TEMP/rsaw-tag/bin/python" - <<'PY'
+          from importlib.metadata import version
+          from pathlib import Path
+          import shutil
+          import sys
+          import repo_state_agent
+
+          assert repo_state_agent.__version__ == "0.7.0"
+          assert version("repository-state-agent-workflow") == "0.7.0"
+          assert Path(sys.executable).resolve().parent == Path(shutil.which("python")).resolve().parent
+          print(repo_state_agent.__version__)
+          PY
+          "$RUNNER_TEMP/rsaw-tag/bin/rsaw" --help
+          "$RUNNER_TEMP/rsaw-tag/bin/python" -m repo_state_agent --help
+      - name: Build release artifacts
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          # RSAW v0.7.0 — Operator-Hardened Repository Context Runtime
+
+          v0.7 converts the failures observed during a real EdgeFlow v0.6 adoption into permanent runtime guarantees and regression tests.
+
+          ## Highlights
+
+          - transactional checkpoint/state advancement with full rollback;
+          - canonical, idempotent `ACTIVE.md` rendering;
+          - Supervisor-owned evidence binding;
+          - camelCase and snake_case task-reference compatibility;
+          - repository-global durable checkpoint display in the TUI;
+          - `rsaw preflight`, one-command `rsaw start`, audited gates, and task sandbox profiles;
+          - live per-turn tool-call, output, peak-output, and broad-discovery budgets;
+          - deduplicated tool/validation telemetry and explicit v0.7 runtime identity;
+          - redesigned English and Traditional Chinese READMEs, diagrams, and EdgeFlow deployment guide.
+
+          ## Validation
+
+          - Python 3.10 / 3.12 / 3.13: 98 tests passed per matrix entry;
+          - Ruff format/lint, compileall, repository/context/lifecycle validation;
+          - CLI, migration, preflight, Markdown links, package build;
+          - isolated wheel installation;
+          - clean installation from both the exact main commit and the public `v0.7.0` tag.
+
+          ## Claim boundary
+
+          This release validates runtime safety, packaging, migration, operator behavior, transactional state advancement, and tool-budget enforcement. It does not claim universal causal token, wall-time, or semantic-success improvement before matched prospective evaluation.
+          EOF
+
+          gh release create "$RELEASE_TAG" dist/* \
+            --repo "$REPOSITORY" \
+            --verify-tag \
+            --title "RSAW v0.7.0 — Operator-Hardened Repository Context Runtime" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
