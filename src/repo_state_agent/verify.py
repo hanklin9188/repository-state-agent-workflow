@@ -4,7 +4,13 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .continuation import COMPLETE, CONTINUE_ALLOWED, VALID_CONTINUATIONS
+from .active_format import active_budget_errors, canonicalize_active_text
+from .continuation import (
+    COMPLETE,
+    CONTINUE_ALLOWED,
+    STOP_REQUIRED,
+    VALID_CONTINUATIONS,
+)
 from .parsing import parse_active
 
 VALID_ROLES = {"builder", "reviewer", "decision", "runner", "analyst"}
@@ -26,7 +32,9 @@ def _role(value: str) -> str:
 
 
 def verify_repository(
-    root: Path, max_lines: int = 140, max_bytes: int = 12_288
+    root: Path,
+    max_lines: int = 140,
+    max_bytes: int = 12_288,
 ) -> VerificationResult:
     root = root.resolve()
     result = VerificationResult()
@@ -41,11 +49,18 @@ def verify_repository(
 
     raw = active_path.read_bytes()
     text = raw.decode("utf-8")
-    line_count = len(text.splitlines())
-    if line_count > max_lines:
-        result.errors.append(f"ACTIVE.md has {line_count} lines; limit is {max_lines}")
-    if len(raw) > max_bytes:
-        result.errors.append(f"ACTIVE.md has {len(raw)} bytes; limit is {max_bytes}")
+    canonical = canonicalize_active_text(text)
+    result.errors.extend(
+        active_budget_errors(
+            canonical,
+            max_lines=max_lines,
+            max_bytes=max_bytes,
+        )
+    )
+    if text != canonical:
+        result.warnings.append(
+            "ACTIVE.md is not canonical; run `rsaw state normalize .`"
+        )
 
     try:
         state = parse_active(root)
@@ -82,12 +97,14 @@ def verify_repository(
     next_role = _role(state.next_role)
     if next_role not in VALID_ROLES:
         result.errors.append(
-            f"Next Session Role must be one of {sorted(VALID_ROLES)}; got {state.next_role!r}"
+            f"Next Session Role must be one of {sorted(VALID_ROLES)}; "
+            f"got {state.next_role!r}"
         )
 
     if state.current_role and _role(state.current_role) not in VALID_ROLES:
         result.errors.append(
-            f"Context Epoch Role must be one of {sorted(VALID_ROLES)}; got {state.current_role!r}"
+            f"Context Epoch Role must be one of {sorted(VALID_ROLES)}; "
+            f"got {state.current_role!r}"
         )
 
     if state.reasoning.lower() not in VALID_REASONING:
@@ -116,6 +133,19 @@ def verify_repository(
             result.errors.append("CONTINUE_ALLOWED is incompatible with an active Human Gate")
         if state.current_role and _role(state.current_role) != next_role:
             result.errors.append("CONTINUE_ALLOWED is incompatible with a role change")
+
+    if state.human_gate and continuation != STOP_REQUIRED:
+        result.errors.append("An active Human Gate requires STOP_REQUIRED")
+    if (
+        not state.human_gate
+        and continuation == STOP_REQUIRED
+        and "human_gate" in state.continuation_reason.lower().replace(" ", "_")
+    ):
+        result.errors.append("STOP_REQUIRED cites HUMAN_GATE but Human Gate is empty")
+    if not state.human_gate and re.search(r"Human Gate active", text, re.IGNORECASE):
+        result.warnings.append(
+            "ACTIVE.md prose claims Human Gate active while the Human Gate section is empty"
+        )
 
     if continuation == COMPLETE and state.human_gate:
         result.errors.append("COMPLETE is incompatible with an active Human Gate")
