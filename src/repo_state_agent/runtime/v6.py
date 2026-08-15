@@ -725,7 +725,7 @@ def supervise_v6(root: Path, adapter: AgentAdapter, options: V6Options, *, event
     epoch_tokens_estimate = 0
     previous_envelope: dict[str, Any] | None = None
     next_mode = "FRESH"
-    checkpoint_index = 0
+    checkpoint_index = _next_checkpoint_index(root)
 
     try:
         with RuntimeLock.for_root(root):
@@ -825,6 +825,8 @@ def supervise_v6(root: Path, adapter: AgentAdapter, options: V6Options, *, event
                     "reviewManifestRef": review_manifest_path.relative_to(root).as_posix() if review_manifest_path else None,
                 }
                 checkpoint_path = root / ".rsaw/state/checkpoints" / f"{checkpoint_id}.json"
+                if checkpoint_path.exists():
+                    return finish("FAILED", f"CHECKPOINT_ALREADY_EXISTS:{checkpoint_id}", 29)
                 atomic_write_json(checkpoint_path, checkpoint)
                 _write_sha_sidecar(checkpoint_path)
                 summary.deterministic_operations += 5
@@ -988,6 +990,17 @@ def _excluded(path: str) -> bool:
 def _git_revision(root: Path) -> str:
     result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=False, capture_output=True, text=True)
     return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
+def _next_checkpoint_index(root: Path) -> int:
+    directory = root / ".rsaw/state/checkpoints"
+    maximum = 0
+    if directory.is_dir():
+        for path in directory.glob("CP-*.json"):
+            match = re.fullmatch(r"CP-(\d+)\.json", path.name)
+            if match:
+                maximum = max(maximum, int(match.group(1)))
+    return maximum
 
 
 def _write_sha_sidecar(path: Path) -> None:

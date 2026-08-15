@@ -266,3 +266,13 @@ def test_synthetic_horizons_preserve_zero_manual_relay(tmp_path: Path) -> None:
         assert result["pass"] is True
         assert result["manualRelay"] == 0
         assert result["aggregateInputUsedAsOccupancy"] is False
+
+
+def test_next_checkpoint_index_is_repository_global(tmp_path: Path) -> None:
+    from repo_state_agent.runtime.v6 import _next_checkpoint_index
+
+    directory = tmp_path / ".rsaw/state/checkpoints"
+    directory.mkdir(parents=True)
+    (directory / "CP-0001.json").write_text("{}", encoding="utf-8")
+    (directory / "CP-0042.json").write_text("{}", encoding="utf-8")
+    assert _next_checkpoint_index(tmp_path) == 42
