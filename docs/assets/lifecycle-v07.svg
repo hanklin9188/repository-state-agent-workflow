@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">RSAW lifecycle</title>
+  <desc id="desc">CONTINUE keeps coherent context, COMPACT preserves semantic memory with a fresh bounded context, ROTATE creates cognitive separation, PAUSE protects external gates, and COMPLETE closes the workstream.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08131f"/><stop offset="1" stop-color="#12152a"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="1200" height="360" rx="26" fill="url(#bg)"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <text x="60" y="58" font-size="28" font-weight="760" fill="#f8fafc">Five explicit lifecycle actions</text>
+    <text x="60" y="88" font-size="16" fill="#94a3b8">Checkpointing is durability. Lifecycle choice is context policy. They are not the same boundary.</text>
+
+    <g transform="translate(55 135)"><rect width="200" height="142" rx="18" fill="#10231e" stroke="#34d399" stroke-width="2"/><text x="22" y="38" font-size="19" font-weight="740" fill="#a7f3d0">CONTINUE</text><text x="22" y="70" font-size="14" fill="#d1fae5">same role</text><text x="22" y="93" font-size="14" fill="#d1fae5">same objective</text><text x="22" y="116" font-size="14" fill="#d1fae5">reuse hot context</text></g>
+    <g transform="translate(278 135)"><rect width="200" height="142" rx="18" fill="#211b10" stroke="#f59e0b" stroke-width="2"/><text x="22" y="38" font-size="19" font-weight="740" fill="#fde68a">COMPACT</text><text x="22" y="70" font-size="14" fill="#fef3c7">same cognition</text><text x="22" y="93" font-size="14" fill="#fef3c7">new bounded context</text><text x="22" y="116" font-size="14" fill="#fef3c7">keep Semantic Capsule</text></g>
+    <g transform="translate(501 135)"><rect width="200" height="142" rx="18" fill="#17172f" stroke="#a78bfa" stroke-width="2"/><text x="22" y="38" font-size="19" font-weight="740" fill="#ddd6fe">ROTATE</text><text x="22" y="70" font-size="14" fill="#ede9fe">new role or objective</text><text x="22" y="93" font-size="14" fill="#ede9fe">fresh independent context</text><text x="22" y="116" font-size="14" fill="#ede9fe">bounded handoff</text></g>
+    <g transform="translate(724 135)"><rect width="200" height="142" rx="18" fill="#291b11" stroke="#fb923c" stroke-width="2"/><text x="22" y="38" font-size="19" font-weight="740" fill="#fed7aa">PAUSE</text><text x="22" y="70" font-size="14" fill="#ffedd5">human / external gate</text><text x="22" y="93" font-size="14" fill="#ffedd5">durable and safe</text><text x="22" y="116" font-size="14" fill="#ffedd5">no busy polling</text></g>
+    <g transform="translate(947 135)"><rect width="200" height="142" rx="18" fill="#0d2230" stroke="#38bdf8" stroke-width="2"/><text x="22" y="38" font-size="19" font-weight="740" fill="#bae6fd">COMPLETE</text><text x="22" y="70" font-size="14" fill="#e0f2fe">stop condition met</text><text x="22" y="93" font-size="14" fill="#e0f2fe">summary sealed</text><text x="22" y="116" font-size="14" fill="#e0f2fe">clean operator exit</text></g>
+
+    <path d="M255 206 H268" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/><path d="M478 206 H491" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/><path d="M701 206 H714" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/><path d="M924 206 H937" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <rect x="55" y="306" width="1092" height="28" rx="14" fill="#111d2e"/>
+    <text x="601" y="325" text-anchor="middle" font-size="13" font-weight="650" fill="#94a3b8">v0.7 validates proposed ACTIVE state before commit and rolls back the whole authority transition on failure.</text>
+  </g>
+</svg>
