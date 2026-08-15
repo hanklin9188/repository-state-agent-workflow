@@ -2,7 +2,8 @@
   "name": "repository-state-agent-workflow",
   "owner": "hanklin9188",
   "visibility": "public",
-  "description": "Repository-backed agent workstreams with compiled working memory, deterministic checkpoints, adaptive compaction/rotation, and live runtime observability.",
+  "version": "0.7.0",
+  "description": "Repository-backed agent runtime with bounded tool context, transactional checkpoints, audited operator controls, and live terminal observability.",
   "license": "MIT",
   "topics": [
     "coding-agents",
@@ -13,14 +14,17 @@
     "context-compiler",
     "semantic-memory",
     "persistent-workstreams",
+    "transactional-checkpoints",
+    "tool-budget",
     "context-compaction",
     "context-rotation",
     "codex",
     "terminal-ui",
+    "agent-observability",
     "developer-tools"
   ],
-  "social_preview": "docs/assets/banner-v06.svg",
-  "live_console_preview": "docs/assets/live-terminal-dashboard-v06.svg",
-  "architecture_preview": "docs/assets/runtime-architecture-v06.svg",
-  "lifecycle_preview": "docs/assets/lifecycle-v06.svg"
+  "social_preview": "docs/assets/banner-v07.svg",
+  "live_console_preview": "docs/assets/live-terminal-dashboard-v07.svg",
+  "architecture_preview": "docs/assets/runtime-architecture-v07.svg",
+  "lifecycle_preview": "docs/assets/lifecycle-v07.svg"
 }
