@@ -1,0 +1,144 @@
+name: Publish RSAW v0.7.1
+
+on:
+  push:
+    branches: ["release/v0.7.1-publish"]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_SHA: e5dd1bc6bfd2cf3bb1a99d2073b6978070927775
+      RELEASE_TAG: v0.7.1
+      REPOSITORY: hanklin9188/repository-state-agent-workflow
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e5dd1bc6bfd2cf3bb1a99d2073b6978070927775
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify validated release identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git fetch origin main --tags
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+          init = Path("src/repo_state_agent/__init__.py").read_text(encoding="utf-8")
+          assert re.search(r'^version = "0\.7\.1"$', pyproject, re.MULTILINE)
+          assert '__version__ = "0.7.1"' in init
+          PY
+      - name: Revalidate the exact release tree
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          python -m compileall -q src tests
+          ruff format --check .
+          ruff check .
+          pytest -q
+          rsaw verify .
+          rsaw acceptance . --horizon all --json
+          rsaw --version
+          python -m repo_state_agent --version
+          python scripts/check_markdown_links.py .
+      - name: Install the exact public commit in a clean environment
+        run: |
+          python -m venv "$RUNNER_TEMP/rsaw-exact"
+          "$RUNNER_TEMP/rsaw-exact/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/rsaw-exact/bin/python" -m pip install --no-cache-dir \
+            "git+https://github.com/$REPOSITORY.git@$RELEASE_SHA"
+          "$RUNNER_TEMP/rsaw-exact/bin/python" - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+
+          assert repo_state_agent.__version__ == "0.7.1"
+          assert version("repository-state-agent-workflow") == "0.7.1"
+          PY
+          test "$($RUNNER_TEMP/rsaw-exact/bin/rsaw --version)" = "RSAW 0.7.1"
+          test "$($RUNNER_TEMP/rsaw-exact/bin/python -m repo_state_agent --version)" = "RSAW 0.7.1"
+      - name: Create the annotated release tag
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists; refusing ambiguous publication."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$RELEASE_TAG" "$RELEASE_SHA" \
+            -m "RSAW v0.7.1 — GPU Sandbox Boundary Repair"
+          git push origin "refs/tags/$RELEASE_TAG"
+      - name: Install from the public tag
+        run: |
+          python -m venv "$RUNNER_TEMP/rsaw-tag"
+          "$RUNNER_TEMP/rsaw-tag/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/rsaw-tag/bin/python" -m pip install --no-cache-dir \
+            "git+https://github.com/$REPOSITORY.git@$RELEASE_TAG"
+          "$RUNNER_TEMP/rsaw-tag/bin/python" - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+
+          assert repo_state_agent.__version__ == "0.7.1"
+          assert version("repository-state-agent-workflow") == "0.7.1"
+          PY
+          test "$($RUNNER_TEMP/rsaw-tag/bin/rsaw --version)" = "RSAW 0.7.1"
+          test "$($RUNNER_TEMP/rsaw-tag/bin/python -m repo_state_agent --version)" = "RSAW 0.7.1"
+      - name: Build release artifacts and checksums
+        run: |
+          rm -rf dist build src/*.egg-info
+          python -m pip install --upgrade build
+          python -m build
+          (cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS)
+          cat dist/SHA256SUMS
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          # RSAW v0.7.1 — GPU Sandbox Boundary Repair
+
+          v0.7.1 converts a real EdgeFlow host-versus-worker GPU visibility incident into permanent runtime safety guarantees.
+
+          ## Runtime guarantees
+
+          - resolve the sandbox from the current `RSAW_TASK_ID` before every Codex turn;
+          - scope repository task profiles and explicit CLI sandbox overrides to one exact task;
+          - force a fresh rotation when the sandbox class changes across tasks;
+          - emit task / sandbox / resolution-source telemetry and show it in the Live Runtime Console;
+          - require non-empty reasons and confirmations for sandbox set/clear;
+          - record operator identity and content-bound before/after hashes;
+          - make `rsaw verify` reject tampered v2 operator actions while preserving legacy-v1 compatibility warnings;
+          - roll back configuration when validation or audit persistence fails;
+          - treat expected operator terminal states as shell success by default, with `--strict-exit-codes` for automation;
+          - provide explicit `rsaw --version` identity to prevent launcher drift;
+          - preserve deterministic 4 / 16 / 64 checkpoint lifecycle acceptance.
+
+          ## Validation
+
+          - Python 3.10 / 3.12 / 3.13: 107 tests passed per matrix entry;
+          - Ruff format/lint and compileall passed;
+          - repository, context, CLI, preflight, and 4 / 16 / 64 lifecycle gates passed;
+          - 121 Markdown files passed link validation;
+          - isolated wheel installation passed;
+          - clean installation from both the exact validated main commit and the public `v0.7.1` tag passed;
+          - wheel, source distribution, and SHA-256 checksum manifest are attached.
+
+          ## Safety boundary
+
+          The repository default remains `workspace-write`. `danger-full-access` is an exact-task, audited operator boundary and must be explicitly cleared when the reviewed task closes.
+
+          This release repairs workflow infrastructure only. It does not authorize an E04 retry, reuse an experiment nonce, modify sealed evidence, promote capability-smoke output, terminate unrelated GPU workloads, or create a scientific/performance claim.
+          EOF
+
+          gh release create "$RELEASE_TAG" dist/* \
+            --repo "$REPOSITORY" \
+            --verify-tag \
+            --title "RSAW v0.7.1 — GPU Sandbox Boundary Repair" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
