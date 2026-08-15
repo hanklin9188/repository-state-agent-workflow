@@ -2,9 +2,9 @@
 
 ## Repository
 
-Branch: main
-HEAD: UNKNOWN
-Status: inspect before work
+Branch: resolve with `git branch --show-current`
+HEAD: resolve with `git rev-parse HEAD`
+Status: Bootstrap workstream
 
 ## Workstream
 
@@ -13,7 +13,7 @@ Spec: docs/workstreams/W-000-bootstrap.md
 
 ## Context Epoch
 
-ID: E-000
+ID: E-000-bootstrap
 Role: Builder
 
 ## Active Task
@@ -23,12 +23,12 @@ Spec: docs/tasks/T-000-bootstrap.md
 
 ## Current State
 
-- RSAW has been initialized.
-- Project policy and the first real workstream task still need review.
+- Repository initialized for RSAW.
+- v0.6 supervised mode delegates durable advancement to the Supervisor.
 
 ## Evidence
 
-- Repository root identified.
+None yet.
 
 ## Required Reads
 
@@ -38,16 +38,9 @@ Spec: docs/tasks/T-000-bootstrap.md
 
 ## Context Contract
 
-Mode: BOUNDED
+Mode: FRESH
 Stable Prefix: AGENTS.md
-Budget: inherit `.rsaw/config.json`
-
-## Do Not Preload
-
-- full repository tree;
-- historical logs;
-- all decisions;
-- archived handoffs.
+Budget: `.rsaw/config.json`
 
 ## Human Gate
 
@@ -63,20 +56,21 @@ None.
 
 ## Next Exact Action
 
-Customize policy, define the real workstream, and activate the first real task.
+Execute the bootstrap task through its acceptance criteria.
 
 ## Stop Condition
 
-Project policy, workstream, and first task are actionable and `rsaw verify .` passes.
+Bootstrap task is validated and a durable checkpoint can be sealed.
 
 ## Continuation Gate
 
 Decision: ROTATE_REQUIRED
-Reason: Bootstrap policy changes should hand off to a fresh project context.
+Reason: BOOTSTRAP_FRESH_CONTEXT
 
 ## Next Task
 
-None.
+ID: T-000
+Spec: docs/tasks/T-000-bootstrap.md
 
 ## Next Session Role
 
@@ -88,4 +82,4 @@ Medium
 
 ## Last Updated
 
-INITIALIZED
+Initialized by RSAW v0.6.

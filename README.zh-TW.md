@@ -1,224 +1,254 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="Repository-State Agent Workflow" width="100%" />
+  <img src="docs/assets/banner-v06.svg" alt="Repository-State Agent Workflow" width="100%" />
 </p>
 
-<h1 align="center">Repository-State Agent Workflow</h1>
+# Repository-State Agent Workflow (RSAW) v0.6
+
+**持久工作流、編譯式工作記憶、確定性 checkpoint。**
+
+RSAW 是為長時間 coding / research agent 設計的 repository-backed runtime。它把真正的專案狀態保存在 repository，而不是把 conversation 當成唯一記憶；在每次 agent 工作前，由 Context Compiler 組出下一個 checkpoint 真正需要的最小工作記憶。
+
+> **Persist aggressively. Infer sparingly. Rotate selectively.**
+
+[English README](README.md) · [v0.6 架構](docs/v06-context-operating-system.md) · [EdgeFlow 升級](docs/edgeflow-v06-migration.md)
+
+---
+
+## 為什麼 v0.6 不是單純調整 v5
+
+舊 RSAW v3 matched evaluation 顯示，問題不是 `ACTIVE.md` 本身太大，而是：
+
+- checkpoint 與 context rotation 綁太緊；
+- model 自己讀／改 ACTIVE、執行 deterministic bookkeeping；
+- Explore → Plan → Implement 之間過度建立 fresh context；
+- tool loop 重複支付大量 system/tool/context prefix；
+- fresh agent 缺乏可恢復的 semantic working memory；
+- reviewer 重新探索太多 repository；
+- 長 diff/log/source 被反覆送回模型。
+
+v0.6 直接把 runtime 改成：
+
+```text
+Durable Repository State
+        ↓
+Semantic Capsule
+        ↓
+Context Compiler
+        ↓
+Agent Epoch
+        ↓
+Typed CheckpointResult
+        ↓
+Deterministic Gate
+        ↓
+Token Governor
+        ↓
+CONTINUE / COMPACT / ROTATE / PAUSE / COMPLETE
+```
 
 <p align="center">
-  <strong>持久工作流、快取感知的 context、可即時觀測的執行。</strong>
-</p>
-
-<p align="center">
-  RSAW 將長期專案記憶保存在 repository，明確規劃最小 context，僅在快取與
-  任務關聯仍有價值時沿用 Codex thread，於真正邊界自動 ROTATE，並在 VS Code
-  Integrated Terminal 中提供清楚的即時 Runtime Console。
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/version-0.5.0-7c3aed" alt="Version 0.5.0" />
-  <img src="https://img.shields.io/badge/python-3.10%2B-2563eb" alt="Python 3.10+" />
-  <img src="https://img.shields.io/badge/context-cache_aware-0891b2" alt="Cache-aware context" />
-  <img src="https://img.shields.io/badge/UI-live_terminal-0f766e" alt="Live terminal UI" />
+  <img src="docs/assets/runtime-architecture-v06.svg" alt="RSAW v0.6 architecture" width="94%" />
 </p>
 
 ---
 
-## RSAW 是什麼
+## 最關鍵的改變
 
-RSAW 是供長時間 coding / research agent 使用的 **repository-first operating
-model 與 runtime supervisor**。
+### 1. Checkpoint 不再等於換 context
 
-- repository 保存 durable memory；
-- context epoch 是有上限、可替換的 worker；
-- 每個 checkpoint 經驗證後，只會得到四種 action：
-  `CONTINUE / ROTATE / PAUSE / COMPLETE`。
+```text
+Checkpoint = durability boundary
+Epoch      = cognitive boundary
+```
 
-0.5 版在 0.4 Live Runtime Console 上增加兩個核心能力：
+Builder 可以在同一條工作 context 中完成 Explore → Plan → Implement 並留下多個 durable checkpoints；只有真正需要獨立認知時才 ROTATE。
 
-1. **Cache-aware Context Planner**：穩定 prefix 與動態 authority 分離；
-2. **Deterministic Rotation Policy**：同時考慮 turn、hard/soft input、fresh input
-   與 cache reuse，不交由模型自行決定 context 壽命。
+### 2. `COMPACT != ROTATE`
 
-<p align="center">
-  <img src="docs/assets/runtime-architecture-v05.svg" alt="RSAW 0.5 架構" width="100%" />
-</p>
+- `CONTINUE`：同角色、同 objective、working context 還有價值。
+- `COMPACT`：context 太貴，但不需要認知獨立；保存 Semantic Capsule 後以同角色 compact context 繼續。
+- `ROTATE`：Builder → Reviewer、Runner → Analyst 或其他 independence boundary。
+- `PAUSE`：真實 human/external gate。
+- `COMPLETE`：stop condition 真正完成。
 
-> **Workstream 持續存在；context 被規劃、量測並可安全替換。**
+### 3. Supervisor 擁有 bookkeeping
+
+v0.6 supervised agent：
+
+- 不可以修改 `ACTIVE.md`；
+- 不可以跑 `advance.py`；
+- 只做 semantic engineering work；
+- 最後回傳 `rsaw.checkpoint-result.v1` JSON。
+
+Supervisor 負責：
+
+- 檢查真實 diff；
+- 驗證 allowed writes；
+- 對照實際 validation command events；
+- 驗證 artifact/checksum；
+- 產生 Evidence Handles；
+- 更新 Semantic Capsule；
+- 封存 immutable checkpoint + SHA-256；
+- 原子更新 active pointer / `ACTIVE.md`；
+- 決定下一個 lifecycle action。
+
+### 4. Semantic Capsule
+
+跨 COMPACT / ROTATE 保存：
+
+- facts；
+- decisions；
+- excluded hypotheses；
+- evidence refs；
+- unresolved risks；
+- high-value code relations；
+- validation status；
+- next exact action。
+
+它是 bounded structured memory，不是無限制 summary log。
+
+### 5. Context Compiler
+
+不是單純列「要讀哪些檔案」，而是編譯 sealed Context Envelope：
+
+```text
+Exact task / acceptance / safety
++ Semantic Capsule
++ Current delta
++ bounded exact evidence
++ evidence references
+```
+
+預設工程 budget：target 6k、hard 12k tokens；critical evidence、capsule、validation summary 各有獨立限制。
+
+### 6. Evidence Handles + Read-if-changed
+
+長 log、diff、source 可以 content-addressed 封存。內容 hash 沒變時不必重新送；只有真正需要時才展開。
+
+### 7. Bounded Reviewer
+
+Fresh Reviewer 保持獨立，但取得 Review Manifest：claim、acceptance、changed files、validation、evidence、known risks、revision。它不需要繼承 Builder hidden reasoning，也不需要預設重新掃整個 repo。
 
 ---
 
-## 快速開始
+## v0.6 Live Runtime Console
+
+<p align="center">
+  <img src="docs/assets/live-terminal-dashboard-v06.svg" alt="RSAW v0.6 Live Runtime Console" width="96%" />
+</p>
+
+現在 UI 顯示：
+
+- current task / role / checkpoint；
+- CONTINUE / COMPACT / ROTATE / PAUSE / COMPLETE；
+- deterministic gate；
+- Context Envelope / Semantic Capsule；
+- estimated occupancy；
+- total / cached / fresh provider input；
+- model calls / tool calls；
+- repeated input；
+- evidence resend；
+- recent durable events。
+
+UI 只是 presentation layer，不會擁有 lifecycle state，也不會把 hidden reasoning 顯示出來。
+
+---
+
+## 安裝
+
+正式 `v0.6.0` tag 發布後：
 
 ```bash
-python -m pip install   git+https://github.com/hanklin9188/repository-state-agent-workflow.git
+python -m pip install --upgrade \
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.6.0"
+```
 
-cd /path/to/project
-rsaw init .
+確認：
+
+```bash
+python - <<'PY'
+from importlib.metadata import version
+import repo_state_agent
+print(repo_state_agent.__version__)
+print(version("repository-state-agent-workflow"))
+PY
+```
+
+應輸出兩個 `0.6.0`。
+
+---
+
+## 舊專案升級
+
+**不要 `rsaw init --force`。**
+
+先 preview：
+
+```bash
+rsaw migrate . --to 0.6 --json
+```
+
+再 apply：
+
+```bash
+rsaw migrate . --to 0.6 --apply
+```
+
+Migration 會保留 `ACTIVE.md` byte-identical，備份舊 config，再啟用 v0.6 runtime。
+
+驗證：
+
+```bash
 rsaw verify .
-rsaw context .
-rsaw doctor . --agent codex
-rsaw preview . --seconds 6
-rsaw run . --agent codex
-```
-
-嚴格檢查 bootstrap budget：
-
-```bash
-rsaw context . --strict
-```
-
-需要原始 log：
-
-```bash
-rsaw run . --agent codex --no-tui
+rsaw compile . --mode FRESH --json
+rsaw run . --dry-run
+rsaw acceptance . --horizon all
+rsaw preview-v6 . --seconds 8
 ```
 
 ---
 
-## Context Planner
+## v0.6 與 v4 / v5
 
-`rsaw context .` 會產生可重現的 context manifest：
-
-```text
-Stable prefix
-  AGENTS.md
-
-Dynamic authority
-  ACTIVE.md
-  active task
-  bounded required reads
-```
-
-每個檔案都有 path、category、bytes、約略 tokens 與 SHA-256。CONTINUE 只需重新
-讀動態 authority；stable fingerprint 未變時，不應重讀 stable prefix。ROTATE
-才重新建立完整但最小的 bootstrap。
-
-<p align="center">
-  <img src="docs/assets/context-lifecycle.svg" alt="Context lifecycle" width="100%" />
-</p>
-
-預設設定：
-
-```json
-{
-  "runtime": {
-    "context": {
-      "bootstrap_token_budget": 15000,
-      "max_files": 12,
-      "max_file_bytes": 262144,
-      "include_workstream_spec": false,
-      "enforce_budget": false
-    }
-  }
-}
-```
+| 能力 | v4 | v5 | v6 |
+|---|---:|---:|---:|
+| Live Console | ✓ | ✓ | ✓ 強化 |
+| Stable/dynamic context | — | ✓ | ✓ |
+| Semantic Capsule | — | — | **✓** |
+| Context Compiler | — | 部分 | **✓** |
+| Supervisor-owned ACTIVE | — | — | **✓** |
+| Typed checkpoint result | — | — | **✓** |
+| Checksummed checkpoint | — | — | **✓** |
+| Evidence Handle | — | — | **✓** |
+| Read-if-changed | — | fingerprint | **✓** |
+| COMPACT vs ROTATE | — | — | **✓** |
+| Bounded Reviewer | — | — | **✓** |
+| Repeated/evidence telemetry | — | 部分 | **✓** |
 
 ---
 
-## Rotation Policy
+## 驗收標準
 
-RSAW 會先遵守角色、審查與科學邊界，再依照 deterministic policy 評估：
+v0.6 不會因為 pytest PASS 就宣稱 token optimization 成功。
 
-```text
-MAX_TURNS_PER_RUNTIME_EPOCH
-HARD_INPUT_TOKEN_PRESSURE
-FRESH_INPUT_TOKEN_PRESSURE
-LOW_CACHE_REUSE_AT_SOFT_LIMIT
-```
+必須另外經過 matched prospective evaluation：
 
-```json
-{
-  "runtime": {
-    "rotation": {
-      "soft_input_tokens": 48000,
-      "hard_input_tokens": 60000,
-      "max_fresh_input_tokens": 18000,
-      "min_cache_reuse_ratio": 0.5
-    }
-  }
-}
-```
+- Semantic success 不得低於 No-RSAW；
+- short horizon 不得有明顯 input/success regression；
+- medium horizon 目標 total/cached per success 至少下降 20%，uncached 至少 15%；
+- long horizon 32–64 checkpoints 要看到 total/repeated input per success 明顯分離；
+- manual relay = 0；
+- fresh recovery 正常；
+- stale-state errors 不增加。
 
-目標不是讓 cached token 越多越好，而是：
-
-```text
-有用的 cache reuse
-+ 更少 stale context
-+ ROTATE 後的小型 fresh bootstrap
-+ 每個成功 checkpoint 更低的 fresh-input cost
-```
+上述百分比是 promotion targets，不是目前已量測完成的結果。
 
 ---
 
-## Live Runtime Console
+## Claim boundary
 
-<p align="center">
-  <img src="docs/assets/live-terminal-dashboard.svg" alt="RSAW Live Runtime Console" width="100%" />
-</p>
+v0.6 可以用 CI / unit / migration / synthetic lifecycle 測試證明**工程實作正確性**。
 
-在 VS Code Terminal 直接顯示：
+但「success 從舊 v3 14/24 回到 23/24」、「input/success 降低約 45–50%」等數字，在真實 matched benchmark 完成前都只能視為 hypothesis，不能寫成已證明成果。
 
-- **NOW**：Codex 現在讀檔、改檔、執行 command 或驗證；
-- **PROGRESS**：workstream、task、role、epoch、checkpoint、下一個 action；
-- **CONTEXT**：soft/hard pressure、cached、fresh input；
-- **RECENT**：重要事件，不洗版 raw JSON；
-- **GATE**：是否需要人工介入。
-
-TUI 是本機 presentation layer，不會把 dashboard 文字放進 prompt，也不會新增
-model turn。真正的 context/token 效率來自 repository state、bounded epoch、
-CONTINUE、ROTATE 與 progressive disclosure。
-
----
-
-## 指標
-
-```text
-fresh input = max(0, input - cached input)
-cache reuse ratio = cached input / input
-input per checkpoint = total input / accepted checkpoints
-fresh input per checkpoint = fresh input / accepted checkpoints
-```
-
-```bash
-rsaw report .
-rsaw report . --json
-```
-
----
-
-## 安全邊界
-
-- 每個 supervised turn 前後都驗證 repository；
-- 成功 turn 必須推進 `ACTIVE.md`；
-- single-supervisor lock 防止兩個 writer；
-- human gate 不推測授權；
-- 失敗的正式執行不自動重試；
-- role / scientific boundary 必須 fresh；
-- context planner 與 TUI 都不能改變 lifecycle authority。
-
----
-
-## 證據與限制
-
-目前有 cross-version CI、context-plan / rotation-policy unit tests、runtime/TUI
-測試與歷史 case study。以下仍不可過度宣稱：
-
-- chars/4 是估算，不是 provider billing；
-- TUI 本身不省 token；
-- deterministic default 不等於所有專案的最佳參數；
-- universal token / quality improvement 仍需 matched prospective study。
-
----
-
-## 文件
-
-- [Architecture](docs/architecture.md)
-- [Context Planning](docs/context-planning.md)
-- [Cache-Aware Rotation](docs/cache-aware-rotation.md)
-- [Token-Efficient Runtime](docs/token-efficient-runtime.md)
-- [Live Terminal UI](docs/live-terminal-ui.md)
-- [Migration 0.4 → 0.5](docs/migration-v4-to-v5.md)
-- [Runtime Evaluation](docs/runtime-evaluation.md)
-
-RSAW 採 MIT License。Markdown 與 Git 仍是 durable authority；runtime、planner
-與 console 都是可替換的執行層。
+MIT License.

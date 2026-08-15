@@ -1,75 +1,79 @@
-# Agent Policy
+# RSAW Agent Contract — v0.6
 
-## Source of Truth
+RSAW is a repository-state runtime for long-lived agent workstreams.
 
-Repository state overrides conversation history.
+## Authority
 
-Use this authority order:
+Use this order:
 
-1. accepted decisions and immutable contracts;
-2. executable schemas, tests, and validation;
-3. active task specification;
-4. `ACTIVE.md` continuation state;
-5. conversation context.
+1. executable repository contracts and immutable evidence;
+2. accepted task/workstream specifications;
+3. `.rsaw/state/` durable runtime artifacts;
+4. `ACTIVE.md` compatibility pointer;
+5. current conversation context.
 
-## Cache-Aware Bootstrap
+Repository state wins over remembered chat history.
 
-Read the ordered context plan produced by `rsaw context .`.
+## v0.6 supervised execution
 
-- Stable prefix: policy and other rarely changing authority.
-- Dynamic authority: `ACTIVE.md`, the active task, and bounded required reads.
-- In a continued epoch, do not reread the stable prefix unless its fingerprint changed.
-- Expand context only for evidence required by the current checkpoint.
+When `RSAW_V6=1` or `RSAW_SUPERVISED=1` is present:
 
-## Persistent Workstream
+- do **not** edit `ACTIVE.md`;
+- do **not** run `advance.py` or another state-advancement command;
+- do semantic engineering work only for the active task;
+- use the compiled context envelope before broad repository rediscovery;
+- run task-relevant validation;
+- return exactly one typed `rsaw.checkpoint-result.v1` JSON object in the final message;
+- never claim a validation or artifact that was not actually produced;
+- never expose hidden chain-of-thought.
 
-The workstream may span many tasks and context epochs. Every task must produce a
-durable checkpoint before the next task begins.
+The Supervisor owns checkpoint numbering, ACTIVE advancement, state hashes, lifecycle transitions, evidence sealing, review manifests, and fail-closed gates.
 
-When the RSAW supervisor is active, do not ask the human to copy a next-session
-prompt. Update `ACTIVE.md`; the supervisor applies the next runtime action.
+## Lifecycle
 
-## Runtime Actions
+The runtime distinguishes:
 
-- `CONTINUE`: reuse the current context for a tightly coupled task.
-- `ROTATE`: keep the workstream running in a fresh context.
-- `PAUSE`: wait for explicit human or external action.
-- `COMPLETE`: terminate the workstream.
+- `CONTINUE` — same role, same coherent objective, working context still useful;
+- `COMPACT` — same role/objective, preserve semantic state but replace an expensive hot context;
+- `ROTATE` — cognitive separation is required, especially Builder → Reviewer and Runner → Analyst;
+- `PAUSE` — a real human/external gate blocks progress;
+- `COMPLETE` — the workstream stop condition is satisfied.
 
-## Mandatory Rotation
+Checkpoint is a durability boundary. Context epoch is a cognitive boundary. They are not the same thing.
 
-Use a fresh context for role changes, formal execution/analysis boundaries,
-independent review, major decisions, major debugging closure, specification
-changes, hard context pressure, fresh-input pressure, or poor cache reuse near the
-soft threshold.
+## Context discipline
 
-## Validation
+Use the compiler tiers:
 
-- `V0`: syntax, lint, exact test during editing;
-- `V1`: focused task-checkpoint validation;
-- `V2`: one relevant epoch or phase closure;
-- `V3`: fresh independent review for critical work.
+- Tier A: exact objective, acceptance criteria, allowed/forbidden operations, safety constraints, critical source ranges;
+- Tier B: Semantic Capsule facts, decisions, exclusions, risks, validation state;
+- Tier C: immutable evidence handles for long logs, diffs, transcripts, and historical material.
 
-Validation is a gate, not the product. Add validation only for an observed threat
-or explicit contract.
+Prefer read-if-changed and delta context. Do not reintroduce a long tool result merely because it existed in an earlier turn.
 
-## Runtime Safety
+## Validation and evidence
 
-- Do not enable dangerous sandbox or approval bypasses.
-- Do not infer authorization, credentials, privilege, or destructive consent.
-- Do not automatically retry failed formal or scientific runs.
-- Preserve failed evidence and consumed authorizations.
-- Ensure `ACTIVE.md` advances after every successful supervised turn.
-- Respect transition, turn, context, and token limits.
+Validation is a deterministic gate, not narration. Preserve:
 
-## Evidence Discipline
+- command provenance;
+- actual exit status when available;
+- artifact paths and checksums;
+- source revision bindings;
+- allowed-write scope;
+- evidence identifiers.
 
-Tests establish implementation behavior. Scientific and production claims need a
-protocol, provenance, measured evidence, and interpretation boundary. Do not
-rewrite raw evidence or hide negative results.
+A fresh reviewer receives a bounded Review Manifest and evidence, not the Builder's private reasoning history.
 
-## Handoff
+## Safety
 
-Before a checkpoint, record current state, evidence pointers, blockers, human
-gates, active and next task, exact next action, stop condition, current and next
-role, and continuation decision. Keep routine narration low.
+- Never infer authorization, credentials, privilege, or destructive consent.
+- Never bypass the configured sandbox to save time or tokens.
+- Never consume a one-shot scientific/execution authority before its readiness gate passes.
+- Do not busy-poll external work; persist the gate and pause.
+- Do not reset, clean, restore, or overwrite unrelated worktree changes.
+
+## Optimization target
+
+Persist aggressively. Infer sparingly. Rotate selectively.
+
+Optimize total provider input per successful checkpoint while preserving matched semantic success. Cache hits are telemetry, not proof of efficiency; aggregate provider input is never used as actual context occupancy.

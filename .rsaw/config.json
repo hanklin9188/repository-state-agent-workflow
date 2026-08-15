@@ -1,12 +1,12 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "runtime": {
     "adapter": "codex",
     "codex_binary": "codex",
     "sandbox": "workspace-write",
     "approve_for_me": false,
     "max_transitions": 100,
-    "max_turns_per_epoch": 6,
+    "max_turns_per_epoch": 8,
     "max_total_input_tokens": 5000000,
     "interactive_gates": true,
     "wait_on_pause": false,
@@ -22,6 +22,31 @@
       "max_file_bytes": 262144,
       "include_workstream_spec": false,
       "enforce_budget": false
+    },
+    "v6": {
+      "enabled": true,
+      "contextWindowTokens": 128000,
+      "contextCompiler": {
+        "targetEnvelopeTokens": 6000,
+        "hardEnvelopeTokens": 12000,
+        "maxExactEvidenceTokens": 7000,
+        "maxSemanticCapsuleTokens": 2500,
+        "maxValidationSummaryTokens": 1000,
+        "useReadIfChanged": true,
+        "useEvidenceHandles": true,
+        "useDeltaContext": true
+      },
+      "governor": {
+        "compactCandidateRatio": 0.75,
+        "compactRequiredRatio": 0.85,
+        "hardTurnCeiling": 8,
+        "useAggregateProviderInputAsOccupancy": false
+      },
+      "bookkeeping": {
+        "agentMayMutateActive": false,
+        "agentMayRunAdvance": false,
+        "supervisorOwnsTransition": true
+      }
     }
   }
 }
