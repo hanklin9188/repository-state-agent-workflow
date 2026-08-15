@@ -14,6 +14,7 @@ from .events import CodexEventAccumulator
 from .model import AdapterDoctorResult, AgentTurnResult
 
 CodexEventSink = Callable[[dict[str, Any]], None]
+CodexEventGuard = Callable[[dict[str, Any]], str | None]
 
 
 class CodexAdapter:
@@ -29,6 +30,7 @@ class CodexAdapter:
         approve_for_me: bool = False,
         quiet: bool = False,
         event_sink: CodexEventSink | None = None,
+        event_guard: CodexEventGuard | None = None,
         turn_timeout_seconds: float = 7_200.0,
         stdout_eof_grace_seconds: float = 10.0,
     ) -> None:
@@ -43,6 +45,7 @@ class CodexAdapter:
         self.approve_for_me = approve_for_me
         self.quiet = quiet
         self.event_sink = event_sink
+        self.event_guard = event_guard
         self.turn_timeout_seconds = turn_timeout_seconds
         self.stdout_eof_grace_seconds = stdout_eof_grace_seconds
 
@@ -166,6 +169,7 @@ class CodexAdapter:
         environment: dict[str, str],
     ) -> AgentTurnResult:
         run_dir.mkdir(parents=True, exist_ok=True)
+        _reset_bound_guard(self.event_guard)
         events_path = run_dir / f"turn-{turn_index:04d}.jsonl"
         last_message_path = run_dir / f"turn-{turn_index:04d}-last-message.txt"
         command = self.build_command(
@@ -177,6 +181,7 @@ class CodexAdapter:
         env.update(environment)
         accumulator = CodexEventAccumulator()
         reader_errors: list[str] = []
+        guard_errors: list[str] = []
         error = ""
         interrupted = False
         exit_code = 127
@@ -208,6 +213,11 @@ class CodexAdapter:
                             event = accumulator.feed(line)
                             if event is not None:
                                 _notify_event(self.event_sink, event)
+                                if self.event_guard is not None and not guard_errors:
+                                    reason = self.event_guard(event)
+                                    if reason:
+                                        guard_errors.append(reason)
+                                        _request_process_stop(process)
                                 if not self.quiet:
                                     _print_compact_event(event)
                             else:
@@ -266,6 +276,8 @@ class CodexAdapter:
 
         if reader_errors and not error:
             error = "; ".join(reader_errors)
+        if guard_errors and not error:
+            error = f"TOOL_BUDGET_EXCEEDED:{guard_errors[0]}"
         if accumulator.errors and not error:
             error = "; ".join(accumulator.errors)
         if exit_code == 0 and accumulator.thread_id is None and not error:
@@ -290,6 +302,15 @@ class CodexAdapter:
         )
 
 
+def _reset_bound_guard(guard: CodexEventGuard | None) -> None:
+    if guard is None:
+        return
+    owner = getattr(guard, "__self__", None)
+    reset = getattr(owner, "reset", None)
+    if callable(reset):
+        reset()
+
+
 def _notify_event(sink: CodexEventSink | None, event: dict[str, Any]) -> None:
     if sink is None:
         return
@@ -298,6 +319,17 @@ def _notify_event(sink: CodexEventSink | None, event: dict[str, Any]) -> None:
     except Exception:
         # Observability is downstream from execution and must never break a turn.
         return
+
+
+def _request_process_stop(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "posix":
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+        return
+    with suppress(OSError):
+        process.terminate()
 
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:

@@ -1,14 +1,15 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "repository-state-agent-workflow"
-version = "0.6.0"
-description = "Repository-backed agent workstreams with compiled working memory, deterministic checkpoints, and adaptive context lifecycle control"
+version = "0.7.0"
+description = "Repository-backed agent runtime with transactional checkpoints, bounded tool context, operator-safe lifecycle controls, and live terminal observability"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Hank" }]
 dependencies = [
   "rich>=14.2,<16",
@@ -25,7 +26,8 @@ keywords = [
   "context-compaction",
   "context-rotation",
   "runtime-supervisor",
-  "deterministic-checkpoints",
+  "transactional-checkpoints",
+  "tool-budget",
   "terminal-ui",
   "agent-observability",
   "developer-tools",
@@ -33,7 +35,6 @@ keywords = [
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -51,7 +52,7 @@ dev = [
 ]
 
 [project.scripts]
-rsaw = "repo_state_agent.v6_cli:main"
+rsaw = "repo_state_agent.v7_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/hanklin9188/repository-state-agent-workflow"
@@ -87,7 +88,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/repo_state_agent/runtime/v6.py" = ["E501", "I001", "UP035", "UP037", "SIM105"]
 "src/repo_state_agent/runtime/tui/v6.py" = ["E501", "I001", "UP037", "SIM105"]
 "src/repo_state_agent/v6_cli.py" = ["E501", "I001"]
+"src/repo_state_agent/v7_cli.py" = ["E501", "I001"]
 "tests/test_v6_runtime.py" = ["E501", "I001", "F401"]
 "tests/test_v6_tui.py" = ["E501", "I001"]
+"tests/test_v7_hardening.py" = ["E501", "I001"]
 "tests/test_codex_adapter_subprocess.py" = ["I001"]
 "tests/test_codex_adapter_lifecycle.py" = ["I001"]

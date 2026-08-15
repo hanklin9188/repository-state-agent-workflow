@@ -14,17 +14,44 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from ...parsing import parse_active
+
 
 class LiveDashboardV6:
-    def __init__(self, root: Path, *, console: Console | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        console: Console | None = None,
+        tool_call_limit: int = 0,
+        tool_output_limit: int = 0,
+    ) -> None:
         self.root = root.resolve()
-        self.console = console or Console(no_color=bool(os.environ.get("NO_COLOR")), soft_wrap=False)
+        self.console = console or Console(
+            no_color=bool(os.environ.get("NO_COLOR")),
+            soft_wrap=False,
+        )
         self._lock = RLock()
+        self._tool_ids: set[str] = set()
+        checkpoint = _latest_checkpoint_index(self.root)
+        task = "—"
+        role = "—"
+        status = "STARTING"
+        gate = "PENDING"
+        try:
+            active = parse_active(self.root)
+            task = active.task_id or task
+            role = active.current_role or active.next_role or role
+            if active.human_gate:
+                status = "PAUSED"
+                gate = "BLOCKED"
+        except Exception:
+            pass
         self._state: dict[str, Any] = {
-            "status": "STARTING",
-            "task": "—",
-            "role": "—",
-            "checkpoint": 0,
+            "status": status,
+            "task": task,
+            "role": role,
+            "checkpoint": checkpoint,
             "action": "—",
             "reason": "",
             "envelope": 0,
@@ -35,12 +62,17 @@ class LiveDashboardV6:
             "fresh": 0,
             "model_calls": 0,
             "tool_calls": 0,
+            "tool_call_limit": tool_call_limit,
+            "tool_output": 0,
+            "tool_output_limit": tool_output_limit,
             "repeated": 0,
             "resend": 0,
-            "gate": "PENDING",
+            "gate": gate,
             "mode": "FRESH",
         }
         self._recent: deque[str] = deque(maxlen=6)
+        if checkpoint:
+            self._recent.appendleft(f"Loaded durable CP-{checkpoint:04d}")
         self._live = Live(
             self._render(),
             console=self.console,
@@ -67,7 +99,10 @@ class LiveDashboardV6:
         event_type = str(event.get("type") or "")
         with self._lock:
             if event_type == "v6.supervisor.started":
-                self._state.update(status="STARTING", task=event.get("task") or "—")
+                self._state.update(
+                    status="STARTING",
+                    task=event.get("task") or self._state["task"],
+                )
                 self._push("Supervisor owns checkpoint state")
             elif event_type == "v6.context.compiled":
                 self._state["envelope"] = int(event.get("totalTokens") or 0)
@@ -104,6 +139,12 @@ class LiveDashboardV6:
                     pass
                 self._state["status"] = "CHECKPOINTING"
                 self._push(f"{checkpoint} sealed")
+            elif event_type == "rsaw.tool-budget.exceeded":
+                self._state["status"] = "PAUSED"
+                self._state["reason"] = str(event.get("violation") or "TOOL_BUDGET")
+                self._state["tool_calls"] = int(event.get("tool_calls") or 0)
+                self._state["tool_output"] = int(event.get("tool_output_tokens") or 0)
+                self._push(f"Tool budget paused · {self._state['reason']}")
             elif event_type == "v6.supervisor.terminal":
                 self._state["status"] = event.get("status") or self._state["status"]
                 self._state["reason"] = event.get("reason") or self._state["reason"]
@@ -120,7 +161,7 @@ class LiveDashboardV6:
                 self._state["input"] = total
                 self._state["cached"] = cached
                 self._state["fresh"] = max(0, total - cached)
-                self._push(f"Provider input {_fmt(total)} · fresh {_fmt(total-cached)}")
+                self._push(f"Provider input {_fmt(total)} · fresh {_fmt(total - cached)}")
             elif event_type.endswith(".started"):
                 item = event.get("item") if isinstance(event.get("item"), dict) else event
                 item_type = str(item.get("type") or "")
@@ -131,7 +172,16 @@ class LiveDashboardV6:
                     "mcp_tool_call",
                     "function_call",
                 }:
-                    self._state["tool_calls"] += 1
+                    identity = str(item.get("id") or event.get("id") or "")
+                    if not identity or identity not in self._tool_ids:
+                        if identity:
+                            self._tool_ids.add(identity)
+                        self._state["tool_calls"] += 1
+            elif event_type.endswith(".completed"):
+                item = event.get("item") if isinstance(event.get("item"), dict) else event
+                output = item.get("aggregated_output") or item.get("output") or item.get("stdout")
+                if isinstance(output, str):
+                    self._state["tool_output"] += (len(output) + 3) // 4
         self._refresh()
 
     def finalize(self, status: str, reason: str) -> None:
@@ -150,33 +200,55 @@ class LiveDashboardV6:
 
     def _render(self):
         width = self.console.size.width
-        compact = width < 92
+        compact = width < 96
         state = dict(self._state)
-        status = Text(str(state["status"]), style=_status_style(str(state["status"])))
-        title = Text.assemble(("RSAW 0.6", "bold"), " · Context Operating System · ", status)
+        status = Text(
+            str(state["status"]),
+            style=_status_style(str(state["status"])),
+        )
+        title = Text.assemble(
+            ("RSAW 0.7", "bold"),
+            " · Repository Context Runtime · ",
+            status,
+        )
+
         now = Table.grid(expand=True)
         now.add_column(ratio=2)
         now.add_column(ratio=1, justify="right")
         now.add_row(
             f"Task  {state['task']}\nRole  {state['role']} · Mode {state['mode']}",
-            f"Checkpoint {state['checkpoint']}\nGate {state['gate']}",
+            f"Durable CP-{int(state['checkpoint']):04d}\nGate {state['gate']}",
         )
+
         lifecycle = Table.grid(expand=True)
         lifecycle.add_column(ratio=1)
-        lifecycle.add_column(ratio=2)
+        lifecycle.add_column(ratio=3)
         lifecycle.add_row("NEXT", f"{state['action']}  {state['reason']}")
+
         occupancy = state.get("occupancy")
         occ = (
             "unknown"
             if not isinstance(occupancy, int | float)
-            else f"{float(occupancy)*100:.1f}% estimated"
+            else f"{float(occupancy) * 100:.1f}% estimated"
         )
         memory = Table.grid(expand=True)
         memory.add_column(ratio=1)
         memory.add_column(ratio=1)
         memory.add_column(ratio=1)
         memory.add_row("Envelope", "Semantic capsule", "Occupancy")
-        memory.add_row(_fmt(int(state["envelope"])), _fmt(int(state["capsule"])), occ)
+        memory.add_row(
+            _fmt(int(state["envelope"])),
+            _fmt(int(state["capsule"])),
+            occ,
+        )
+
+        tool_calls = str(state["tool_calls"])
+        if state["tool_call_limit"]:
+            tool_calls += f" / {state['tool_call_limit']}"
+        tool_output = _fmt(int(state["tool_output"]))
+        if state["tool_output_limit"]:
+            tool_output += f" / {_fmt(int(state['tool_output_limit']))}"
+
         efficiency = Table.grid(expand=True)
         efficiency.add_column(ratio=1)
         efficiency.add_column(ratio=1)
@@ -187,21 +259,31 @@ class LiveDashboardV6:
             _fmt(int(state["input"])),
             _fmt(int(state["cached"])),
             _fmt(int(state["fresh"])),
-            f"{state['model_calls']} / {state['tool_calls']}",
+            f"{state['model_calls']} / {tool_calls}",
         )
-        efficiency.add_row("Repeated", "Evidence resend", "", "")
-        efficiency.add_row(_fmt(int(state["repeated"])), _fmt(int(state["resend"])), "", "")
-        recent_text = "\n".join(
-            f"• {item}" for item in list(self._recent)[: (3 if compact else 6)]
-        ) or "• Waiting for runtime events"
-        footer = "Durable state: repository + checksummed checkpoints · UI is presentation-only"
+        efficiency.add_row("Tool output", "Repeated", "Evidence resend", "")
+        efficiency.add_row(
+            tool_output,
+            _fmt(int(state["repeated"])),
+            _fmt(int(state["resend"])),
+            "",
+        )
+
+        recent_text = (
+            "\n".join(f"• {item}" for item in list(self._recent)[: (3 if compact else 6)])
+            or "• Waiting for runtime events"
+        )
+        footer = (
+            "Repository state is authoritative · UI is presentation-only · "
+            "expected PAUSE/COMPLETE exits are operator-safe"
+        )
         return Panel(
             Group(
                 title,
                 Panel(now, title="NOW"),
                 Panel(lifecycle, title="LIFECYCLE"),
                 Panel(memory, title="WORKING MEMORY"),
-                Panel(efficiency, title="EFFICIENCY"),
+                Panel(efficiency, title="EFFICIENCY GUARD"),
                 Panel(recent_text, title="RECENT"),
                 Text(footer, style="dim"),
             ),
@@ -227,7 +309,11 @@ def should_use_v6_tui(
 
 
 def preview_v6(root: Path, *, seconds: float = 7.0) -> None:
-    dashboard = LiveDashboardV6(root)
+    dashboard = LiveDashboardV6(
+        root,
+        tool_call_limit=32,
+        tool_output_limit=50_000,
+    )
     step = max(0.15, seconds / 9)
     with dashboard:
         dashboard.handle_supervisor_event(
@@ -261,6 +347,7 @@ def preview_v6(root: Path, *, seconds: float = 7.0) -> None:
             {
                 "type": "item.started",
                 "item": {
+                    "id": "tool-1",
                     "type": "command_execution",
                     "command": "pytest tests/test_e04_gpu_observability_diagnostic.py",
                 },
@@ -292,18 +379,35 @@ def preview_v6(root: Path, *, seconds: float = 7.0) -> None:
         )
         time.sleep(step * 2)
         dashboard.handle_supervisor_event(
-            {"type": "v6.checkpoint.sealed", "checkpoint": "CP-0007", "nextAction": "COMPACT"}
+            {
+                "type": "v6.checkpoint.sealed",
+                "checkpoint": "CP-0007",
+                "nextAction": "COMPACT",
+            }
         )
         time.sleep(step)
         dashboard.finalize("COMPLETE", "PREVIEW_COMPLETE")
         time.sleep(step)
 
 
+def _latest_checkpoint_index(root: Path) -> int:
+    maximum = 0
+    directory = root / ".rsaw/state/checkpoints"
+    if not directory.is_dir():
+        return 0
+    for path in directory.glob("CP-*.json"):
+        try:
+            maximum = max(maximum, int(path.stem.split("-")[-1]))
+        except ValueError:
+            continue
+    return maximum
+
+
 def _fmt(value: int) -> str:
     if value >= 1_000_000:
-        return f"{value/1_000_000:.2f}M"
+        return f"{value / 1_000_000:.2f}M"
     if value >= 1_000:
-        return f"{value/1_000:.1f}k"
+        return f"{value / 1_000:.1f}k"
     return str(value)
 
 

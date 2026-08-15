@@ -24,7 +24,9 @@ def _repo(root: Path) -> None:
     (root / ".rsaw").mkdir(parents=True, exist_ok=True)
     (root / "docs/tasks").mkdir(parents=True, exist_ok=True)
     (root / "docs/workstreams").mkdir(parents=True, exist_ok=True)
-    (root / "AGENTS.md").write_text("# Policy\nDo not mutate ACTIVE from the model.\n", encoding="utf-8")
+    (root / "AGENTS.md").write_text(
+        "# Policy\nDo not mutate ACTIVE from the model.\n", encoding="utf-8"
+    )
     (root / "docs/workstreams/W.md").write_text("# W — Workstream\n", encoding="utf-8")
     (root / "docs/tasks/T1.md").write_text(
         """# T1 — Implement
@@ -125,15 +127,19 @@ def test_checkpoint_result_is_typed_and_rejects_unknown_lifecycle() -> None:
     result = _result()
     assert result.next_task is not None
     assert result.next_task.role == "Reviewer"
-    bad = json.loads(json.dumps({
-        "schemaVersion": SCHEMA_RESULT,
-        "outcome": "PASS",
-        "changedFiles": [],
-        "validations": [],
-        "artifacts": [],
-        "semanticCapsuleDelta": {},
-        "requestedAction": "RESET",
-    }))
+    bad = json.loads(
+        json.dumps(
+            {
+                "schemaVersion": SCHEMA_RESULT,
+                "outcome": "PASS",
+                "changedFiles": [],
+                "validations": [],
+                "artifacts": [],
+                "semanticCapsuleDelta": {},
+                "requestedAction": "RESET",
+            }
+        )
+    )
     try:
         CheckpointResult.parse(json.dumps(bad))
     except ValueError as exc:
@@ -222,10 +228,43 @@ def test_governor_separates_continue_compact_rotate_and_pause() -> None:
         compact_required_ratio=0.85,
         hard_turn_ceiling=8,
     )
-    assert governor_decision(current_role="Builder", next_role="Builder", estimated_occupancy_tokens=50_000, thread_turns=2, **common).action == "CONTINUE"
-    assert governor_decision(current_role="Builder", next_role="Builder", estimated_occupancy_tokens=78_000, thread_turns=2, **common).action == "COMPACT"
-    assert governor_decision(current_role="Builder", next_role="Reviewer", estimated_occupancy_tokens=50_000, thread_turns=2, **common).action == "ROTATE"
-    paused = governor_decision(current_role="Builder", next_role="Builder", estimated_occupancy_tokens=50_000, thread_turns=2, **{**common, "human_gate": "APPROVAL"})
+    assert (
+        governor_decision(
+            current_role="Builder",
+            next_role="Builder",
+            estimated_occupancy_tokens=50_000,
+            thread_turns=2,
+            **common,
+        ).action
+        == "CONTINUE"
+    )
+    assert (
+        governor_decision(
+            current_role="Builder",
+            next_role="Builder",
+            estimated_occupancy_tokens=78_000,
+            thread_turns=2,
+            **common,
+        ).action
+        == "COMPACT"
+    )
+    assert (
+        governor_decision(
+            current_role="Builder",
+            next_role="Reviewer",
+            estimated_occupancy_tokens=50_000,
+            thread_turns=2,
+            **common,
+        ).action
+        == "ROTATE"
+    )
+    paused = governor_decision(
+        current_role="Builder",
+        next_role="Builder",
+        estimated_occupancy_tokens=50_000,
+        thread_turns=2,
+        **{**common, "human_gate": "APPROVAL"},
+    )
     assert paused.action == "PAUSE"
 
 

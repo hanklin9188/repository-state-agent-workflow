@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If this workflow or evaluation framework helps your work, cite the repository and exact version used."
+message: "If RSAW helps your work, cite the repository and the exact released version used."
 title: "Repository-State Agent Workflow"
 type: software
 authors:
@@ -7,18 +7,20 @@ authors:
 repository-code: "https://github.com/hanklin9188/repository-state-agent-workflow"
 url: "https://github.com/hanklin9188/repository-state-agent-workflow"
 license: MIT
-version: 0.6.0
+version: 0.7.0
 date-released: 2026-08-15
 keywords:
   - coding agents
   - repository state
   - context compiler
   - semantic capsule
-  - deterministic checkpoints
+  - transactional checkpoints
+  - tool budget
   - persistent workstreams
   - context compaction
   - context rotation
   - runtime supervisor
   - terminal user interface
+  - operator controls
   - agent observability
   - context engineering

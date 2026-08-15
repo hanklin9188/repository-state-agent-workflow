@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .v6_cli import main
+from .v7_cli import main
 
 
 if __name__ == "__main__":

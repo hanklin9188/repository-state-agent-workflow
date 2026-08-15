@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">RSAW v0.7 runtime architecture</title>
+  <desc id="desc">Repository authority is compiled into bounded context, executed by a replaceable agent, verified by a deterministic gate, and committed transactionally.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#081321"/>
+      <stop offset="1" stop-color="#11152a"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="700" rx="28" fill="url(#bg)"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <text x="60" y="62" font-size="30" font-weight="760" fill="#f8fafc">RSAW v0.7 · Transactional Agent Runtime</text>
+    <text x="60" y="92" font-size="16" fill="#94a3b8">The model performs semantic work. Deterministic software owns state, evidence, budgets, and transitions.</text>
+
+    <g transform="translate(70 145)">
+      <rect width="250" height="145" rx="18" fill="#0d2230" stroke="#2dd4bf" stroke-width="2"/>
+      <text x="24" y="36" font-size="18" font-weight="720" fill="#99f6e4">Repository Authority</text>
+      <text x="24" y="67" font-size="14" fill="#cbd5e1">ACTIVE.md · task contracts</text>
+      <text x="24" y="90" font-size="14" fill="#cbd5e1">checkpoints · evidence handles</text>
+      <text x="24" y="113" font-size="14" fill="#cbd5e1">Semantic Capsule · Git history</text>
+    </g>
+
+    <g transform="translate(365 145)">
+      <rect width="250" height="145" rx="18" fill="#0d1d37" stroke="#60a5fa" stroke-width="2"/>
+      <text x="24" y="36" font-size="18" font-weight="720" fill="#bfdbfe">Context Compiler</text>
+      <text x="24" y="67" font-size="14" fill="#cbd5e1">exact task + bounded evidence</text>
+      <text x="24" y="90" font-size="14" fill="#cbd5e1">delta state + semantic memory</text>
+      <text x="24" y="113" font-size="14" fill="#cbd5e1">FRESH · CONTINUE · COMPACT</text>
+    </g>
+
+    <g transform="translate(660 145)">
+      <rect width="250" height="145" rx="18" fill="#17172f" stroke="#a78bfa" stroke-width="2"/>
+      <text x="24" y="36" font-size="18" font-weight="720" fill="#ddd6fe">Replaceable Worker</text>
+      <text x="24" y="67" font-size="14" fill="#cbd5e1">Codex structured execution</text>
+      <text x="24" y="90" font-size="14" fill="#cbd5e1">semantic implementation work</text>
+      <text x="24" y="113" font-size="14" fill="#cbd5e1">typed CheckpointResult</text>
+    </g>
+
+    <g transform="translate(955 145)">
+      <rect width="175" height="145" rx="18" fill="#26182a" stroke="#f472b6" stroke-width="2"/>
+      <text x="20" y="36" font-size="18" font-weight="720" fill="#fbcfe8">Gate</text>
+      <text x="20" y="67" font-size="14" fill="#cbd5e1">actual diff</text>
+      <text x="20" y="90" font-size="14" fill="#cbd5e1">validation</text>
+      <text x="20" y="113" font-size="14" fill="#cbd5e1">scope + artifacts</text>
+    </g>
+
+    <path d="M320 217 H355" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M615 217 H650" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M910 217 H945" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <g transform="translate(150 370)">
+      <rect width="390" height="170" rx="20" fill="#10221d" stroke="#34d399" stroke-width="2"/>
+      <text x="28" y="40" font-size="20" font-weight="740" fill="#a7f3d0">Transactional Commit</text>
+      <text x="28" y="75" font-size="15" fill="#d1fae5">1. Render and validate proposed ACTIVE state</text>
+      <text x="28" y="101" font-size="15" fill="#d1fae5">2. Snapshot every authority file</text>
+      <text x="28" y="127" font-size="15" fill="#d1fae5">3. Seal checkpoint + sidecar + capsule</text>
+      <text x="28" y="153" font-size="15" fill="#d1fae5">4. Verify or roll back the entire transition</text>
+    </g>
+
+    <g transform="translate(660 370)">
+      <rect width="390" height="170" rx="20" fill="#211b10" stroke="#f59e0b" stroke-width="2"/>
+      <text x="28" y="40" font-size="20" font-weight="740" fill="#fde68a">Token & Tool Governor</text>
+      <text x="28" y="75" font-size="15" fill="#fef3c7">per-turn calls · total output · peak output</text>
+      <text x="28" y="101" font-size="15" fill="#fef3c7">broad-discovery limit · context occupancy</text>
+      <text x="28" y="127" font-size="15" fill="#fef3c7">CONTINUE · COMPACT · ROTATE</text>
+      <text x="28" y="153" font-size="15" fill="#fef3c7">PAUSE safely before a runaway tool loop grows</text>
+    </g>
+
+    <path d="M1042 290 C1042 335 980 350 920 360" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M955 540 C900 600 375 605 335 550" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M345 370 C340 330 280 315 250 300" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <g transform="translate(70 608)">
+      <rect width="1060" height="50" rx="14" fill="#0d1727" stroke="#273449"/>
+      <text x="28" y="31" font-size="15" font-weight="650" fill="#cbd5e1">Operator layer:</text>
+      <text x="150" y="31" font-size="15" fill="#94a3b8">preflight · one-command start · audited gate clear · task sandbox profile · live durable checkpoint</text>
+    </g>
+  </g>
+</svg>
