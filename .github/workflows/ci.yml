@@ -39,6 +39,8 @@ jobs:
           rsaw acceptance . --horizon all --json
       - name: Unified operator CLI
         run: |
+          rsaw --version
+          python -m repo_state_agent --version
           rsaw --help
           python -m repo_state_agent --help
           rsaw upgrade . --json
@@ -88,9 +90,11 @@ jobs:
           from importlib.metadata import version
           import repo_state_agent
 
-          assert repo_state_agent.__version__ == "0.7.0"
-          assert version("repository-state-agent-workflow") == "0.7.0"
+          assert repo_state_agent.__version__ == "0.7.1"
+          assert version("repository-state-agent-workflow") == "0.7.1"
           print(repo_state_agent.__version__)
           PY
+          "$RUNNER_TEMP/rsaw-wheel/bin/rsaw" --version
+          "$RUNNER_TEMP/rsaw-wheel/bin/python" -m repo_state_agent --version
           "$RUNNER_TEMP/rsaw-wheel/bin/rsaw" --help
           "$RUNNER_TEMP/rsaw-wheel/bin/python" -m repo_state_agent --help
