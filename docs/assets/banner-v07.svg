@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">RSAW v0.7 — Repository Context Runtime</title>
+  <desc id="desc">Persistent project state, bounded working context, transactional checkpoints, and operator-safe lifecycle controls.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.52" stop-color="#101a33"/>
+      <stop offset="1" stop-color="#15112d"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="0.55" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+  <circle cx="1060" cy="62" r="150" fill="#60a5fa" opacity="0.10" filter="url(#glow)"/>
+  <circle cx="160" cy="390" r="170" fill="#5eead4" opacity="0.08" filter="url(#glow)"/>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <rect x="64" y="52" width="114" height="30" rx="15" fill="#18243b" stroke="#334155"/>
+    <text x="121" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#a7f3d0">v0.7.0</text>
+
+    <text x="64" y="148" font-size="82" font-weight="800" letter-spacing="-3" fill="url(#accent)">RSAW</text>
+    <text x="64" y="195" font-size="29" font-weight="650" fill="#f8fafc">Repository Context Runtime</text>
+    <text x="64" y="235" font-size="19" fill="#a8b3c7">Persistent workstreams · bounded tool context · transactional checkpoints</text>
+
+    <g transform="translate(64 286)">
+      <rect width="322" height="78" rx="16" fill="#0f1c30" stroke="#263852"/>
+      <circle cx="34" cy="39" r="12" fill="#5eead4" opacity="0.92"/>
+      <text x="58" y="34" font-size="16" font-weight="700" fill="#e2e8f0">Repository authority</text>
+      <text x="58" y="56" font-size="14" fill="#8fa3bd">Git-reviewable state, not chat memory</text>
+    </g>
+    <g transform="translate(404 286)">
+      <rect width="322" height="78" rx="16" fill="#0f1c30" stroke="#263852"/>
+      <circle cx="34" cy="39" r="12" fill="#60a5fa" opacity="0.92"/>
+      <text x="58" y="34" font-size="16" font-weight="700" fill="#e2e8f0">Bounded execution</text>
+      <text x="58" y="56" font-size="14" fill="#8fa3bd">Context compiler + live tool budgets</text>
+    </g>
+    <g transform="translate(744 286)">
+      <rect width="392" height="78" rx="16" fill="#0f1c30" stroke="#263852"/>
+      <circle cx="34" cy="39" r="12" fill="#a78bfa" opacity="0.92"/>
+      <text x="58" y="34" font-size="16" font-weight="700" fill="#e2e8f0">Operator-safe lifecycle</text>
+      <text x="58" y="56" font-size="14" fill="#8fa3bd">Preflight, audited gates, sandbox profiles</text>
+    </g>
+
+    <text x="1136" y="66" text-anchor="end" font-size="13" font-weight="700" fill="#64748b">CODING AGENT INFRASTRUCTURE</text>
+  </g>
+</svg>
