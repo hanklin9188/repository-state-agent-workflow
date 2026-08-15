@@ -1,0 +1,109 @@
+name: Release v0.6.0
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify release identity
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path("pyproject.toml").read_text(encoding="utf-8")
+          match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+          assert match and match.group(1) == "0.6.0", match.group(1) if match else "missing"
+          init = Path("src/repo_state_agent/__init__.py").read_text(encoding="utf-8")
+          assert '__version__ = "0.6.0"' in init
+          PY
+          test "$(git rev-parse HEAD)" = "${{ github.event.workflow_run.head_sha }}"
+      - name: Create immutable annotated tag
+        env:
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          existing="$(git ls-remote --tags origin refs/tags/v0.6.0 | awk '{print $1}')"
+          if [ -n "$existing" ]; then
+            git fetch origin tag v0.6.0 --force
+            peeled="$(git rev-list -n 1 v0.6.0)"
+            test "$peeled" = "$TARGET_SHA"
+            echo "v0.6.0 already points to validated commit $TARGET_SHA"
+          else
+            git tag -a v0.6.0 "$TARGET_SHA" -m "RSAW v0.6.0 — Compiled Working Memory Runtime"
+            git push origin refs/tags/v0.6.0
+          fi
+      - name: Verify public tag installation
+        run: |
+          python -m venv /tmp/rsaw-v06-release-check
+          /tmp/rsaw-v06-release-check/bin/python -m pip install --upgrade pip
+          /tmp/rsaw-v06-release-check/bin/python -m pip install --no-cache-dir \
+            "git+https://github.com/${GITHUB_REPOSITORY}.git@v0.6.0"
+          /tmp/rsaw-v06-release-check/bin/python - <<'PY'
+          from importlib.metadata import version
+          import repo_state_agent
+          assert repo_state_agent.__version__ == "0.6.0"
+          assert version("repository-state-agent-workflow") == "0.6.0"
+          print("tag install verified: 0.6.0")
+          PY
+          /tmp/rsaw-v06-release-check/bin/rsaw --help >/dev/null
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if gh release view v0.6.0 >/dev/null 2>&1; then
+            echo "GitHub Release v0.6.0 already exists"
+            exit 0
+          fi
+          cat > /tmp/release-notes.md <<'EOF'
+          ## RSAW v0.6.0 — Compiled Working Memory Runtime
+
+          v0.6 is the architectural response to the RSAW v3 matched-evaluation failure modes.
+
+          ### Core runtime
+          - Supervisor-owned ACTIVE/checkpoint advancement; supervised agents no longer need model-mediated `advance.py` or ACTIVE mutation.
+          - Typed `rsaw.checkpoint-result.v1` contract.
+          - Checksummed durable checkpoints and repository-global checkpoint numbering.
+          - Bounded Semantic Capsule and sealed Context Envelope compiler.
+          - Content-addressed evidence handles and read-if-changed.
+          - Deterministic advancement gate bound to actual repository changes, validation events, artifacts, scope, and evidence.
+          - `CONTINUE / COMPACT / ROTATE / PAUSE / COMPLETE` Token Governor using estimated context occupancy rather than aggregate provider input.
+          - Bounded independent Review Manifest.
+          - Model/tool/repeated-input/evidence-resend/occupancy telemetry.
+
+          ### Product / migration
+          - Worktree-safe v0.5 → v0.6 migration preserving `ACTIVE.md` byte-for-byte.
+          - Upgraded Live Runtime Console for lifecycle, working-memory, gate, and efficiency observability.
+          - Updated English / Traditional Chinese README, architecture/lifecycle diagrams, EdgeFlow migration guide, changelog, roadmap, and templates.
+
+          ### Validation
+          - Python 3.10 / 3.12 / 3.13 CI.
+          - Full unit/regression suite, Ruff, compileall, repository verification, FRESH Context Envelope compilation, v0.6 dry-run, Markdown link audit, and package build.
+          - Synthetic lifecycle acceptance deliberately exercises reviewer rotation at 4 checkpoints and both COMPACT + ROTATE at 16/64 checkpoints.
+          - Public installation from the `v0.6.0` tag is verified before this Release is published.
+
+          ### Claim boundary
+          This release validates implementation and lifecycle mechanics. Causal token/success improvements remain unclaimed until matched prospective short/medium/long workstream evaluation is completed.
+          EOF
+          gh release create v0.6.0 \
+            --target "$TARGET_SHA" \
+            --title "RSAW v0.6.0 — Compiled Working Memory Runtime" \
+            --notes-file /tmp/release-notes.md
