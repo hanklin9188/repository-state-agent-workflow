@@ -16,6 +16,7 @@ from . import __version__, cli as legacy_cli
 from .active_format import canonicalize_active_text, replace_section
 from .parsing import parse_active
 from .runtime.codex import CodexAdapter
+from .runtime.relevance import build_focus_bundle, migrate_v8
 from .runtime.report import load_runtime_summary
 from .runtime.store import atomic_write_json, utc_now
 from .runtime.tool_budget import ToolBudget, ToolBudgetGuard
@@ -222,13 +223,20 @@ def _installation_view() -> dict[str, Any]:
     except PackageNotFoundError:
         package_version = "unknown"
     launcher = shutil.which("rsaw")
+    prefix = Path(sys.prefix).resolve()
+    launcher_path = Path(launcher).resolve() if launcher else None
+    try:
+        launcher_matches = bool(launcher_path and launcher_path.is_relative_to(prefix))
+    except AttributeError:  # pragma: no cover - Python 3.8 compatibility boundary
+        launcher_matches = bool(launcher_path and str(launcher_path).startswith(str(prefix)))
     return {
         "packageVersion": package_version,
         "python": sys.executable,
+        "pythonPrefix": sys.prefix,
+        "basePrefix": sys.base_prefix,
         "launcher": launcher,
-        "launcherMatchesPythonPrefix": bool(
-            launcher and Path(launcher).resolve().parent == Path(sys.executable).resolve().parent
-        ),
+        "resolvedLauncher": str(launcher_path) if launcher_path else None,
+        "launcherMatchesPythonPrefix": launcher_matches,
         "moduleFallback": f"{sys.executable} -m repo_state_agent",
     }
 
@@ -242,6 +250,13 @@ def _preflight_payload(
     verification = verify_repository(root)
     state = parse_active(root)
     options = V6Options.from_root(root)
+    focus_error: str | None = None
+    try:
+        focus_bundle = build_focus_bundle(root, state)
+        focus_payload = {"ok": True, **focus_bundle.to_dict(show_content=False)}
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        focus_error = str(exc)
+        focus_payload = {"ok": False, "error": focus_error}
     profile = _codex_profile(
         root,
         requested_binary=codex_binary,
@@ -259,7 +274,7 @@ def _preflight_payload(
         quiet=True,
     )
     doctor = adapter.doctor()
-    if verification.ok and doctor.ok and not state.human_gate:
+    if verification.ok and doctor.ok and not state.human_gate and focus_error is None:
         status = "READY"
     elif state.human_gate and verification.ok and doctor.ok:
         status = "PAUSED"
@@ -286,6 +301,7 @@ def _preflight_payload(
             "sandboxPolicy": ("task-scoped CLI" if profile.get("forcedSandbox") else "task-aware"),
             "taskSandboxOverrideCount": len(profile["taskSandboxOverrides"]),
         },
+        "focus": focus_payload,
         "toolBudget": _tool_budget(options).__dict__,
         "installation": _installation_view(),
     }
@@ -294,11 +310,11 @@ def _preflight_payload(
 def _migrate(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="rsaw migrate")
     parser.add_argument("path", nargs="?", default=".")
-    parser.add_argument("--to", default="0.7", choices=["0.6", "0.7"])
+    parser.add_argument("--to", default="0.8", choices=["0.6", "0.7", "0.8"])
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
-    fn = migrate_v7 if args.to == "0.7" else migrate_v6
+    fn = migrate_v8 if args.to == "0.8" else (migrate_v7 if args.to == "0.7" else migrate_v6)
     result = fn(_root(args.path), apply=args.apply)
     if args.json:
         print(json.dumps(result, indent=2))
@@ -315,7 +331,7 @@ def _upgrade(argv: list[str]) -> int:
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
-    forwarded = [args.path, "--to", "0.7"]
+    forwarded = [args.path, "--to", "0.8"]
     if args.apply:
         forwarded.append("--apply")
     if args.json:
@@ -355,9 +371,59 @@ def _compile(argv: list[str]) -> int:
         print(f"EXACT EVIDENCE     {envelope.exact_evidence_tokens}")
         print(f"REPEATED INPUT     {envelope.repeated_input_tokens}")
         print(f"EVIDENCE RESEND    {envelope.evidence_resend_tokens}")
+        print(f"REUSED REFERENCES {envelope.reused_reference_tokens}")
+        focus_components = [
+            component
+            for component in envelope.components
+            if str(component.get("category") or "").startswith("focus")
+        ]
+        print(
+            "FOCUS CONTEXT      "
+            f"{sum(int(component.get('tokens', 0)) for component in focus_components)} tokens / "
+            f"{sum(int(component.get('snippetCount', 0)) for component in focus_components)} snippets"
+        )
         print(f"SHA256             {envelope.sha256}")
         for warning in envelope.warnings:
             print(f"WARNING: {warning}")
+    return 0
+
+
+def _focus(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="rsaw focus")
+    parser.add_argument("path", nargs="?", default=".")
+    parser.add_argument("--rebuild", action="store_true")
+    parser.add_argument("--show-content", action="store_true")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(argv)
+    root = _root(args.path)
+    try:
+        state = parse_active(root)
+        bundle = build_focus_bundle(root, state, force_index=args.rebuild)
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    payload = bundle.to_dict(show_content=args.show_content)
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return 0
+    print(f"TASK                 {bundle.task_id}")
+    print(f"INDEXED FILES        {bundle.indexed_files}")
+    print(f"INDEX CACHE          {bundle.cache_hits} hit / {bundle.cache_misses} miss")
+    print(f"CANDIDATES           {bundle.candidate_count}")
+    print(f"STRUCTURAL MAP       {bundle.map_tokens} tokens")
+    print(f"FOCUSED EXCERPTS     {bundle.snippet_tokens} tokens")
+    print(f"TOTAL FOCUS          {bundle.total_tokens} tokens")
+    print(f"SELECTED SNIPPETS    {len(bundle.snippets)}")
+    for snippet in bundle.snippets:
+        print(
+            f"- {snippet.path}:{snippet.start_line}-{snippet.end_line} "
+            f"[{', '.join(snippet.reasons)}]"
+        )
+    for warning in bundle.warnings:
+        print(f"WARNING: {warning}")
+    if args.show_content:
+        print()
+        print(bundle.prompt_block())
     return 0
 
 
@@ -403,6 +469,12 @@ def _preflight(argv: list[str]) -> int:
         print(f"ROLE                {payload['role']}")
         print(f"CHECKPOINT          {payload['checkpoint']}")
         print(f"SANDBOX             {payload['codex']['resolvedSandbox']}")
+        focus = payload.get("focus", {})
+        print(
+            "FOCUS              "
+            f"{focus.get('totalTokens', 0)} tokens / "
+            f"{len(focus.get('snippets', []))} snippets"
+        )
         print(f"CODEX               {payload['codex']['binary']}")
         print(f"REPOSITORY VERIFY   {payload['repositoryVerification']['ok']}")
         print(f"HUMAN GATE          {payload['humanGate'] or 'none'}")
@@ -437,7 +509,7 @@ def _run(argv: list[str]) -> int:
     parser.add_argument("--approve-for-me", action="store_true")
     args, unknown = parser.parse_known_args(argv)
     if unknown:
-        print(f"ERROR: unsupported v0.7 run options: {' '.join(unknown)}", file=sys.stderr)
+        print(f"ERROR: unsupported v0.8 run options: {' '.join(unknown)}", file=sys.stderr)
         return 2
 
     root = _root(args.path)
@@ -586,6 +658,15 @@ def _report(argv: list[str]) -> int:
     print(f"TOOL OUTPUT          {view.get('tool_output_tokens')}")
     print(f"BROAD DISCOVERY      {view.get('recovery_rediscovery_commands')}")
     print(f"BUDGET ABORTS        {view.get('tool_budget_aborts')}")
+    print(f"FOCUS TOKENS         {view.get('focus_context_tokens')}")
+    print(f"FOCUS SNIPPETS       {view.get('focus_snippets')}")
+    print(f"FOCUS BUILDS         {view.get('focus_builds')}")
+    print(f"FOCUS REUSES         {view.get('focus_reuses')}")
+    print(
+        f"INDEX CACHE          {view.get('index_cache_hits')} hit / {view.get('index_cache_misses')} miss"
+    )
+    print(f"REUSED REFERENCES    {view.get('reused_reference_tokens')}")
+    print(f"PROVIDER COMPACTS    {view.get('provider_pressure_compactions')}")
     print(f"FRESH CONTEXTS       {view.get('fresh_contexts')}")
     print(f"COMPACTIONS          {view.get('context_compactions')}")
     print(f"ROLE ROTATIONS       {view.get('role_rotations')}")
@@ -841,6 +922,7 @@ Daily use:
   rsaw preflight .                 verify repository, Codex, sandbox, and budgets
   rsaw status .                    show active task
   rsaw report .                    show runtime efficiency
+  rsaw focus .                     inspect the selected code working set
 
 Operator controls:
   rsaw gate show .
@@ -852,7 +934,7 @@ Operator controls:
 
 Runtime / migration:
   rsaw upgrade . --apply
-  rsaw migrate . --to 0.7 --apply
+  rsaw migrate . --to 0.8 --apply
   rsaw compile . --mode FRESH
   rsaw run . --agent codex
   rsaw acceptance . --horizon all
@@ -880,6 +962,8 @@ def main(argv: list[str] | None = None) -> int:
         return _upgrade(rest)
     if command == "compile":
         return _compile(rest)
+    if command == "focus":
+        return _focus(rest)
     if command == "acceptance":
         return _acceptance(rest)
     if command in {"preview", "preview-v6"}:

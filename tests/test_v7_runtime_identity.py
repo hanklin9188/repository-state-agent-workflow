@@ -83,7 +83,7 @@ Medium
     )
 
 
-def test_dry_run_uses_v07_identity(tmp_path: Path) -> None:
+def test_dry_run_uses_v08_identity(tmp_path: Path) -> None:
     _repo(tmp_path)
     result = supervise_v6(
         tmp_path,
@@ -92,9 +92,9 @@ def test_dry_run_uses_v07_identity(tmp_path: Path) -> None:
     )
 
     assert result.status == "DRY_RUN"
-    assert result.reason == "V7_READY"
+    assert result.reason == "V8_READY"
     assert result.exit_code == 0
-    assert result.run_id.startswith("rsaw-v7-")
+    assert result.run_id.startswith("rsaw-v8-")
     assert result.summary_path is not None
 
     summary = json.loads(result.summary_path.read_text(encoding="utf-8"))
@@ -103,4 +103,4 @@ def test_dry_run_uses_v07_identity(tmp_path: Path) -> None:
     events = (tmp_path / ".rsaw/runtime" / result.run_id / "supervisor-events.jsonl").read_text(
         encoding="utf-8"
     )
-    assert '"runtime": "v0.7.1"' in events
+    assert '"runtime": "v0.8.0"' in events

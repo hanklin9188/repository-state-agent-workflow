@@ -2,6 +2,40 @@
 
 All notable changes to the public reference implementation are documented here.
 
+
+## 0.8.0 — Relevance-First Context Runtime
+
+### Added
+
+- deterministic content-addressed repository index;
+- structural map and bounded exact source excerpts;
+- explainable ranking from task paths, symbols, Git changes, tests, and imports;
+- `rsaw focus` command and Focus telemetry;
+- unchanged Focus and exact context reuse by reference on `CONTINUE`;
+- provider-input and cached-input pressure thresholds;
+- automatic checkpoint-boundary `COMPACT` under provider traffic pressure;
+- schema 5 migration, EdgeFlow deployment guide, and relevance mechanism benchmark.
+
+### Simplified
+
+- no mandatory vector database, embeddings, LLM summarizer, or whole-repository prompt;
+- retrieval remains local, deterministic, inspectable, and bounded;
+- the lifecycle remains `CONTINUE / COMPACT / ROTATE / PAUSE / COMPLETE`.
+
+### Validation
+
+- 121 tests pass locally;
+- deterministic fixture retains the target implementation and rejecting test while reducing
+  model-visible fixture context from 36,712 to 252 tokens;
+- unchanged second index build reuses all 43 eligible file records;
+- existing transactional, evidence, sandbox, gate, and lifecycle regressions remain covered.
+
+### Claim boundary
+
+The deterministic fixture validates the relevance mechanism. It does not establish universal
+provider-token savings or semantic superiority. Matched real-workstream evaluation remains
+required.
+
 ## 0.7.1 — GPU Sandbox Boundary Repair
 
 ### Added

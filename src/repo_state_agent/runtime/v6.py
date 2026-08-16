@@ -21,6 +21,7 @@ from ..parsing import parse_active
 from ..verify import verify_repository
 from .adapter import AgentAdapter
 from .model import AgentTurnResult, TokenUsage
+from .relevance import RelevanceConfig, build_focus_bundle
 from .store import RuntimeLock, RuntimeStore, atomic_write_json, utc_now
 from .tool_budget import is_broad_discovery
 
@@ -317,6 +318,7 @@ class ContextEnvelope:
     validation_tokens: int
     repeated_input_tokens: int
     evidence_resend_tokens: int
+    reused_reference_tokens: int
     sha256: str
     warnings: tuple[str, ...] = ()
 
@@ -333,6 +335,7 @@ class ContextEnvelope:
             "validationSummaryTokens": self.validation_tokens,
             "repeatedInputTokens": self.repeated_input_tokens,
             "evidenceResendTokens": self.evidence_resend_tokens,
+            "reusedReferenceTokens": self.reused_reference_tokens,
             "envelopeSha256": self.sha256,
             "warnings": list(self.warnings),
         }
@@ -402,6 +405,17 @@ class V6Summary:
     tool_output_tokens: int = 0
     peak_tool_output_tokens: int = 0
     tool_budget_aborts: int = 0
+    reused_reference_tokens: int = 0
+    focus_context_tokens: int = 0
+    focus_map_tokens: int = 0
+    focus_snippet_tokens: int = 0
+    focus_snippets: int = 0
+    focus_builds: int = 0
+    focus_reuses: int = 0
+    indexed_files: int = 0
+    index_cache_hits: int = 0
+    index_cache_misses: int = 0
+    provider_pressure_compactions: int = 0
     sandbox_resolutions: list[dict[str, Any]] = field(default_factory=list)
     occupancy_samples: list[float] = field(default_factory=list)
     total_usage: TokenUsage = TokenUsage()
@@ -677,12 +691,76 @@ def compile_context(
     }
     components.append(_component("Current delta", json.dumps(delta, indent=2), "delta"))
 
+    focus_warnings: list[str] = []
+    focus_bundle = build_focus_bundle(root, state)
+    if focus_bundle.enabled and focus_bundle.total_tokens > 0:
+        used_tokens = sum(int(component.get("tokens", 0)) for component in components)
+        available_tokens = max(0, options.hard_envelope_tokens - used_tokens)
+        focus_text = focus_bundle.prompt_block(max_tokens=available_tokens)
+        if focus_text:
+            included_snippets = tuple(
+                snippet
+                for snippet in focus_bundle.snippets
+                if f"`{snippet.path}:{snippet.start_line}-{snippet.end_line}`" in focus_text
+            )
+            focus_component = _component("Focus context", focus_text, "focus")
+            focus_component.update(
+                {
+                    "focusSha256": focus_bundle.sha256,
+                    "indexSha256": focus_bundle.index_sha256,
+                    "mapTokens": (
+                        focus_bundle.map_tokens if "### Structural map" in focus_text else 0
+                    ),
+                    "snippetTokens": sum(_tokens(snippet.content) for snippet in included_snippets),
+                    "snippetCount": len(included_snippets),
+                    "selectedFiles": list(
+                        dict.fromkeys(snippet.path for snippet in included_snippets)
+                    ),
+                    "indexedFiles": focus_bundle.indexed_files,
+                    "cacheHits": focus_bundle.cache_hits,
+                    "cacheMisses": focus_bundle.cache_misses,
+                }
+            )
+            components.append(focus_component)
+        else:
+            focus_warnings.append(
+                "focus context omitted because the hard envelope budget was exhausted"
+            )
+    focus_warnings.extend(focus_bundle.warnings)
+
     previous = previous_envelope or {}
-    previous_digests = (
-        {c.get("sha256") for c in previous.get("components", []) if isinstance(c, dict)}
+    previous_components = (
+        [c for c in previous.get("components", []) if isinstance(c, dict)]
         if isinstance(previous, dict)
-        else set()
+        else []
     )
+    previous_by_name = {str(c.get("name")): c for c in previous_components}
+    reusable_categories = {"exact", "semantic", "exact-evidence", "focus"}
+    if normalized_mode == "CONTINUE":
+        reused_components: list[dict[str, Any]] = []
+        for component in components:
+            prior = previous_by_name.get(str(component.get("name")))
+            category = str(component.get("category") or "")
+            if (
+                component.get("content")
+                and category in reusable_categories
+                and prior
+                and prior.get("sha256") == component.get("sha256")
+            ):
+                reused = dict(component)
+                reused_tokens = int(reused.get("tokens", 0))
+                reused.pop("content", None)
+                reused["category"] = f"{category}-ref"
+                reused["reference"] = f"sha256:{reused.get('sha256')}"
+                reused["tokens"] = 0
+                reused["reusedTokens"] = reused_tokens
+                reused["reused"] = True
+                reused_components.append(reused)
+            else:
+                reused_components.append(component)
+        components = reused_components
+
+    previous_digests = {c.get("sha256") for c in previous_components}
     repeated = sum(
         int(c.get("tokens", 0))
         for c in components
@@ -693,11 +771,12 @@ def compile_context(
         for c in components
         if c.get("category") == "exact-evidence" and c.get("sha256") in previous_digests
     )
+    reused_reference_tokens = sum(int(c.get("reusedTokens", 0)) for c in components)
     total = sum(int(c.get("tokens", 0)) for c in components)
     capsule_tokens = sum(
         int(c.get("tokens", 0)) for c in components if c.get("category") == "semantic"
     )
-    warnings: list[str] = []
+    warnings: list[str] = list(dict.fromkeys(focus_warnings))
     if total > options.target_envelope_tokens:
         warnings.append(f"envelope exceeds target: {total}>{options.target_envelope_tokens}")
     if total > options.hard_envelope_tokens:
@@ -716,6 +795,7 @@ def compile_context(
         0,
         repeated,
         resend,
+        reused_reference_tokens,
         _sha_text(payload),
         tuple(warnings),
     )
@@ -1048,7 +1128,7 @@ def supervise_v6(
     if not verification.ok:
         return V6SupervisorResult("FAILED", "REPOSITORY_VERIFICATION_FAILED", "", None, 23)
     state = parse_active(root)
-    run_id = f"rsaw-v7-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
+    run_id = f"rsaw-v8-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
     store = RuntimeStore(root, run_id)
     summary = V6Summary(
         run_id=run_id,
@@ -1063,7 +1143,7 @@ def supervise_v6(
         {
             "type": "v6.supervisor.started",
             "run_id": run_id,
-            "runtime": "v0.7.1",
+            "runtime": "v0.8.0",
             "workstream": state.workstream_id,
             "task": state.task_id,
         },
@@ -1082,7 +1162,7 @@ def supervise_v6(
             event_sink,
             {
                 "type": "v6.supervisor.terminal",
-                "runtime": "v0.7.1",
+                "runtime": "v0.8.0",
                 "status": status,
                 "reason": reason,
             },
@@ -1101,7 +1181,7 @@ def supervise_v6(
             event_sink,
             {"type": "v6.context.compiled", **envelope.to_dict()},
         )
-        return finish("DRY_RUN", "V7_READY", 0)
+        return finish("DRY_RUN", "V8_READY", 0)
 
     doctor = adapter.doctor()
     if not doctor.ok:
@@ -1144,6 +1224,46 @@ def supervise_v6(
                 summary.context_envelope_tokens += envelope.total_tokens
                 summary.repeated_input_tokens += envelope.repeated_input_tokens
                 summary.evidence_resend_tokens += envelope.evidence_resend_tokens
+                summary.reused_reference_tokens += envelope.reused_reference_tokens
+                focus_component = next(
+                    (
+                        component
+                        for component in envelope.components
+                        if str(component.get("category") or "").startswith("focus")
+                    ),
+                    None,
+                )
+                if focus_component is not None:
+                    summary.indexed_files = max(
+                        summary.indexed_files, int(focus_component.get("indexedFiles") or 0)
+                    )
+                    summary.index_cache_hits += int(focus_component.get("cacheHits") or 0)
+                    summary.index_cache_misses += int(focus_component.get("cacheMisses") or 0)
+                    reused_focus = bool(focus_component.get("reused"))
+                    if reused_focus:
+                        summary.focus_reuses += 1
+                    else:
+                        summary.focus_builds += 1
+                        summary.focus_context_tokens += int(focus_component.get("tokens") or 0)
+                        summary.focus_map_tokens += int(focus_component.get("mapTokens") or 0)
+                        summary.focus_snippet_tokens += int(
+                            focus_component.get("snippetTokens") or 0
+                        )
+                        summary.focus_snippets += int(focus_component.get("snippetCount") or 0)
+                    _emit(
+                        store,
+                        event_sink,
+                        {
+                            "type": "v8.focus.compiled",
+                            "runtime": "v0.8.0",
+                            "reused": reused_focus,
+                            **{
+                                key: value
+                                for key, value in focus_component.items()
+                                if key != "content"
+                            },
+                        },
+                    )
                 if thread_id is None:
                     summary.runtime_epochs += 1
                     summary.fresh_contexts += 1
@@ -1161,7 +1281,7 @@ def supervise_v6(
                     "RSAW_SUPERVISED": "1",
                     "RSAW_V6": "1",
                     "RSAW_V7": "1",
-                    "RSAW_RUNTIME_VERSION": "0.7.1",
+                    "RSAW_RUNTIME_VERSION": "0.8.0",
                     "RSAW_RUN_ID": run_id,
                     "RSAW_TASK_ID": state.task_id,
                     "RSAW_ROLE": state.current_role or state.next_role,
@@ -1183,14 +1303,14 @@ def supervise_v6(
                     _emit(
                         store,
                         event_sink,
-                        {"type": "v7.sandbox.resolved", "runtime": "v0.7.1", **resolution},
+                        {"type": "v7.sandbox.resolved", "runtime": "v0.8.0", **resolution},
                     )
                 _emit(
                     store,
                     event_sink,
                     {
                         "type": "v6.agent.turn.started",
-                        "runtime": "v0.7.1",
+                        "runtime": "v0.8.0",
                         "turn": summary.agent_turns,
                         "mode": next_mode,
                         "task": state.task_id,
@@ -1318,6 +1438,38 @@ def supervise_v6(
                     thread_turns=thread_turns,
                     hard_turn_ceiling=options.hard_turn_ceiling,
                 )
+                relevance_limits = RelevanceConfig.from_root(root)
+                latest_input = turn.latest_turn_usage.input_tokens
+                latest_cached = turn.latest_turn_usage.cached_input_tokens
+                input_pressure = bool(
+                    relevance_limits.max_provider_input_tokens
+                    and latest_input > relevance_limits.max_provider_input_tokens
+                )
+                cached_pressure = bool(
+                    relevance_limits.max_cached_input_tokens
+                    and latest_cached > relevance_limits.max_cached_input_tokens
+                )
+                if decision.action == "CONTINUE" and (input_pressure or cached_pressure):
+                    decision = GovernorDecision(
+                        "COMPACT",
+                        "PROVIDER_TRAFFIC_PRESSURE",
+                        decision.occupancy_ratio,
+                        decision.occupancy_tokens,
+                        source="provider-traffic",
+                    )
+                    summary.provider_pressure_compactions += 1
+                    _emit(
+                        store,
+                        event_sink,
+                        {
+                            "type": "v8.provider-context.pressure",
+                            "runtime": "v0.8.0",
+                            "inputTokens": latest_input,
+                            "cachedInputTokens": latest_cached,
+                            "maxInputTokens": relevance_limits.max_provider_input_tokens,
+                            "maxCachedInputTokens": relevance_limits.max_cached_input_tokens,
+                        },
+                    )
                 next_task_id = result.next_task.task_id if result.next_task else state.task_id
                 next_environment = {
                     "RSAW_TASK_ID": next_task_id,
@@ -1346,7 +1498,7 @@ def supervise_v6(
                         event_sink,
                         {
                             "type": "v7.sandbox.boundary",
-                            "runtime": "v0.7.1",
+                            "runtime": "v0.8.0",
                             "fromTask": state.task_id,
                             "fromSandbox": turn_settings["sandbox"],
                             "toTask": next_task_id,
@@ -1586,7 +1738,7 @@ def synthetic_acceptance(root: Path, horizon: int) -> dict[str, Any]:
 
 
 def _v6_prompt(state: ActiveState, envelope: ContextEnvelope) -> str:
-    return f"""RSAW v0.7 SUPERVISED CHECKPOINT
+    return f"""RSAW v0.8 SUPERVISED CHECKPOINT
 
 Repository state is authoritative. The supervisor owns ACTIVE.md, checkpoint numbering,
 state advancement, evidence binding, checksums, and lifecycle decisions.
@@ -1596,8 +1748,10 @@ HARD RULES
 - Do NOT run advance.py or any RSAW state-advancement command.
 - Do semantic engineering work for exactly the active task.
 - Treat the compiled context below as the default working set.
+- When a Focus context is present, inspect those exact files and ranges first.
 - Do NOT run broad repository discovery (`rg --files`, `find .`, `tree`, or equivalent)
   unless a specific unresolved question cannot be answered from the envelope.
+- If additional context is required, use one narrow path, symbol, or error query at a time.
 - Do NOT concatenate multiple long files into one command.
 - Keep each tool result bounded. Prefer exact paths, line ranges, counts, hashes, and concise
   summaries; redirect verbose output to an artifact rather than returning it into context.
@@ -1869,7 +2023,11 @@ def _dirty_hashes(root: Path) -> dict[str, str]:
 
 
 def _excluded(path: str) -> bool:
-    return path.startswith(".rsaw/runtime/") or path.startswith(".rsaw/state/")
+    return (
+        path.startswith(".rsaw/runtime/")
+        or path.startswith(".rsaw/state/")
+        or path.startswith(".rsaw/cache/")
+    )
 
 
 def _git_revision(root: Path) -> str:

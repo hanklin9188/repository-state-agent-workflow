@@ -1,4 +1,4 @@
-# RSAW Agent Contract — v0.6
+# RSAW Agent Contract — v0.8
 
 RSAW is a repository-state runtime for long-lived agent workstreams.
 
@@ -7,73 +7,72 @@ RSAW is a repository-state runtime for long-lived agent workstreams.
 Use this order:
 
 1. executable repository contracts and immutable evidence;
-2. accepted task/workstream specifications;
+2. accepted task and workstream specifications;
 3. `.rsaw/state/` durable runtime artifacts;
 4. `ACTIVE.md` compatibility pointer;
 5. current conversation context.
 
 Repository state wins over remembered chat history.
 
-## v0.6 supervised execution
+## Supervised execution
 
-When `RSAW_V6=1` or `RSAW_SUPERVISED=1` is present:
+When `RSAW_SUPERVISED=1` is present:
 
 - do **not** edit `ACTIVE.md`;
-- do **not** run `advance.py` or another state-advancement command;
+- do **not** invoke a state-advancement command;
 - do semantic engineering work only for the active task;
-- use the compiled context envelope before broad repository rediscovery;
+- inspect the compiled Truth and Focus context before repository discovery;
+- use narrow exact queries only for a concrete unresolved question;
+- keep tool output bounded and store large output as an artifact;
 - run task-relevant validation;
-- return exactly one typed `rsaw.checkpoint-result.v1` JSON object in the final message;
-- never claim a validation or artifact that was not actually produced;
+- return exactly one typed `rsaw.checkpoint-result.v1` JSON object;
+- never claim validation or artifacts that were not produced;
 - never expose hidden chain-of-thought.
 
-The Supervisor owns checkpoint numbering, ACTIVE advancement, state hashes, lifecycle transitions, evidence sealing, review manifests, and fail-closed gates.
+The Supervisor owns checkpoint numbering, state advancement, hashes, lifecycle transitions,
+evidence sealing, review manifests, and fail-closed gates.
+
+## Context model
+
+```text
+Truth → Focus → Work → Checkpoint
+```
+
+- **Truth:** exact governance, task contract, state, capsule, and required evidence;
+- **Focus:** deterministic structural map and bounded source excerpts;
+- **Work:** semantic implementation and validation;
+- **Checkpoint:** verified transactional durability.
+
+Do not use broad repository discovery when Focus already answers the question. Do not reread
+unchanged files or reintroduce a long tool result merely because it existed earlier.
 
 ## Lifecycle
 
-The runtime distinguishes:
+- `CONTINUE` — same role and coherent objective;
+- `COMPACT` — same objective, replace an expensive hot context;
+- `ROTATE` — fresh cognitive boundary for role, objective, or sandbox change;
+- `PAUSE` — a real human, external, privilege, or safety gate;
+- `COMPLETE` — the durable stop condition is satisfied.
 
-- `CONTINUE` — same role, same coherent objective, working context still useful;
-- `COMPACT` — same role/objective, preserve semantic state but replace an expensive hot context;
-- `ROTATE` — cognitive separation is required, especially Builder → Reviewer and Runner → Analyst;
-- `PAUSE` — a real human/external gate blocks progress;
-- `COMPLETE` — the workstream stop condition is satisfied.
-
-Checkpoint is a durability boundary. Context epoch is a cognitive boundary. They are not the same thing.
-
-## Context discipline
-
-Use the compiler tiers:
-
-- Tier A: exact objective, acceptance criteria, allowed/forbidden operations, safety constraints, critical source ranges;
-- Tier B: Semantic Capsule facts, decisions, exclusions, risks, validation state;
-- Tier C: immutable evidence handles for long logs, diffs, transcripts, and historical material.
-
-Prefer read-if-changed and delta context. Do not reintroduce a long tool result merely because it existed in an earlier turn.
+Checkpoint is a durability boundary. Context epoch is a cognitive boundary.
 
 ## Validation and evidence
 
-Validation is a deterministic gate, not narration. Preserve:
-
-- command provenance;
-- actual exit status when available;
-- artifact paths and checksums;
-- source revision bindings;
-- allowed-write scope;
-- evidence identifiers.
-
-A fresh reviewer receives a bounded Review Manifest and evidence, not the Builder's private reasoning history.
+Validation is a deterministic gate, not narration. Preserve command provenance, exit status,
+artifact paths, checksums, source revisions, allowed-write scope, and evidence identifiers.
+A fresh reviewer receives bounded evidence and state, not private reasoning history.
 
 ## Safety
 
 - Never infer authorization, credentials, privilege, or destructive consent.
 - Never bypass the configured sandbox to save time or tokens.
-- Never consume a one-shot scientific/execution authority before its readiness gate passes.
+- Never consume one-shot authority before readiness passes.
 - Do not busy-poll external work; persist the gate and pause.
 - Do not reset, clean, restore, or overwrite unrelated worktree changes.
+- Focus selection never promotes code, smoke output, or diagnostics into scientific evidence.
 
 ## Optimization target
 
-Persist aggressively. Infer sparingly. Rotate selectively.
-
-Optimize total provider input per successful checkpoint while preserving matched semantic success. Cache hits are telemetry, not proof of efficiency; aggregate provider input is never used as actual context occupancy.
+Persist aggressively. Select relevance before inference. Compact expensive context at safe
+boundaries. Optimize total, cached, and fresh input per successful checkpoint while
+preserving matched semantic success.

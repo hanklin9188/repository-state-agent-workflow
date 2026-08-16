@@ -16,15 +16,15 @@ Replace this bootstrap objective with one bounded engineering or research task.
 - tests/**
 - docs/**
 
-Adjust this list before execution. The v0.6 deterministic gate enforces it when present.
+Adjust this list before execution. The deterministic Supervisor gate enforces it when present.
 
 ## Forbidden Operations
 
 - destructive Git cleanup of unrelated work;
 - credential/authorization inference;
 - bypassing the configured sandbox;
-- model-owned edits to `ACTIVE.md` while v0.6 supervision is active;
-- model invocation of `advance.py` while v0.6 supervision is active.
+- model-owned edits to `ACTIVE.md` while supervised execution is active;
+- model invocation of `advance.py` while supervised execution is active.
 
 ## Required Reads
 
@@ -34,7 +34,7 @@ Use the compiled Context Envelope first. Add only exact files needed by this tas
 
 - `python -m pytest -q`
 
-Replace the example with deterministic commands appropriate for the task. v0.6 can verify that configured validation commands appeared in the agent event stream.
+Replace the example with deterministic commands appropriate for the task. RSAW can verify that configured validation commands appeared in the agent event stream.
 
 ## Artifacts
 

@@ -1,64 +1,76 @@
 {
-  "schema_version": 4,
   "runtime": {
     "adapter": "codex",
-    "codex_binary": "codex",
-    "sandbox": "workspace-write",
     "approve_for_me": false,
-    "max_transitions": 100,
-    "max_turns_per_epoch": 8,
-    "max_total_input_tokens": 5000000,
-    "interactive_gates": true,
-    "wait_on_pause": false,
     "codex": {
       "binary": "codex",
       "defaultSandbox": "workspace-write",
       "taskSandboxOverrides": {}
     },
-    "toolBudget": {
-      "maxToolCallsPerTurn": 32,
-      "maxToolOutputTokens": 50000,
-      "maxSingleToolOutputTokens": 20000,
-      "maxBroadDiscoveryCommands": 2,
-      "enforce": true
-    },
-    "rotation": {
-      "soft_input_tokens": 48000,
-      "hard_input_tokens": 60000,
-      "max_fresh_input_tokens": 18000,
-      "min_cache_reuse_ratio": 0.5
-    },
+    "codex_binary": "codex",
     "context": {
       "bootstrap_token_budget": 15000,
-      "max_files": 12,
-      "max_file_bytes": 262144,
+      "enforce_budget": false,
       "include_workstream_spec": false,
-      "enforce_budget": false
+      "max_file_bytes": 262144,
+      "max_files": 12
+    },
+    "interactive_gates": true,
+    "max_total_input_tokens": 5000000,
+    "max_transitions": 100,
+    "max_turns_per_epoch": 8,
+    "relevance": {
+      "candidateLimit": 20,
+      "enabled": true,
+      "focusTokens": 3000,
+      "mapTokens": 900,
+      "maxCachedInputTokens": 120000,
+      "maxFileBytes": 200000,
+      "maxIndexFiles": 10000,
+      "maxProviderInputTokens": 180000,
+      "maxSnippets": 5,
+      "snippetLines": 64
+    },
+    "rotation": {
+      "hard_input_tokens": 60000,
+      "max_fresh_input_tokens": 18000,
+      "min_cache_reuse_ratio": 0.5,
+      "soft_input_tokens": 48000
+    },
+    "sandbox": "workspace-write",
+    "toolBudget": {
+      "enforce": true,
+      "maxBroadDiscoveryCommands": 2,
+      "maxSingleToolOutputTokens": 20000,
+      "maxToolCallsPerTurn": 32,
+      "maxToolOutputTokens": 50000
     },
     "v6": {
-      "enabled": true,
-      "contextWindowTokens": 128000,
+      "bookkeeping": {
+        "agentMayMutateActive": false,
+        "agentMayRunAdvance": false,
+        "supervisorOwnsTransition": true
+      },
       "contextCompiler": {
-        "targetEnvelopeTokens": 6000,
         "hardEnvelopeTokens": 12000,
         "maxExactEvidenceTokens": 7000,
         "maxSemanticCapsuleTokens": 2500,
         "maxValidationSummaryTokens": 1000,
-        "useReadIfChanged": true,
+        "targetEnvelopeTokens": 6000,
+        "useDeltaContext": true,
         "useEvidenceHandles": true,
-        "useDeltaContext": true
+        "useReadIfChanged": true
       },
+      "contextWindowTokens": 128000,
+      "enabled": true,
       "governor": {
         "compactCandidateRatio": 0.75,
         "compactRequiredRatio": 0.85,
         "hardTurnCeiling": 8,
         "useAggregateProviderInputAsOccupancy": false
-      },
-      "bookkeeping": {
-        "agentMayMutateActive": false,
-        "agentMayRunAdvance": false,
-        "supervisorOwnsTransition": true
       }
-    }
-  }
+    },
+    "wait_on_pause": false
+  },
+  "schema_version": 5
 }

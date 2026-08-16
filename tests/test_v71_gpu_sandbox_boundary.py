@@ -345,7 +345,7 @@ def test_expected_non_tui_pause_exits_zero_unless_strict(
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "PAUSED"
     assert payload["exit_code"] == 20
-    assert payload["runtime"] == "v0.7.1"
+    assert payload["runtime"] == "v0.8.0"
     assert (
         cli_main(
             [
@@ -367,7 +367,7 @@ def test_acceptance_uses_next_phase_and_version_is_explicit(tmp_path: Path, caps
     assert all(result["pass"] for result in results)
     assert results[0]["rotations"] >= 1
     assert cli_main(["--version"]) == 0
-    assert capsys.readouterr().out.strip() == "RSAW 0.7.1"
+    assert capsys.readouterr().out.strip() == "RSAW 0.8.0"
 
 
 def test_explicit_cli_sandbox_is_scoped_to_one_task() -> None:

@@ -57,6 +57,10 @@ class LiveDashboardV6:
             "reason": "",
             "envelope": 0,
             "capsule": 0,
+            "focus": 0,
+            "focus_snippets": 0,
+            "focus_reused": False,
+            "reused_refs": 0,
             "occupancy": None,
             "input": 0,
             "cached": 0,
@@ -112,8 +116,25 @@ class LiveDashboardV6:
                 self._state["capsule"] = int(event.get("semanticCapsuleTokens") or 0)
                 self._state["repeated"] = int(event.get("repeatedInputTokens") or 0)
                 self._state["resend"] = int(event.get("evidenceResendTokens") or 0)
+                self._state["reused_refs"] = int(event.get("reusedReferenceTokens") or 0)
                 self._state["mode"] = str(event.get("mode") or "FRESH")
                 self._push(f"Context {self._state['mode']} · {self._state['envelope']} tokens")
+            elif event_type == "v8.focus.compiled":
+                self._state["focus"] = int(event.get("tokens") or 0)
+                self._state["focus_snippets"] = int(event.get("snippetCount") or 0)
+                self._state["focus_reused"] = bool(event.get("reused"))
+                verb = "reused" if self._state["focus_reused"] else "selected"
+                self._push(
+                    f"Focus {verb} · {_fmt(self._state['focus'])} · "
+                    f"{self._state['focus_snippets']} snippets"
+                )
+            elif event_type == "v8.provider-context.pressure":
+                self._state["status"] = "COMPACTING"
+                self._push(
+                    "Provider pressure · "
+                    f"input {_fmt(int(event.get('inputTokens') or 0))} · "
+                    f"cached {_fmt(int(event.get('cachedInputTokens') or 0))}"
+                )
             elif event_type == "v7.sandbox.resolved":
                 self._state["sandbox"] = str(event.get("sandbox") or "—")
                 self._state["sandbox_source"] = str(event.get("source") or "")
@@ -248,9 +269,16 @@ class LiveDashboardV6:
         memory.add_column(ratio=1)
         memory.add_column(ratio=1)
         memory.add_column(ratio=1)
-        memory.add_row("Envelope", "Semantic capsule", "Occupancy")
+        memory.add_column(ratio=1)
+        memory.add_row("Envelope", "Focus", "Semantic capsule", "Occupancy")
+        focus_label = _fmt(int(state["focus"]))
+        if state["focus_snippets"]:
+            focus_label += f" · {state['focus_snippets']} files"
+        if state["focus_reused"]:
+            focus_label += " · reused"
         memory.add_row(
             _fmt(int(state["envelope"])),
+            focus_label,
             _fmt(int(state["capsule"])),
             occ,
         )
@@ -274,12 +302,12 @@ class LiveDashboardV6:
             _fmt(int(state["fresh"])),
             f"{state['model_calls']} / {tool_calls}",
         )
-        efficiency.add_row("Tool output", "Repeated", "Evidence resend", "")
+        efficiency.add_row("Tool output", "Repeated", "Evidence resend", "Reused refs")
         efficiency.add_row(
             tool_output,
             _fmt(int(state["repeated"])),
             _fmt(int(state["resend"])),
-            "",
+            _fmt(int(state["reused_refs"])),
         )
 
         recent_text = (
