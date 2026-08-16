@@ -80,7 +80,27 @@ jobs:
       - name: Validate implementation, documentation, and packaging
         run: |
           set -euo pipefail
-          ruff check . --fix
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/benchmark_relevance.py")
+          text = path.read_text(encoding="utf-8")
+          old = (
+              '        "def prohibited_gpu_processes(processes):\\n'
+              '    return [p for p in processes if p.prohibited]\\n"\n'
+          )
+          new = (
+              '        "def prohibited_gpu_processes(processes):\\n"\n'
+              '        "    return [p for p in processes if p.prohibited]\\n"\n'
+          )
+          if old not in text:
+              raise SystemExit("benchmark source normalization anchor is missing")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+          ruff format .
+          ruff check . --fix --unsafe-fixes
           ruff format .
           ruff format --check .
           ruff check .
