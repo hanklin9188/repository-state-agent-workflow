@@ -61,16 +61,16 @@ jobs:
             mkdir -p "$(dirname "$file")"
             cp "/tmp/feature-source/$file" "$file"
           done
+
           git apply --check --binary /tmp/rsaw-v080-final.patch
           git apply --binary /tmp/rsaw-v080-final.patch
 
+          # GitHub Actions' repository token cannot publish commits that alter
+          # workflow files. Keep the currently committed workflows unchanged in
+          # this generated release commit; they are normalized separately by the
+          # repository owner after the validated payload is pushed.
+          git checkout HEAD -- .github/workflows
           rm -rf .release
-          rm -f .github/workflows/materialize-v080-release.yml
-          rm -f .github/workflows/repair-materialize-v080-release.yml
-          rm -f .github/workflows/diagnose-v080-materialization.yml
-          rm -f .github/workflows/finalize-v080-release.yml
-          rm -f .github/workflows/restore-v080-readme.yml
-          rm -f .github/workflows/restore-v080-zh-readme.yml
 
       - name: Install validation tooling
         run: |
@@ -127,13 +127,12 @@ jobs:
           python scripts/check_markdown_links.py .
           python -m build
           git diff --check
-          test "$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | sort)" = "ci.yml"
           grep -q '^version = "0.8.0"' pyproject.toml
           grep -q 'RSAW-0.8.0' README.md
           grep -q 'Truth → Focus → Work → Checkpoint' README.md
           grep -q 'Truth → Focus → Work → Checkpoint' README.zh-TW.md
 
-      - name: Commit and publish the clean release branch
+      - name: Commit and publish the validated non-workflow release payload
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
