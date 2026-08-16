@@ -1,0 +1,71 @@
+name: Diagnose RSAW v0.8.0 materialization
+
+on:
+  push:
+    branches: ["release/v0.8.0-relevance-first"]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.8.0-relevance-first
+          fetch-depth: 0
+
+      - name: Extract embedded patch
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/materialize-v080-release.yml').read_text(encoding='utf-8')
+          marker = "<<'B64'\n"
+          print('marker count:', source.count(marker))
+          payload = source.split(marker, 1)[1].split('\nB64', 1)[0].strip()
+          print('payload chars:', len(payload))
+          print('payload prefix:', payload[:12])
+          print('payload suffix:', payload[-12:])
+          Path('/tmp/final.patch.xz.b64').write_text(payload + '\n', encoding='utf-8')
+          PY
+
+      - name: Validate compressed patch
+        run: |
+          set -euo pipefail
+          base64 -d /tmp/final.patch.xz.b64 > /tmp/final.patch.xz
+          xz -t /tmp/final.patch.xz
+          xz -dc /tmp/final.patch.xz > /tmp/final.patch
+          wc -c /tmp/final.patch.xz.b64 /tmp/final.patch.xz /tmp/final.patch
+
+      - name: Download feature source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/9256796219/zip" > /tmp/feature-artifact.zip
+          mkdir -p /tmp/feature-artifact /tmp/feature-source
+          unzip -q /tmp/feature-artifact.zip -d /tmp/feature-artifact
+          unzip -q /tmp/feature-artifact/rsaw-v080-feature-source.zip -d /tmp/feature-source
+
+      - name: Check patch against staged source
+        run: |
+          set -euo pipefail
+          for file in \
+            src/repo_state_agent/runtime/relevance.py \
+            src/repo_state_agent/runtime/v6.py \
+            src/repo_state_agent/runtime/tui/v6.py \
+            src/repo_state_agent/v7_cli.py \
+            tests/test_v8_relevance.py \
+            tests/test_v8_supervisor_focus.py \
+            scripts/benchmark_relevance.py \
+            docs/relevance-first-context.md \
+            docs/edgeflow-v080-deployment.md
+          do
+            mkdir -p "$(dirname "$file")"
+            cp "/tmp/feature-source/$file" "$file"
+          done
+          git apply --check --binary /tmp/final.patch
