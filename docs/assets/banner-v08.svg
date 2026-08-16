@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
+  <title id="title">RSAW v0.8 — Relevance-First Context Runtime</title>
+  <desc id="desc">Truth, Focus, Work, and Checkpoint form a simple repository-backed coding-agent runtime.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#06121d"/>
+      <stop offset="0.48" stop-color="#0b1a2d"/>
+      <stop offset="1" stop-color="#17122c"/>
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="0.55" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="0.34" stop-color="#38bdf8"/>
+      <stop offset="0.68" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="440" rx="30" fill="url(#bg)"/>
+  <circle cx="1080" cy="40" r="180" fill="#818cf8" opacity="0.10" filter="url(#soft)"/>
+  <circle cx="80" cy="440" r="190" fill="#2dd4bf" opacity="0.09" filter="url(#soft)"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <rect x="64" y="42" width="112" height="32" rx="16" fill="#102238" stroke="#334155"/>
+    <text x="120" y="63" text-anchor="middle" font-size="14" font-weight="750" fill="#99f6e4">v0.8.0</text>
+    <text x="64" y="142" font-size="78" font-weight="820" letter-spacing="-3" fill="url(#titleGrad)">RSAW</text>
+    <text x="64" y="188" font-size="30" font-weight="700" fill="#f8fafc">Relevance-First Context Runtime</text>
+    <text x="64" y="226" font-size="18" fill="#9fb0c7">Keep truth durable. Send only what matters. Commit progress safely.</text>
+
+    <g transform="translate(64 278)">
+      <rect width="244" height="92" rx="18" fill="#0c2630" stroke="#2dd4bf" stroke-width="1.5"/>
+      <text x="22" y="34" font-size="13" font-weight="750" fill="#5eead4">01 · TRUTH</text>
+      <text x="22" y="62" font-size="17" font-weight="700" fill="#f1f5f9">Exact authority</text>
+      <text x="22" y="81" font-size="13" fill="#8fa4bd">task · state · evidence</text>
+    </g>
+    <path d="M318 324 H346" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <g transform="translate(356 278)">
+      <rect width="244" height="92" rx="18" fill="#0c2138" stroke="#38bdf8" stroke-width="1.5"/>
+      <text x="22" y="34" font-size="13" font-weight="750" fill="#7dd3fc">02 · FOCUS</text>
+      <text x="22" y="62" font-size="17" font-weight="700" fill="#f1f5f9">Relevant working set</text>
+      <text x="22" y="81" font-size="13" fill="#8fa4bd">map · rank · excerpts</text>
+    </g>
+    <path d="M610 324 H638" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <g transform="translate(648 278)">
+      <rect width="214" height="92" rx="18" fill="#161d3b" stroke="#818cf8" stroke-width="1.5"/>
+      <text x="22" y="34" font-size="13" font-weight="750" fill="#a5b4fc">03 · WORK</text>
+      <text x="22" y="62" font-size="17" font-weight="700" fill="#f1f5f9">Bounded Codex</text>
+      <text x="22" y="81" font-size="13" fill="#8fa4bd">edit · test · report</text>
+    </g>
+    <path d="M872 324 H900" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <g transform="translate(910 278)">
+      <rect width="226" height="92" rx="18" fill="#26182f" stroke="#c084fc" stroke-width="1.5"/>
+      <text x="22" y="34" font-size="13" font-weight="750" fill="#d8b4fe">04 · CHECKPOINT</text>
+      <text x="22" y="62" font-size="17" font-weight="700" fill="#f1f5f9">Verified durability</text>
+      <text x="22" y="81" font-size="13" fill="#8fa4bd">gate · seal · recover</text>
+    </g>
+    <rect x="64" y="400" width="1072" height="3" rx="1.5" fill="url(#flow)" opacity="0.75"/>
+    <text x="1136" y="64" text-anchor="end" font-size="12" font-weight="750" fill="#64748b">CODING AGENT INFRASTRUCTURE</text>
+  </g>
+</svg>
