@@ -76,6 +76,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
+          python -m pip install cairosvg
 
       - name: Validate implementation, documentation, and packaging
         run: |
@@ -83,6 +84,7 @@ jobs:
 
           python - <<'PY'
           from pathlib import Path
+          import cairosvg
 
           path = Path("scripts/benchmark_relevance.py")
           text = path.read_text(encoding="utf-8")
@@ -97,8 +99,16 @@ jobs:
           if old not in text:
               raise SystemExit("benchmark source normalization anchor is missing")
           path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          cairosvg.svg2png(
+              url="docs/assets/social-preview-v08.svg",
+              write_to="docs/assets/social-preview-v08.png",
+              output_width=1280,
+              output_height=640,
+          )
           PY
 
+          test -s docs/assets/social-preview-v08.png
           ruff format .
           ruff check . --fix --unsafe-fixes
           ruff format .
