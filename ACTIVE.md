@@ -4,47 +4,47 @@
 
 Branch: resolve with `git branch --show-current`
 HEAD: resolve with `git rev-parse HEAD`
-Status: RSAW 0.6 compiled-working-memory release candidate
+Status: RSAW v0.8.0 relevance-first runtime release validation
 
 ## Workstream
 
-ID: W-006
-Spec: docs/workstreams/W-006-compiled-working-memory.md
+ID: W-007
+Spec: docs/workstreams/W-007-relevance-first-context.md
 
 ## Context Epoch
 
-ID: E-010-v06-review
+ID: E-012-v08-release
 Role: Reviewer
 
 ## Active Task
 
-ID: T-010
-Spec: docs/tasks/T-010-v06-validation.md
+ID: T-012
+Spec: docs/tasks/T-012-v08-release-validation.md
 
 ## Current State
 
-- Supervisor-owned bookkeeping is implemented in the v0.6 runtime path.
-- Typed checkpoint results, Semantic Capsule, Context Compiler, evidence handles, deterministic gate, and Token Governor are implemented.
-- COMPACT and ROTATE have distinct semantics.
-- Aggregate provider input is not used as context occupancy.
-- v0.5 remains available to unmigrated repositories through the compatibility dispatcher.
-- Public causal token/success claims remain unpromoted until matched prospective evaluation.
+- Relevance-first Focus Context is implemented with deterministic local retrieval.
+- Focus uses content-hash caching, structural ranking, and bounded exact excerpts.
+- CONTINUE reuses unchanged context by reference.
+- Provider-input pressure can force COMPACT at the next checkpoint.
+- Transactional checkpoints, audited gates, and task sandboxes remain authoritative.
+- Universal provider-token and task-success claims remain evidence-gated.
 
 ## Evidence
 
-- Runtime: `src/repo_state_agent/runtime/v6.py`
-- Compatibility CLI: `src/repo_state_agent/v6_cli.py`
-- Live Console: `src/repo_state_agent/runtime/tui/v6.py`
-- Tests: `tests/test_v6_runtime.py`, `tests/test_v6_tui.py`
-- Architecture: `docs/v06-context-operating-system.md`
-- Migration: `docs/edgeflow-v06-migration.md`
+- Runtime: `src/repo_state_agent/runtime/relevance.py`
+- Integration: `src/repo_state_agent/runtime/v6.py`
+- CLI: `src/repo_state_agent/v7_cli.py`
+- Tests: `tests/test_v8_relevance.py`, `tests/test_v8_supervisor_focus.py`
+- Benchmark: `docs/validation/V080_RELEVANCE_BENCHMARK.json`
+- Design: `docs/relevance-first-context.md`
 
 ## Required Reads
 
 - AGENTS.md
 - ACTIVE.md
-- docs/tasks/T-010-v06-validation.md
-- docs/v06-context-operating-system.md
+- docs/tasks/T-012-v08-release-validation.md
+- docs/relevance-first-context.md
 
 ## Context Contract
 
@@ -54,10 +54,10 @@ Budget: `.rsaw/config.json`
 
 ## Do Not Preload
 
-- historical v3/v4/v5 release logs;
-- raw CI logs unless a check fails;
-- unrelated case-study data;
-- complete agent event streams unless investigating a telemetry failure.
+- complete repository contents;
+- raw runtime or evidence payloads;
+- historical release logs unless a validation fails;
+- unrelated case-study material.
 
 ## Human Gate
 
@@ -65,7 +65,7 @@ None.
 
 ## Running or Pending External Work
 
-GitHub CI and independent release validation after the implementation commit.
+GitHub CI, clean installation, tag, and release validation.
 
 ## Blockers
 
@@ -73,21 +73,23 @@ None.
 
 ## Next Exact Action
 
-Run the full cross-version validation matrix, inspect failures, validate package build and v0.6 CLI/migration behavior, and review documentation/visual surfaces.
+Complete the release matrix, review the public documentation and assets, and bind the
+published v0.8.0 tag to the validated release commit.
 
 ## Stop Condition
 
-Ruff, pytest, repository verification, FRESH context compilation, v0.6 dry-run, 4/16/64 lifecycle acceptance, Markdown links, and package build pass on supported CI versions.
+Ruff, pytest, repository verification, Focus/compile checks, 4/16/64 acceptance, Markdown
+links, package build, clean installation, public tag, and release asset verification pass.
 
 ## Continuation Gate
 
 Decision: ROTATE_REQUIRED
-Reason: IMPLEMENTATION_TO_INDEPENDENT_VALIDATION_BOUNDARY
+Reason: IMPLEMENTATION_TO_RELEASE_VALIDATION_BOUNDARY
 
 ## Next Task
 
-ID: T-011
-Spec: docs/tasks/T-011-v06-prospective-study.md
+ID: T-013
+Spec: docs/tasks/T-013-v08-prospective-study.md
 
 ## Next Session Role
 
@@ -99,4 +101,4 @@ Medium
 
 ## Last Updated
 
-2026-08-15 — RSAW 0.6 compiled-working-memory release candidate
+2026-08-16 — RSAW v0.8.0 relevance-first release validation

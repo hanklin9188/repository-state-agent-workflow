@@ -2,8 +2,8 @@
   "name": "repository-state-agent-workflow",
   "owner": "hanklin9188",
   "visibility": "public",
-  "version": "0.7.1",
-  "description": "Repository-backed agent runtime with transactional checkpoints, per-turn task sandbox boundaries, content-bound operator audits, bounded tool context, and live observability.",
+  "version": "0.8.0",
+  "description": "Relevance-first repository runtime for long-running coding agents with focused context, transactional checkpoints, audited lifecycle controls, and live observability.",
   "license": "MIT",
   "topics": [
     "coding-agents",
@@ -11,7 +11,7 @@
     "agent-workflow",
     "repository-state",
     "context-engineering",
-    "context-compiler",
+    "context-retrieval",
     "semantic-memory",
     "persistent-workstreams",
     "transactional-checkpoints",
@@ -23,8 +23,8 @@
     "agent-observability",
     "developer-tools"
   ],
-  "social_preview": "docs/assets/banner-v07.svg",
-  "live_console_preview": "docs/assets/live-terminal-dashboard-v07.svg",
-  "architecture_preview": "docs/assets/runtime-architecture-v07.svg",
+  "social_preview": "docs/assets/social-preview-v08.png",
+  "live_console_preview": "docs/assets/live-terminal-dashboard-v08.svg",
+  "architecture_preview": "docs/assets/relevance-first-v08.svg",
   "lifecycle_preview": "docs/assets/lifecycle-v07.svg"
 }

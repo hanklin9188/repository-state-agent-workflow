@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repository-state-agent-workflow"
-version = "0.7.1"
-description = "Repository-backed agent runtime with transactional checkpoints, bounded tool context, operator-safe lifecycle controls, and live terminal observability"
+version = "0.8.0"
+description = "Relevance-first repository runtime for coding agents with focused context, transactional checkpoints, and operator-safe lifecycle controls"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -21,6 +21,8 @@ keywords = [
   "repository-state",
   "context-engineering",
   "context-compiler",
+  "context-retrieval",
+  "relevance-first",
   "semantic-memory",
   "persistent-workstreams",
   "context-compaction",

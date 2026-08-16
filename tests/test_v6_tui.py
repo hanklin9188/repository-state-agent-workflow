@@ -42,7 +42,7 @@ def test_v6_dashboard_tracks_compact_and_efficiency(tmp_path: Path) -> None:
     )
     console.print(dashboard._render())
     text = console.export_text()
-    assert "RSAW 0.7" in text
+    assert "RSAW 0.8" in text
     assert "LIFECYCLE" in text
     assert "COMPACT" in text
     assert "WORKING MEMORY" in text

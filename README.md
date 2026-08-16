@@ -1,44 +1,50 @@
 <p align="center">
-  <img src="docs/assets/banner-v07.svg" alt="RSAW v0.7 — Repository Context Runtime" width="100%" />
+  <img src="docs/assets/banner-v08.svg" alt="RSAW v0.8 — Relevance-First Context Runtime" width="100%" />
 </p>
 
 <h1 align="center">Repository-State Agent Workflow</h1>
 
 <p align="center">
-  <strong>Keep project truth in the repository. Give the agent only the context it needs. Commit progress transactionally.</strong>
+  <strong>Keep truth durable. Send only what matters. Commit progress safely.</strong>
 </p>
 
 <p align="center">
   <img alt="Python 3.10–3.13" src="https://img.shields.io/badge/Python-3.10%E2%80%933.13-3776AB?logo=python&logoColor=white" />
-  <img alt="Version 0.7.1" src="https://img.shields.io/badge/RSAW-0.7.1-14b8a6" />
-  <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-22c55e" />
+  <img alt="RSAW 0.8.0" src="https://img.shields.io/badge/RSAW-0.8.0-14b8a6" />
+  <img alt="Tests 121" src="https://img.shields.io/badge/Tests-121%20passing-22c55e" />
+  <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-64748b" />
   <img alt="Codex adapter" src="https://img.shields.io/badge/Adapter-Codex-6366f1" />
 </p>
 
 <p align="center">
   <a href="README.zh-TW.md">繁體中文</a> ·
-  <a href="docs/edgeflow-v071-deployment.md">EdgeFlow deployment</a> ·
-  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7.1 hardening</a> ·
+  <a href="docs/relevance-first-context.md">Design</a> ·
+  <a href="docs/edgeflow-v080-deployment.md">EdgeFlow deployment</a> ·
+  <a href="docs/releases/v080-relevance-first-context.md">Release notes</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 ---
 
-## What RSAW is
+## What RSAW does
 
-RSAW is a repository-backed runtime that supervises long-lived coding and research agents.
+RSAW is a repository-backed runtime for long-running coding and research agents.
+Codex remains the semantic worker. RSAW deterministically manages the parts that should
+not depend on model memory:
 
-It does **not** try to replace Codex or build another chat interface. Codex remains the semantic worker. RSAW owns the surrounding runtime concerns that should be deterministic:
-
-- durable project state and checksummed checkpoints;
-- minimal context compilation;
-- evidence and validation binding;
+- exact task and repository authority;
+- relevance-first working context;
+- checksummed checkpoints and evidence;
 - `CONTINUE`, `COMPACT`, `ROTATE`, `PAUSE`, and `COMPLETE` lifecycle decisions;
-- Human Gate and sandbox controls;
-- live tool/context budgets;
-- recovery after interruption or a failed state transition.
+- Human Gates and task-scoped sandboxes;
+- tool, output, and provider-context budgets;
+- recovery after interruption or a rejected transition.
 
-The core rule is simple:
+The operating model is intentionally small:
+
+```text
+Truth → Focus → Work → Checkpoint
+```
 
 > **The model may forget. The repository must not.**
 
@@ -50,7 +56,7 @@ The core rule is simple:
 
 ```bash
 python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.8.0"
 ```
 
 ### Existing RSAW repository
@@ -69,163 +75,236 @@ rsaw preflight .
 rsaw start .
 ```
 
-`rsaw start .` is the normal daily command. It runs preflight, resolves the configured Codex binary and sandbox profile, then opens the Live Runtime Console.
+Daily use is one command:
 
-```text
-start
-  ├── verify repository state
-  ├── verify Codex + authentication
-  ├── resolve task sandbox profile
-  ├── load durable checkpoint
-  └── run supervised Codex with live budgets
+```bash
+rsaw start .
+```
+
+To inspect exactly what code RSAW selected before starting the model:
+
+```bash
+rsaw focus .
+rsaw focus . --show-content
 ```
 
 ---
 
-## The operator experience
+## Why v0.8 exists
+
+A small bootstrap prompt does not guarantee a small agent session. A worker can still
+search broadly, read many files, accumulate large tool results, and resend that growing
+transcript on every model call. Much of that traffic may appear as cached input, but it is
+still oversized context.
+
+v0.8 moves the main optimization **before** the model turn:
+
+| Earlier approach | v0.8 approach |
+|---|---|
+| Tell the worker not to search broadly | Prepare a relevant working set first |
+| Stop runaway tools after they grow | Reduce the need for discovery loops |
+| Treat prompt cache as efficiency | Measure total, cached, and fresh input separately |
+| Pack or summarize the whole repository | Retrieve many candidates, send a few exact excerpts |
+| Add another model for summarization | Use deterministic checkpoints and Semantic Capsules |
+
+The existing live budgets remain as a final brake, not the primary retrieval strategy.
+
+---
+
+## Relevance-First Context
 
 <p align="center">
-  <img src="docs/assets/live-terminal-dashboard-v07.svg" alt="RSAW v0.7 Live Runtime Console" width="96%" />
+  <img src="docs/assets/relevance-first-v08.svg" alt="RSAW v0.8 relevance-first context architecture" width="96%" />
 </p>
 
-The terminal shows observable runtime state, not hidden reasoning:
+### Truth
 
-| Panel | What it answers |
-|---|---|
-| **NOW** | Which task, role, mode, and durable checkpoint are active? |
-| **LIFECYCLE** | Will RSAW continue, compact, rotate, pause, or complete? |
-| **WORKING MEMORY** | How large are the Context Envelope and Semantic Capsule? |
-| **EFFICIENCY GUARD** | How much provider input and tool output is accumulating? |
-| **RECENT** | Which durable runtime events just occurred? |
+Exact repository authority remains unchanged: `ACTIVE.md`, the active task contract,
+stable governance, the bounded Semantic Capsule, and required evidence handles.
 
-A new terminal no longer starts visually at checkpoint zero when durable checkpoints already exist. Expected `PAUSED`, `COMPLETE`, `LIMIT_REACHED`, and `DRY_RUN` states exit cleanly in both TUI and non-TUI operator use instead of appearing as VS Code terminal failures. `--strict-exit-codes` preserves machine-oriented codes.
+### Focus
 
----
+Before a fresh model context, RSAW builds a local, content-addressed index and selects a
+small working set using explainable signals:
 
-## Why v0.7 exists
+- exact paths named by the task;
+- symbols and file names;
+- current Git changes;
+- rejecting or regression tests;
+- direct imports and nearby dependencies;
+- task vocabulary and required source ranges.
 
-v0.7 was derived from a real EdgeFlow adoption, not a synthetic feature wishlist. The v0.6 run exposed several runtime contracts that looked correct in unit tests but failed under real work:
-
-| Real failure | v0.7 behavior |
-|---|---|
-| A stale user-local `rsaw` shadowed the active Conda environment | `preflight` reports launcher/Python mismatch; module execution remains available |
-| Human Gate state conflicted with continuation prose | gate operations are atomic, role-aware, verified, and audited |
-| Source paths were rejected as unknown evidence IDs | evidence authority is now explicitly Supervisor-owned |
-| Codex returned `task_id` instead of `id` | task references accept canonical camelCase and snake_case forms |
-| TUI showed checkpoint 0 after restart | the dashboard loads the repository-global durable checkpoint |
-| ACTIVE updates accumulated blank lines past the 140-line limit | canonical rendering is idempotent and budgeted before commit |
-| Checkpoint files were written before post-advance verification failed | the whole authority transition is transactional and rolls back |
-| GPU-visible work required repeating a long CLI command | task sandbox profiles persist in repository configuration |
-| A 1–2k compiled envelope still grew into a very large tool-driven context | live per-turn tool and output budgets stop runaway rediscovery |
-| started/completed command events inflated telemetry | event accounting is deduplicated by tool identity |
-
-The detailed release gate is documented in [v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md).
-
----
-
-## Architecture
-
-<p align="center">
-  <img src="docs/assets/runtime-architecture-v07.svg" alt="RSAW v0.7 transactional architecture" width="96%" />
-</p>
-
-```text
-Repository Authority
-        ↓
-Context Compiler
-        ↓
-Replaceable Agent Worker
-        ↓
-Typed CheckpointResult
-        ↓
-Deterministic Gate
-        ↓
-Transactional Commit
-        ↓
-Token / Tool Governor
-        ↓
-CONTINUE · COMPACT · ROTATE · PAUSE · COMPLETE
-```
-
-### The model does semantic work
-
-The worker reads the compiled task context, edits code, runs validation, and returns one typed `rsaw.checkpoint-result.v1` object.
-
-### The Supervisor does deterministic work
-
-RSAW verifies the real diff, validation commands, artifacts, allowed-write scope, evidence, next task, and lifecycle transition. The model does not edit `ACTIVE.md` or invoke an advancement script.
-
-### State advancement is transactional
-
-Before committing a checkpoint, RSAW:
-
-1. renders and validates the proposed `ACTIVE.md`;
-2. snapshots all authority files;
-3. writes the capsule, checkpoint, checksum, review manifest, and active pointer;
-4. verifies the repository again;
-5. rolls the whole transition back if any post-write invariant fails.
-
-A failed transition must not leave a half-advanced workstream.
-
----
-
-## Lifecycle semantics
-
-<p align="center">
-  <img src="docs/assets/lifecycle-v07.svg" alt="RSAW lifecycle actions" width="96%" />
-</p>
-
-| Action | Meaning |
-|---|---|
-| `CONTINUE` | Reuse the current context for the same role and coherent objective. |
-| `COMPACT` | Preserve semantic working memory while replacing an expensive hot context. |
-| `ROTATE` | Create a fresh independent context for a role/objective boundary. |
-| `PAUSE` | Persist a real human, external, privilege, or safety gate. |
-| `COMPLETE` | Close only after the durable stop condition is satisfied. |
-
-```text
-Checkpoint = durability boundary
-Context epoch = cognitive boundary
-```
-
-A checkpoint does not automatically force a fresh context.
-
----
-
-## Bounded working context
-
-RSAW controls two different sources of context growth.
-
-### 1. Context Compiler
-
-The compiler produces a sealed Context Envelope from:
-
-- stable governance;
-- the exact task contract;
-- bounded Semantic Capsule state;
-- current delta;
-- exact evidence only when required;
-- references for large historical material.
-
-Default envelope targets are 6k tokens with a 12k hard ceiling.
-
-### 2. Live tool budget
-
-A small initial prompt is not enough if the agent subsequently performs broad discovery and returns huge tool outputs. v0.7 therefore enforces a per-turn budget:
+The default Focus budget is:
 
 ```json
 {
-  "maxToolCallsPerTurn": 32,
-  "maxToolOutputTokens": 50000,
-  "maxSingleToolOutputTokens": 20000,
-  "maxBroadDiscoveryCommands": 2,
-  "enforce": true
+  "mapTokens": 900,
+  "focusTokens": 3000,
+  "maxSnippets": 5,
+  "candidateLimit": 20,
+  "snippetLines": 64
 }
 ```
 
-When exceeded, RSAW requests a process stop and returns a durable `PAUSED` state with a precise `TOOL_BUDGET_EXCEEDED:*` reason. Budgets reset for every agent turn.
+The index uses SHA-256 content identity. Unchanged files are reused without reparsing.
+No vector database, embedding API, or LLM summarizer is required.
 
-These defaults are engineering guardrails, not universal optima.
+### Work
+
+Codex receives Truth plus Focus. Broad repository discovery becomes an exception for a
+specific unresolved question, not the default first action.
+
+### Checkpoint
+
+RSAW verifies the real diff, validation commands, allowed-write scope, artifacts, evidence,
+and successor task before committing state transactionally.
+
+---
+
+## Three context controls, one simple mental model
+
+```text
+1. Focus first      select the smallest useful code working set
+2. Bound the turn   cap tool calls, output, and broad discovery
+3. Compact later    replace an expensive hot context at a safe checkpoint
+```
+
+Provider-context pressure triggers `COMPACT` before the next coherent turn when either of
+these defaults is exceeded:
+
+```json
+{
+  "maxProviderInputTokens": 180000,
+  "maxCachedInputTokens": 120000
+}
+```
+
+This does not recover tokens already spent. It prevents an expensive transcript from being
+reused indefinitely.
+
+---
+
+## Operator experience
+
+<p align="center">
+  <img src="docs/assets/live-terminal-dashboard-v08.svg" alt="RSAW v0.8 Live Runtime Console" width="96%" />
+</p>
+
+The terminal displays observable runtime state, not hidden reasoning:
+
+| Panel | What it answers |
+|---|---|
+| **NOW** | Which task, role, sandbox, and durable checkpoint are active? |
+| **LIFECYCLE** | Will RSAW continue, compact, rotate, pause, or complete? |
+| **WORKING MEMORY** | How large are the envelope, Focus, and Semantic Capsule? |
+| **EFFICIENCY GUARD** | How much provider and tool traffic is accumulating? |
+| **RECENT** | Which durable runtime events just occurred? |
+
+Expected operator states such as `PAUSED` and `COMPLETE` exit cleanly. Automation can retain
+machine-oriented status codes with `--strict-exit-codes`.
+
+---
+
+## RSAW or direct Codex?
+
+| Use direct Codex | Use RSAW + Codex |
+|---|---|
+| One small, disposable task | Multi-checkpoint workstream |
+| No special authority | Human Gate or one-shot execution |
+| No recovery requirement | Interrupted work must resume safely |
+| Manual context is enough | Repository state must remain authoritative |
+| No role boundary | Runner → Analyst or Builder → Reviewer separation |
+| No audit requirement | Evidence, sandbox, and operator actions must be durable |
+
+RSAW is not intended to make a five-minute edit more complicated. It is intended to remove
+the human-supervisor burden when work outlives one chat session.
+
+---
+
+## What v0.8 deliberately does not add
+
+- no whole-repository prompt;
+- no mandatory vector database;
+- no embedding service in the default path;
+- no LLM summarizer in the critical path;
+- no raw runtime, evidence, artifact, secret, or environment indexing;
+- no new lifecycle states beyond the existing five;
+- no claim that prompt-cache hits equal context reduction;
+- no universal claim that RSAW already beats every coding agent.
+
+The design stays small enough to inspect, test, and reproduce.
+
+---
+
+## Safety and authority
+
+RSAW preserves the v0.7.1 safety boundary:
+
+- checkpoint advancement is transactional and rolls back on failed verification;
+- evidence handles are Supervisor-owned;
+- Human Gate changes are audited;
+- `danger-full-access` is exact-task scoped and re-resolved every turn;
+- sandbox-class changes force a fresh context boundary;
+- one-shot execution remains one-shot even if a checkpoint fails;
+- diagnostic or capability-smoke output does not become scientific evidence.
+
+Focus is advisory context. It never replaces authorization, validation, evidence, or
+interference checks.
+
+---
+
+## Validation
+
+The v0.8 release gate includes:
+
+- **121 passing tests**;
+- Python compile validation;
+- repository verification;
+- FRESH / CONTINUE / COMPACT context tests;
+- deterministic Focus selection and token ceilings;
+- content-hash cache reuse and one-file invalidation;
+- sensitive/runtime/evidence/artifact exclusion;
+- provider-pressure compaction;
+- 4 / 16 / 64-checkpoint lifecycle acceptance;
+- Markdown link validation;
+- package build and isolated installation in CI.
+
+A deterministic fixture with one implementation, one rejecting test, one supporting module,
+and 36 distractor modules produced:
+
+```text
+baseline context      36,712 tokens
+selected Focus           252 tokens
+mechanism reduction    99.31%
+target implementation      kept
+target rejecting test      kept
+second index build      43/43 cache hits
+```
+
+This is a **mechanism test**, not a universal provider-cost or task-success claim. Real
+promotion requires matched evaluation against direct Codex and previous RSAW versions.
+See [validation details](docs/validation/V080_RELEASE_VALIDATION.md).
+
+---
+
+## EdgeFlow deployment
+
+EdgeFlow should upgrade only at a durable boundary:
+
+```bash
+python3 -m venv /home/hank/.venvs/rsaw-v080
+/home/hank/.venvs/rsaw-v080/bin/python -m pip install --upgrade \
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.8.0"
+
+rsaw upgrade . --apply
+rsaw focus . --rebuild
+rsaw verify .
+rsaw preflight .
+```
+
+The existing exact-task GPU sandbox remains separate from Focus Context. Deployment does
+not authorize or execute an EdgeFlow diagnostic. Follow the complete
+[EdgeFlow v0.8.0 deployment guide](docs/edgeflow-v080-deployment.md).
 
 ---
 
@@ -233,163 +312,49 @@ These defaults are engineering guardrails, not universal optima.
 
 | Goal | Command |
 |---|---|
-| Start normal supervised work | `rsaw start .` |
-| Check everything without starting | `rsaw preflight .` |
-| Show active repository state | `rsaw status .` |
-| Inspect runtime efficiency | `rsaw report .` |
+| Start supervised work | `rsaw start .` |
+| Inspect selected code | `rsaw focus .` |
+| Show selected excerpts | `rsaw focus . --show-content` |
+| Check readiness | `rsaw preflight .` |
+| Show active state | `rsaw status .` |
+| Inspect efficiency | `rsaw report .` |
 | Preview compiled context | `rsaw compile . --mode FRESH` |
-| Normalize ACTIVE formatting | `rsaw state normalize .` |
-| Preview the terminal UI | `rsaw preview .` |
+| Normalize ACTIVE | `rsaw state normalize .` |
+| Inspect Human Gate | `rsaw gate show .` |
+| Inspect sandbox | `rsaw sandbox show .` |
 
-The full CLI remains available through `rsaw --help` and `python -m repo_state_agent --help`.
-
----
-
-## Human Gates without hand-editing ACTIVE.md
-
-Inspect:
+<details>
+<summary><strong>Operator controls</strong></summary>
 
 ```bash
-rsaw gate show . --json
-```
+rsaw gate clear . --reason "prerequisite restored" --yes
 
-Clear only after the prerequisite is truly satisfied:
-
-```bash
-rsaw gate clear . \
-  --reason "external prerequisite restored and verified" \
-  --yes
-```
-
-RSAW records an operator-action artifact, validates the new state, and chooses the correct continuation policy:
-
-- same role → `CONTINUE_ALLOWED`;
-- role boundary → `ROTATE_REQUIRED`.
-
-A failed gate update restores the previous `ACTIVE.md`.
-
----
-
-## Task-specific sandbox profiles
-
-The default remains `workspace-write`.
-
-A reviewed task that genuinely requires direct GPU/NVML access can receive a persistent task-scoped profile:
-
-```bash
 rsaw sandbox set . \
   --task current \
   --mode danger-full-access \
-  --reason "reviewed GPU/NVML boundary" \
+  --reason "reviewed task boundary" \
   --yes
 
-rsaw preflight .
-rsaw start .
+rsaw sandbox clear . \
+  --task current \
+  --reason "reviewed boundary closed" \
+  --yes
 ```
 
-Inspect or remove it:
-
-```bash
-rsaw sandbox show . --json
-rsaw sandbox clear . --task current --reason "boundary closed" --yes
-```
-
-The override is keyed to the task ID and is resolved again before every Codex turn. A sandbox-class change forces a fresh context boundary, so a broader Runner profile cannot silently continue into a later Analyst or Builder task. Set and clear operations record operator identity, reject empty reasons, create content-bound operator actions, are checked by `rsaw verify`, and roll back if the audit cannot be written. An explicit `--sandbox` value is also scoped to the task active when the run starts; after a task transition, RSAW reverts to the next task's own override or the repository default.
-
----
-
-## Host capability is not worker capability
-
-A GPU/NVML failure inside `workspace-write` does not by itself prove that WSL, the driver, or the host GPU is unavailable. Diagnose the two boundaries separately:
-
-```text
-host visibility  ≠  Codex worker-sandbox visibility
-```
-
-Capability smoke is workflow infrastructure evidence only. It cannot authorize a formal retry, consume or replace an experiment nonce, modify sealed evidence, or become a scientific result. See the [EdgeFlow GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md).
-
----
-
-## Repository memory model
-
-| Level | Contents |
-|---|---|
-| **Cold** | Git history, task contracts, checksummed checkpoints, evidence handles |
-| **Warm** | Semantic Capsule: facts, decisions, exclusions, risks, validation, next action |
-| **Hot** | Current model context and tool results for one coherent epoch |
-
-The repository is authoritative. The TUI, chat transcript, and model memory are not.
-
----
-
-## Installation and migration
-
-### Exact release install
-
-```bash
-python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
-```
-
-### Upgrade an existing repository
-
-```bash
-rsaw upgrade . --json
-rsaw upgrade . --apply
-rsaw state normalize .
-rsaw preflight .
-rsaw start .
-```
-
-Migration preserves `ACTIVE.md` and writes a v0.6 configuration backup. See the complete [EdgeFlow v0.7.1 deployment guide](docs/edgeflow-v071-deployment.md) for process/lock checks, sandbox configuration, Human Gate handling, validation, and rollback.
-
----
-
-## Safety boundaries
-
-RSAW does not make an unsafe task safe merely by supervising it.
-
-- A Human Gate remains authoritative until explicitly cleared.
-- A one-shot experiment remains one-shot even if a checkpoint fails.
-- `danger-full-access` must be task-scoped and separately justified.
-- Failed/invalid/diagnostic artifacts do not become formal evidence.
-- A token win is not accepted if matched semantic success regresses.
-- UI rendering never owns lifecycle state.
-
----
-
-## Evidence and claim boundary
-
-v0.7.1 is validated for implementation behavior, transactional state safety, migration, packaging, operator controls, tool-budget enforcement, and synthetic lifecycle coverage.
-
-It does **not** yet claim a universal reduction in provider tokens, wall time, or failure rate. Those claims require matched prospective evaluation on real workstreams.
-
-The primary empirical quantities are:
-
-```text
-successful checkpoints
-success rate
-total / cached / fresh input per success
-model and tool calls per success
-tool-output and repeated-input traffic
-compactions and rotations
-manual relay and true human gates
-wall time per success
-recovery rediscovery commands
-```
+</details>
 
 ---
 
 ## Documentation
 
-- [EdgeFlow v0.7.1 deployment](docs/edgeflow-v071-deployment.md)
-- [v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md)
+- [Relevance-First Context](docs/relevance-first-context.md)
+- [EdgeFlow v0.8.0 deployment](docs/edgeflow-v080-deployment.md)
+- [v0.8.0 release notes](docs/releases/v080-relevance-first-context.md)
+- [v0.8.0 validation](docs/validation/V080_RELEASE_VALIDATION.md)
+- [GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md)
 - [Architecture](docs/architecture.md)
 - [Concepts](docs/concepts.md)
 - [Adoption guide](docs/adoption-guide.md)
-- [Codex adapter](docs/codex-adapter.md)
-- [Anti-patterns](docs/anti-patterns.md)
-- [Evaluation methodology](docs/context-epoch-evaluation.md)
 - [Changelog](CHANGELOG.md)
 - [Roadmap](ROADMAP.md)
 
@@ -403,13 +368,15 @@ ruff format --check .
 ruff check .
 pytest -q
 rsaw verify .
+rsaw focus . --json
 rsaw compile . --mode FRESH --json
 rsaw acceptance . --horizon all --json
+python scripts/benchmark_relevance.py
 python scripts/check_markdown_links.py .
 python -m build
 ```
 
-CI validates Python 3.10, 3.12, and 3.13, plus a clean isolated wheel installation.
+CI validates Python 3.10, 3.12, and 3.13 plus a clean isolated wheel installation.
 
 ## License
 

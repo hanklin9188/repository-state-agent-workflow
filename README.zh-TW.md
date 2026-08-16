@@ -1,24 +1,26 @@
 <p align="center">
-  <img src="docs/assets/banner-v07.svg" alt="RSAW v0.7 — Repository Context Runtime" width="100%" />
+  <img src="docs/assets/banner-v08.svg" alt="RSAW v0.8 — Relevance-First Context Runtime" width="100%" />
 </p>
 
 <h1 align="center">Repository-State Agent Workflow</h1>
 
 <p align="center">
-  <strong>把專案真相留在 repository，只給 Agent 當下真正需要的 context，並以 transaction 安全封存每個 checkpoint。</strong>
+  <strong>把真相留在 repository，只把重要內容送進模型，並安全封存每個進度。</strong>
 </p>
 
 <p align="center">
   <img alt="Python 3.10–3.13" src="https://img.shields.io/badge/Python-3.10%E2%80%933.13-3776AB?logo=python&logoColor=white" />
-  <img alt="Version 0.7.1" src="https://img.shields.io/badge/RSAW-0.7.1-14b8a6" />
-  <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-22c55e" />
+  <img alt="RSAW 0.8.0" src="https://img.shields.io/badge/RSAW-0.8.0-14b8a6" />
+  <img alt="Tests 121" src="https://img.shields.io/badge/Tests-121%20passing-22c55e" />
+  <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-64748b" />
   <img alt="Codex adapter" src="https://img.shields.io/badge/Adapter-Codex-6366f1" />
 </p>
 
 <p align="center">
   <a href="README.md">English</a> ·
-  <a href="docs/edgeflow-v071-deployment.md">EdgeFlow 部署</a> ·
-  <a href="docs/releases/v071-gpu-sandbox-boundary.md">v0.7.1 強化規格</a> ·
+  <a href="docs/relevance-first-context.md">設計</a> ·
+  <a href="docs/edgeflow-v080-deployment.md">EdgeFlow 部署</a> ·
+  <a href="docs/releases/v080-relevance-first-context.md">版本說明</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -26,19 +28,22 @@
 
 ## RSAW 是什麼？
 
-RSAW 是一套為長時間 coding / research agent 設計的 **repository-backed runtime**。
+RSAW 是一套為長時間 coding 與 research agent 設計的 repository-backed runtime。
+Codex 仍負責真正的語意工程工作；RSAW 管理不應依賴模型記憶的部分：
 
-它不打算取代 Codex，也不重做聊天介面。Codex 仍然負責真正的語意工程工作；RSAW 負責那些應由確定性程式管理的外層 runtime：
-
-- 持久專案狀態與 checksummed checkpoints；
-- 最小化 context 編譯；
-- evidence 與 validation 綁定；
+- 精確的 task 與 repository authority；
+- relevance-first working context；
+- checksummed checkpoints 與 evidence；
 - `CONTINUE / COMPACT / ROTATE / PAUSE / COMPLETE`；
-- Human Gate 與 sandbox 控制；
-- 即時 tool/context budget；
-- 中斷與失敗 transition 復原。
+- Human Gate 與 task-scoped sandbox；
+- tool、output 與 provider-context budgets；
+- 中斷或 transition 被拒絕後的復原。
 
-最核心的原則是：
+整體只需要理解四步：
+
+```text
+Truth → Focus → Work → Checkpoint
+```
 
 > **模型可以忘記；repository 不可以。**
 
@@ -50,10 +55,10 @@ RSAW 是一套為長時間 coding / research agent 設計的 **repository-backed
 
 ```bash
 python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.8.0"
 ```
 
-### 已經使用 RSAW 的 repository
+### 已使用 RSAW 的 repository
 
 ```bash
 rsaw upgrade . --apply
@@ -69,331 +74,248 @@ rsaw preflight .
 rsaw start .
 ```
 
-平常只需要記住：
+日常只需要：
 
 ```bash
 rsaw start .
 ```
 
-它會自動完成 preflight、解析 Codex binary、套用目前 task 的 sandbox profile，然後啟動 Live Runtime Console。
+啟動模型前想先看 RSAW 選了哪些程式碼：
 
----
-
-## 使用者看到的是什麼？
-
-<p align="center">
-  <img src="docs/assets/live-terminal-dashboard-v07.svg" alt="RSAW v0.7 Live Runtime Console" width="96%" />
-</p>
-
-Terminal 顯示的是可觀測 runtime state，不是 hidden reasoning：
-
-| 區域 | 回答的問題 |
-|---|---|
-| **NOW** | 現在是哪個 task、role、mode、durable checkpoint？ |
-| **LIFECYCLE** | 下一步是 CONTINUE、COMPACT、ROTATE、PAUSE 還是 COMPLETE？ |
-| **WORKING MEMORY** | Context Envelope 與 Semantic Capsule 多大？ |
-| **EFFICIENCY GUARD** | provider input 與 tool output 是否正在失控增長？ |
-| **RECENT** | 最近發生了哪些 durable runtime events？ |
-
-新的 terminal 會直接載入 repository 裡已存在的 checkpoint，不會再明明有 `CP-0003` 卻顯示 `Checkpoint 0`。正常的 `PAUSED`、`COMPLETE`、`LIMIT_REACHED` 與 `DRY_RUN`，不論 TUI 或非 TUI operator 模式都會以 shell exit 0 結束；需要內部語意碼的自動化流程才使用 `--strict-exit-codes`。
-
----
-
-## 為什麼需要 v0.7？
-
-v0.7 不是憑空想出來的 feature list，而是把真實 EdgeFlow 上機時暴露的問題提升成永久 regression gates。
-
-| 實際發生的問題 | v0.7 的處理方式 |
-|---|---|
-| 舊的 `~/.local/bin/rsaw` 蓋過 Conda 版本 | `preflight` 檢查 launcher / Python mismatch，並保留 module fallback |
-| Human Gate、status 與 continuation 相互矛盾 | gate 操作改成 atomic、role-aware、verified、audited |
-| 模型提供的 source path 被當成未知 evidence ID | evidence authority 明確改由 Supervisor 擁有 |
-| Codex 回傳 `task_id`，parser 只接受 `id` | 同時支援 camelCase 與 snake_case task references |
-| 新 TUI 永遠從 checkpoint 0 開始 | 啟動時讀取 repository-global durable checkpoint |
-| ACTIVE 每次更新都增加空白行，最後超過 140 行 | canonical renderer 在 commit 前先驗證，重複更新保持 idempotent |
-| checkpoint 已寫入，post-verify 才失敗 | 整個 authority transition 改成 transaction，失敗時完整 rollback |
-| GPU task 每次都要重打 `danger-full-access` | sandbox profile 可依 task ID 持久設定 |
-| 1–2k envelope 最後仍膨脹成巨大 provider context | 加入 live per-turn tool/output budget，阻止失控 rediscovery |
-| started/completed events 重複計數 | 依 tool identity 去重 telemetry |
-
-完整規格見：[v0.7.1 GPU sandbox boundary repair](docs/releases/v071-gpu-sandbox-boundary.md)。
-
----
-
-## 架構
-
-<p align="center">
-  <img src="docs/assets/runtime-architecture-v07.svg" alt="RSAW v0.7 transactional architecture" width="96%" />
-</p>
-
-```text
-Repository Authority
-        ↓
-Context Compiler
-        ↓
-Replaceable Agent Worker
-        ↓
-Typed CheckpointResult
-        ↓
-Deterministic Gate
-        ↓
-Transactional Commit
-        ↓
-Token / Tool Governor
-        ↓
-CONTINUE · COMPACT · ROTATE · PAUSE · COMPLETE
+```bash
+rsaw focus .
+rsaw focus . --show-content
 ```
 
-### 模型只做語意工作
+---
 
-Agent 讀取編譯後的 task context、修改程式、執行 validation，最後只回傳一個 typed `rsaw.checkpoint-result.v1`。
+## 為什麼需要 v0.8？
 
-### Supervisor 管確定性工作
+初始 prompt 很小，不代表整個 agent session 會很省。Worker 仍可能全 repo 搜尋、讀取大量檔案、累積巨大 tool output，並在每一次 model call 重送越來越長的 transcript。這些流量常被列成 cached input，但 context 本身仍然過大。
 
-RSAW 會核對真實 diff、validation commands、artifacts、allowed-write scope、evidence、next task 與 lifecycle transition。模型不再自行修改 `ACTIVE.md`，也不再執行 advance script。
+v0.8 把主要優化移到 model turn **之前**：
 
-### State advancement 是 transaction
+| 舊方法 | v0.8 方法 |
+|---|---|
+| 告訴 Agent 不要亂找 | 先準備好相關 working set |
+| tool 已膨脹後才踩煞車 | 先降低 discovery loop 的需求 |
+| 把 cache 命中當成效率 | 分開衡量 total / cached / fresh input |
+| 壓縮或摘要整個 repository | 多取候選，只送少量 exact excerpts |
+| 再用一個 LLM 做摘要 | 使用 deterministic checkpoint 與 Semantic Capsule |
 
-在接受 checkpoint 前，RSAW 會：
-
-1. 先 render 並驗證 proposed `ACTIVE.md`；
-2. snapshot 所有 authority files；
-3. 寫入 capsule、checkpoint、checksum、review manifest 與 active pointer；
-4. 再次驗證 repository；
-5. 任一 invariant 失敗就完整 rollback。
-
-失敗的 transition 不應留下半套 durable state。
+Live budgets 仍保留，但它是最後一道煞車，不是主要 retrieval 方法。
 
 ---
 
-## 五種 lifecycle
+## Relevance-First Context
 
 <p align="center">
-  <img src="docs/assets/lifecycle-v07.svg" alt="RSAW lifecycle actions" width="96%" />
+  <img src="docs/assets/relevance-first-v08.svg" alt="RSAW v0.8 relevance-first context architecture" width="96%" />
 </p>
 
-| Action | 意義 |
-|---|---|
-| `CONTINUE` | 相同 role、相同 objective，保留目前 coherent context。 |
-| `COMPACT` | 保留 semantic working memory，但換成新的 bounded context。 |
-| `ROTATE` | role 或 objective 邊界需要認知獨立時，建立 fresh context。 |
-| `PAUSE` | 持久保存真正的人類、外部、權限或安全 gate。 |
-| `COMPLETE` | durable stop condition 真正滿足後才結束。 |
+### Truth
 
-```text
-Checkpoint = durability boundary
-Context epoch = cognitive boundary
-```
+`ACTIVE.md`、active task contract、stable governance、bounded Semantic Capsule 與必要 evidence handles 維持精確且具 authority。
 
-Checkpoint 並不等於一定要重開 context。
+### Focus
 
----
+每個 fresh model context 前，RSAW 會建立本機 content-addressed index，並用可以解釋的訊號選出小型 working set：
 
-## Bounded working context
+- task 明確提到的 exact paths；
+- symbols 與 file names；
+- current Git changes；
+- rejecting / regression tests；
+- direct imports 與附近 dependencies；
+- task vocabulary 與 source ranges。
 
-RSAW 同時控制兩種 context 成長來源。
-
-### 1. Context Compiler
-
-Context Envelope 只包含：
-
-- stable governance；
-- exact task contract；
-- bounded Semantic Capsule；
-- current delta；
-- 必要的 exact evidence；
-- 其他大型歷史內容只保留 reference。
-
-預設 target 6k tokens，hard ceiling 12k。
-
-### 2. Live tool budget
-
-只有小 prompt 還不夠。Agent 仍可能自己全 repo 搜尋、一次讀很多檔案、把巨大 log 塞回 context。
-
-v0.7 預設每一個 turn 使用：
+預設 budget：
 
 ```json
 {
-  "maxToolCallsPerTurn": 32,
-  "maxToolOutputTokens": 50000,
-  "maxSingleToolOutputTokens": 20000,
-  "maxBroadDiscoveryCommands": 2,
-  "enforce": true
+  "mapTokens": 900,
+  "focusTokens": 3000,
+  "maxSnippets": 5,
+  "candidateLimit": 20,
+  "snippetLines": 64
 }
 ```
 
-超過限制時，RSAW 會要求 worker 停止，並以明確的 `TOOL_BUDGET_EXCEEDED:*` 進入 durable `PAUSED`。Budget 每個 agent turn 都會重新計算，不會跨 checkpoint 誤累積。
+Index 使用 SHA-256 content identity；檔案未變就不重新 parse。預設不需要 vector database、embedding API 或 LLM summarizer。
 
-這些是工程 guardrails，不是所有專案都一定最優的 universal thresholds。
+### Work
+
+Codex 收到 Truth + Focus。Broad repository discovery 只有在存在具體 unresolved question 時才使用，不再是預設第一步。
+
+### Checkpoint
+
+RSAW 驗證真實 diff、validation commands、allowed-write scope、artifacts、evidence 與 successor task，再以 transaction 封存狀態。
 
 ---
 
-## 日常常用命令
+## 三層 Context 控制
+
+```text
+1. Focus first      先選出最小但足夠的程式碼 working set
+2. Bound the turn   限制 tool calls、output 與 broad discovery
+3. Compact later    在 checkpoint 邊界替換昂貴的 hot context
+```
+
+若 completed turn 超過預設：
+
+```json
+{
+  "maxProviderInputTokens": 180000,
+  "maxCachedInputTokens": 120000
+}
+```
+
+而下一步原本是 `CONTINUE`，RSAW 會改成 `COMPACT`。這無法追回已消耗 token，但能避免昂貴 transcript 被無限沿用。
+
+---
+
+## Terminal 使用體驗
+
+<p align="center">
+  <img src="docs/assets/live-terminal-dashboard-v08.svg" alt="RSAW v0.8 Live Runtime Console" width="96%" />
+</p>
+
+Terminal 顯示 observable runtime state，不顯示 hidden reasoning：
+
+| 區域 | 回答的問題 |
+|---|---|
+| **NOW** | 現在是哪個 task、role、sandbox、durable checkpoint？ |
+| **LIFECYCLE** | 下一步是 continue、compact、rotate、pause 還是 complete？ |
+| **WORKING MEMORY** | Envelope、Focus、Semantic Capsule 各有多大？ |
+| **EFFICIENCY GUARD** | Provider 與 tool traffic 是否失控？ |
+| **RECENT** | 最近封存了哪些 durable runtime events？ |
+
+`PAUSED` 與 `COMPLETE` 等正常 operator state 會 clean exit；automation 可用 `--strict-exit-codes` 保留 machine status code。
+
+---
+
+## 什麼時候直接用 Codex？什麼時候用 RSAW？
+
+| 直接 Codex | RSAW + Codex |
+|---|---|
+| 小型、一次性 task | 多 checkpoint workstream |
+| 沒有特殊 authority | Human Gate 或 one-shot execution |
+| 不需要中斷復原 | 中斷後必須安全續跑 |
+| 人工 context 已足夠 | Repository state 必須具 authority |
+| 沒有 role boundary | Runner → Analyst、Builder → Reviewer |
+| 不需要 audit | Evidence、sandbox、operator action 必須 durable |
+
+RSAW 不是要把五分鐘修改變複雜，而是要在工作超過單一 session 後，移除你一直當人工 Supervisor 的負擔。
+
+---
+
+## v0.8 刻意不加入的複雜度
+
+- 不把 whole repository 塞進 prompt；
+- 不強制使用 vector database；
+- 預設不呼叫 embedding service；
+- critical path 不使用 LLM summarizer；
+- 不 index raw runtime、evidence、artifact、secret 或 environment；
+- 不新增 lifecycle state；
+- 不把 prompt-cache hit 當成 context reduction；
+- 不宣稱已在所有任務全面勝過所有 coding agent。
+
+設計必須保持可讀、可測、可重現。
+
+---
+
+## Safety 與 Authority
+
+v0.8 保留 v0.7.1 的 safety boundary：
+
+- checkpoint advancement 是 transaction，驗證失敗就完整 rollback；
+- evidence handle 由 Supervisor 擁有；
+- Human Gate 操作具 audit；
+- `danger-full-access` 綁定 exact task，且每個 turn 重新解析；
+- sandbox class 改變會強制 fresh context boundary；
+- checkpoint 失敗不會讓 one-shot execution 可以重跑；
+- diagnostic / capability-smoke output 不會自動成為 scientific evidence。
+
+Focus 只是 advisory context，不會取代 authorization、validation、evidence 或 interference check。
+
+---
+
+## 驗證結果
+
+v0.8 release gate 包含：
+
+- **121 tests passing**；
+- Python compile validation；
+- repository verification；
+- FRESH / CONTINUE / COMPACT context tests；
+- deterministic Focus selection 與 token ceilings；
+- content-hash cache reuse 與 one-file invalidation；
+- sensitive/runtime/evidence/artifact exclusion；
+- provider-pressure compaction；
+- 4 / 16 / 64-checkpoint lifecycle acceptance；
+- Markdown link validation；
+- CI package build 與 isolated installation。
+
+Deterministic fixture 包含一個 implementation、一個 rejecting test、一個 supporting module 與 36 個 distractor modules，結果為：
+
+```text
+baseline context      36,712 tokens
+selected Focus           252 tokens
+mechanism reduction    99.31%
+target implementation      kept
+target rejecting test      kept
+second index build      43/43 cache hits
+```
+
+這是 **mechanism test**，不是 universal provider-cost 或 task-success claim。正式 promotion 仍需與 direct Codex 及舊 RSAW 做 matched evaluation。詳見 [validation](docs/validation/V080_RELEASE_VALIDATION.md)。
+
+---
+
+## EdgeFlow 部署
+
+EdgeFlow 必須停在 durable boundary 才升級：
+
+```bash
+python3 -m venv /home/hank/.venvs/rsaw-v080
+/home/hank/.venvs/rsaw-v080/bin/python -m pip install --upgrade \
+  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.8.0"
+
+rsaw upgrade . --apply
+rsaw focus . --rebuild
+rsaw verify .
+rsaw preflight .
+```
+
+目前 exact-task GPU sandbox 與 Focus Context 是兩個獨立邊界。部署不會授權或執行 EdgeFlow diagnostic。完整流程見 [EdgeFlow v0.8.0 deployment guide](docs/edgeflow-v080-deployment.md)。
+
+---
+
+## 日常命令
 
 | 目的 | Command |
 |---|---|
-| 正常開始工作 | `rsaw start .` |
-| 不啟動 Agent，先完整檢查 | `rsaw preflight .` |
+| 開始 supervised work | `rsaw start .` |
+| 看選中的程式碼 | `rsaw focus .` |
+| 看 exact excerpts | `rsaw focus . --show-content` |
+| 開始前完整檢查 | `rsaw preflight .` |
 | 看 active state | `rsaw status .` |
-| 看 token/runtime metrics | `rsaw report .` |
-| 看下一個 context | `rsaw compile . --mode FRESH` |
-| 正規化 ACTIVE 格式 | `rsaw state normalize .` |
-| 預覽 Terminal UI | `rsaw preview .` |
-
-所有命令都會出現在：
-
-```bash
-rsaw --help
-python -m repo_state_agent --help
-```
-
----
-
-## 不再手動改 Human Gate
-
-查看：
-
-```bash
-rsaw gate show . --json
-```
-
-外部 prerequisite 已真正恢復後再解除：
-
-```bash
-rsaw gate clear . \
-  --reason "external prerequisite restored and verified" \
-  --yes
-```
-
-RSAW 會建立 operator-action artifact、驗證新狀態，並根據 role boundary 自動選擇：
-
-- 相同 role → `CONTINUE_ALLOWED`；
-- role 改變 → `ROTATE_REQUIRED`。
-
-若新 state 無效，原本的 `ACTIVE.md` 會被恢復。
-
----
-
-## Task-specific sandbox profile
-
-預設仍是 `workspace-write`。
-
-確實需要 GPU/NVML 的受審查 task，可以設定：
-
-```bash
-rsaw sandbox set . \
-  --task current \
-  --mode danger-full-access \
-  --reason "reviewed GPU/NVML boundary" \
-  --yes
-
-rsaw preflight .
-rsaw start .
-```
-
-查看或移除：
-
-```bash
-rsaw sandbox show . --json
-rsaw sandbox clear . --task current --reason "boundary closed" --yes
-```
-
-設定會綁定 task ID，且每個 Codex turn 前都重新解析。Sandbox class 改變時會強制建立 fresh context boundary，因此較寬鬆的 Runner 權限不會默默延續到下一個 Analyst 或 Builder。Set／clear 會記錄 operator identity、拒絕空白 reason、建立由 `rsaw verify` 驗證的 content-bound operator audit；audit 寫入失敗時設定會 rollback。顯式 `--sandbox` 也只綁定 run 啟動時的 active task；進入下一個 task 後，會回到該 task 自己的 override 或 repository default。
-
----
-
-## Host 能力不等於 worker sandbox 能力
-
-`workspace-write` 裡看不到 GPU/NVML，不代表 WSL、driver 或主機 GPU 一定故障。必須分開驗證：
-
-```text
-host visibility  ≠  Codex worker-sandbox visibility
-```
-
-Capability smoke 只屬於 workflow infrastructure evidence，不能授權正式 retry、取代或消耗 experiment nonce、修改 sealed evidence，也不能成為科學結果。完整事故邊界見：[EdgeFlow GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md)。
-
----
-
-## Repository memory model
-
-| 層級 | 內容 |
-|---|---|
-| **Cold** | Git history、task contracts、checksummed checkpoints、evidence handles |
-| **Warm** | Semantic Capsule：facts、decisions、exclusions、risks、validation、next action |
-| **Hot** | 一個 coherent epoch 的 model context 與 tool results |
-
-真正 authority 在 repository；TUI、conversation 與模型記憶都不是最終真相。
-
----
-
-## 安裝與升級
-
-### 安裝正式版本
-
-```bash
-python -m pip install --upgrade \
-  "git+https://github.com/hanklin9188/repository-state-agent-workflow.git@v0.7.1"
-```
-
-### 升級現有 repository
-
-```bash
-rsaw upgrade . --json
-rsaw upgrade . --apply
-rsaw state normalize .
-rsaw preflight .
-rsaw start .
-```
-
-Migration 會保留 `ACTIVE.md`，並建立 v0.6 config backup。完整的 process/lock、安全 gate、GPU sandbox、驗證與 rollback 流程見：[EdgeFlow v0.7.1 部署指南](docs/edgeflow-v071-deployment.md)。
-
----
-
-## 安全邊界
-
-RSAW 不會因為加了 Supervisor，就讓原本不安全的任務自動變安全。
-
-- Human Gate 未解除前仍具 authority。
-- one-shot experiment 不會因 checkpoint 失敗而可以重跑。
-- `danger-full-access` 必須 task-scoped 且有獨立理由。
-- failed / invalid / diagnostic artifacts 不能升格成 formal evidence。
-- token 變少不能交換 semantic success regression。
-- UI 只負責顯示，不擁有 lifecycle state。
-
----
-
-## Evidence 與 claim boundary
-
-v0.7 已驗證的範圍是：implementation behavior、transactional state safety、migration、packaging、operator controls、tool-budget enforcement 與 synthetic lifecycle coverage。
-
-目前**不宣稱**對所有專案都能保證降低 provider tokens、wall time 或 failure rate。這些仍需 matched prospective evaluation。
-
-正式應衡量：
-
-```text
-successful checkpoints
-success rate
-total / cached / fresh input per success
-model and tool calls per success
-tool-output and repeated-input traffic
-compactions and rotations
-manual relay and true human gates
-wall time per success
-recovery rediscovery commands
-```
+| 看 token / runtime metrics | `rsaw report .` |
+| 預覽 compiled context | `rsaw compile . --mode FRESH` |
+| 正規化 ACTIVE | `rsaw state normalize .` |
+| 查看 Human Gate | `rsaw gate show .` |
+| 查看 sandbox | `rsaw sandbox show .` |
 
 ---
 
 ## 文件
 
-- [EdgeFlow v0.7 部署](docs/edgeflow-v071-deployment.md)
-- [v0.7 release hardening](docs/releases/v071-gpu-sandbox-boundary.md)
+- [Relevance-First Context](docs/relevance-first-context.md)
+- [EdgeFlow v0.8.0 部署](docs/edgeflow-v080-deployment.md)
+- [v0.8.0 release notes](docs/releases/v080-relevance-first-context.md)
+- [v0.8.0 validation](docs/validation/V080_RELEASE_VALIDATION.md)
+- [GPU sandbox incident](docs/incidents/2026-08-15-edgeflow-gpu-sandbox.md)
 - [Architecture](docs/architecture.md)
 - [Concepts](docs/concepts.md)
 - [Adoption guide](docs/adoption-guide.md)
-- [Codex adapter](docs/codex-adapter.md)
-- [Anti-patterns](docs/anti-patterns.md)
-- [Evaluation methodology](docs/context-epoch-evaluation.md)
 - [Changelog](CHANGELOG.md)
 - [Roadmap](ROADMAP.md)
 
@@ -407,8 +329,10 @@ ruff format --check .
 ruff check .
 pytest -q
 rsaw verify .
+rsaw focus . --json
 rsaw compile . --mode FRESH --json
 rsaw acceptance . --horizon all --json
+python scripts/benchmark_relevance.py
 python scripts/check_markdown_links.py .
 python -m build
 ```

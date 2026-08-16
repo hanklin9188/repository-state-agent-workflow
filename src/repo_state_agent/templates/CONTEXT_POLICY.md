@@ -1,26 +1,33 @@
 # RSAW Context Policy
 
-## Stable Prefix
+## Stable truth
 
-Keep stable policy before dynamic task state. Stable files should change rarely and
-retain a deterministic fingerprint.
+Keep stable policy before dynamic task state. Stable files change rarely and retain a
+content fingerprint.
 
-## Dynamic Authority
+## Dynamic authority
 
-`ACTIVE.md`, the active task, and explicitly required evidence form the dynamic
-suffix. Do not preload the repository tree.
+`ACTIVE.md`, the active task, Semantic Capsule, and required evidence form the exact dynamic
+state. They are authority, not retrieval candidates.
+
+## Focus
+
+Before a fresh context, build a bounded structural map and exact source excerpts. Prefer
+exact paths, symbols, tests, current changes, and direct imports. Do not preload the complete
+repository tree.
 
 ## Continue
 
-When the supervisor resumes the same thread, reread dynamic authority only. Reload
-the stable prefix only when its fingerprint changes.
+Reuse unchanged task, capsule, evidence, and Focus components by content reference. Reread
+only what changed or what a specific unresolved question requires.
 
-## Rotate
+## Compact and rotate
 
-Rotate at role/scientific boundaries, hard token pressure, fresh-input pressure,
-or low cache reuse near the soft threshold.
+Compact when a coherent hot context becomes expensive. Rotate at role, objective, sandbox,
+or scientific-independence boundaries.
 
 ## Measurement
 
-Track total input, cached input, fresh input, output, checkpoints, epochs, and
-rotations. Optimize fresh input per successful checkpoint, not cache hits alone.
+Track total, cached, and fresh input; Focus tokens; reused references; tool output;
+checkpoints; compactions; and rotations. Optimize input per successful checkpoint, not cache
+hits alone.

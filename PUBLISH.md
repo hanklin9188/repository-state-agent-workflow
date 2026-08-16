@@ -4,28 +4,31 @@
 
 ```bash
 python -m pip install -e '.[dev]'
+ruff format --check .
 ruff check .
 pytest -q
 rsaw verify .
-rsaw context . --strict
-rsaw footprint . --max-tokens 15000
-rsaw run . --dry-run
-rsaw report . --json
+rsaw focus . --json
+rsaw compile . --mode FRESH --json
+rsaw acceptance . --horizon all --json
+python scripts/benchmark_relevance.py
 python scripts/check_markdown_links.py .
+python -m build
 ```
 
-Run `rsaw preview .` manually in a real terminal before publishing a UI release.
+Validate Python 3.10, 3.12, and 3.13, then install the wheel in an isolated environment.
+Run `rsaw preview .` in a real terminal before publishing a TUI release.
 
 ## Repository presentation
 
-- Description: repository-backed workstreams with cache-aware context planning,
-  automatic Codex rotation, and a live terminal runtime console.
-- Keep the architecture, context lifecycle, and terminal dashboard visuals near the
-  top of the README.
-- Update `REPOSITORY_METADATA.json`, `CITATION.cff`, changelog, roadmap, and version
-  together.
+- Description: relevance-first repository runtime for long-running coding agents.
+- First-screen model: `Truth → Focus → Work → Checkpoint`.
+- Keep the relevance architecture and terminal dashboard near the top of the README.
+- Update version, metadata, citation, changelog, roadmap, docs, and release assets together.
+- Do not leave temporary release workflows on `main`.
 
 ## Claim discipline
 
-Do not describe approximate context counts as provider billing. Do not claim universal
-token or quality improvement before matched prospective evidence.
+Synthetic Focus reduction validates selection mechanics only. Do not describe approximate
+context counts as provider billing or claim universal token/quality improvement before
+matched prospective evidence.

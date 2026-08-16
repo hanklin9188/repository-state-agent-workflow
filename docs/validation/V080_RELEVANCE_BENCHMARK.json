@@ -1,0 +1,25 @@
+{
+  "baselineTokens": 36712,
+  "firstBuild": {
+    "cacheHits": 0,
+    "cacheMisses": 43
+  },
+  "fixture": "gpu-observer-compatibility-with-36-distractor-modules",
+  "focusTokens": 252,
+  "pass": true,
+  "reductionRatio": 0.993136,
+  "schemaVersion": "rsaw.relevance-benchmark.v1",
+  "secondBuild": {
+    "cacheHits": 43,
+    "cacheMisses": 0
+  },
+  "selectedFiles": [
+    "src/gpu_observer.py",
+    "tests/test_gpu_observer.py",
+    "src/process_inventory.py"
+  ],
+  "targetCoverage": {
+    "implementation": true,
+    "rejectingTest": true
+  }
+}

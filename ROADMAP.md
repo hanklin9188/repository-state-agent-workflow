@@ -1,87 +1,61 @@
 # RSAW Roadmap
 
-## v0.7.1 — GPU sandbox boundary repair
+## v0.8.0 — Relevance-First Context Runtime
 
-Status: implemented patch line; release remains CI- and clean-install-gated.
+Status: implementation and deterministic mechanism validation complete; public release and
+matched provider evaluation remain release/evidence gates.
 
-- [x] Per-turn task sandbox resolution
-- [x] Fresh rotation across sandbox-class changes
-- [x] Content-bound sandbox set/clear audits
-- [x] Non-TUI expected-state clean exits
-- [x] Explicit launcher version output
-- [x] Next-phase 4 / 16 / 64 lifecycle acceptance
-- [ ] Matched prospective efficiency study
+### Context selection
 
-## v0.7 — Operator-Hardened Repository Context Runtime
+- [x] content-addressed local index
+- [x] Python AST and lightweight multi-language structure extraction
+- [x] explainable path, symbol, test, change, and import ranking
+- [x] retrieve-many / send-few Focus bundle
+- [x] component token ceilings
+- [x] exact source excerpts and structural map
+- [x] sensitive, runtime, evidence, and artifact exclusions
 
-Status: implementation and release validation complete on the release branch; empirical efficiency promotion remains evidence-gated.
+### Context lifecycle
 
-### Runtime correctness
+- [x] unchanged Focus reuse by reference on `CONTINUE`
+- [x] provider-input pressure triggers checkpoint-boundary `COMPACT`
+- [x] live tool and output budgets remain a final brake
+- [x] TUI and report Focus telemetry
+- [x] schema 5 migration preserving `ACTIVE.md`
 
-- [x] Supervisor-owned evidence binding
-- [x] camelCase and snake_case checkpoint-result task references
-- [x] canonical ACTIVE rendering
-- [x] repository-global checkpoint display in the TUI
-- [x] transactional checkpoint/state advancement
-- [x] full rollback after post-advance verification failure
-- [x] role-aware Human Gate clearing
-- [x] deduplicated command/tool event accounting
+### Release validation
 
-### Operator experience
+- [x] 121 local tests
+- [x] deterministic relevance fixture
+- [x] 4 / 16 / 64 lifecycle acceptance
+- [x] repository and Markdown-link validation
+- [ ] Python 3.10 / 3.12 / 3.13 CI on the final release commit
+- [ ] wheel / sdist and isolated installation on the final release commit
+- [ ] public `v0.8.0` tag and release asset verification
 
-- [x] unified top-level CLI
-- [x] `rsaw preflight`
-- [x] one-command `rsaw start`
-- [x] launcher/Python mismatch diagnostics
-- [x] audited gate controls
-- [x] persistent task sandbox profiles
-- [x] operator-safe PAUSE / COMPLETE exits
-- [x] redesigned README and terminal visuals
-- [x] EdgeFlow deployment and rollback guide
+## Matched promotion study
 
-### Context and cost control
+Compare direct Codex, RSAW v0.7.1, and RSAW v0.8.0 with fixed model, tools, sandbox,
+starting revision, tasks, and independent semantic adjudication.
 
-- [x] live per-turn tool-call budget
-- [x] live total and peak tool-output budgets
-- [x] broad-discovery command budget
-- [x] tool budgets reset for every turn
-- [x] tool-output and budget-abort telemetry
-- [x] anti-rediscovery prompt contract
-- [ ] matched short-horizon prospective evaluation
-- [ ] matched medium-horizon break-even evaluation
-- [ ] matched 32–64 checkpoint long-horizon evaluation
-- [ ] calibrated project-specific tool-budget study
+Promotion requires:
 
-## Promotion requirements
+- semantic-success parity or improvement;
+- lower total input per successful checkpoint;
+- lower cached input per successful checkpoint;
+- lower fresh input per successful checkpoint;
+- fewer broad-discovery commands;
+- no increase in manual relay, safety failures, or authority violations.
 
-Do not promote causal efficiency claims until matched evidence shows:
+## Later candidates
 
-- semantic-success parity versus No-RSAW;
-- no short-horizon input/success regression;
-- medium-horizon total/cached/fresh input per success improvement;
-- long-horizon total/repeated/tool-output separation;
-- zero manual relay;
-- fresh recovery without stale-state regression;
-- no increase in safety false positives or oracle false negatives.
+Only after matched evidence:
 
-## Next evidence program
-
-1. Freeze matched tasks, model, tool availability, sandbox, and starting revisions.
-2. Compare No-RSAW, archived v3, v0.5, v0.6, and v0.7.
-3. Run 4-checkpoint short workstreams before spending on 16/64 checkpoint horizons.
-4. Adjudicate semantic success independently from RSAW's own checkpoint result.
-5. Archive raw provider usage, event streams, tool-output traffic, lifecycle decisions, and recovery evidence.
-6. Publish only the claims supported by the matched ledger.
-
-## Later engineering candidates
-
-Only after the matched v0.7 study should later releases consider:
-
+- optional embedding or graph backends for repositories where deterministic signals fail;
+- calibrated per-project Focus budgets;
 - provider-native context occupancy when available;
 - additional agent adapters;
-- richer evidence range retrieval;
-- automatic project-specific budget calibration;
-- team/shared durable-state coordination;
-- policy-learning experiments for the Token Governor.
+- team/shared durable-state coordination.
 
-Do not add complexity merely to create another version number. Resolve the v0.7 empirical hypothesis first.
+Do not add complexity merely to create another version number. Preserve the small
+`Truth → Focus → Work → Checkpoint` model.

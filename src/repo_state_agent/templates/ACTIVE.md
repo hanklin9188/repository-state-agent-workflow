@@ -24,7 +24,8 @@ Spec: docs/tasks/T-000-bootstrap.md
 ## Current State
 
 - Repository initialized for RSAW.
-- v0.6 supervised mode delegates durable advancement to the Supervisor.
+- The Supervisor owns durable state advancement.
+- Relevance-first Focus Context is available before fresh model turns.
 
 ## Evidence
 
@@ -82,4 +83,4 @@ Medium
 
 ## Last Updated
 
-Initialized by RSAW v0.6.
+Initialized by RSAW v0.8.
