@@ -1,0 +1,113 @@
+name: Finalize RSAW v0.8.0 release candidate
+
+on:
+  push:
+    branches: ["release/v0.8.0-relevance-first"]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  finalize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v0.8.0-relevance-first
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Reconstruct and verify the reviewed release patch
+        run: |
+          set -euo pipefail
+          cat .release/v080/patch.part* > /tmp/rsaw-v080-final.patch.xz.b64
+          test "$(wc -c < /tmp/rsaw-v080-final.patch.xz.b64)" = "50720"
+          echo "ae1d14fc4ac8ed7d668b47d9a6e002be7a500e824cf0672a8967066f07d29346  /tmp/rsaw-v080-final.patch.xz.b64" | sha256sum -c -
+          base64 -d /tmp/rsaw-v080-final.patch.xz.b64 > /tmp/rsaw-v080-final.patch.xz
+          echo "57d98a35bf2d98d54bc32496a5aef1beecf5f351d1e26699d42b0197603acdd3  /tmp/rsaw-v080-final.patch.xz" | sha256sum -c -
+          xz -t /tmp/rsaw-v080-final.patch.xz
+          xz -dc /tmp/rsaw-v080-final.patch.xz > /tmp/rsaw-v080-final.patch
+          echo "75df4fc668776ec8a1d42b8bd5f152e46228c1bc8e22c35c8ef2f7d9de9a5796  /tmp/rsaw-v080-final.patch" | sha256sum -c -
+
+      - name: Download the reviewed implementation source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/9256796219/zip" > /tmp/feature-artifact.zip
+          mkdir -p /tmp/feature-artifact /tmp/feature-source
+          unzip -q /tmp/feature-artifact.zip -d /tmp/feature-artifact
+          unzip -q /tmp/feature-artifact/rsaw-v080-feature-source.zip -d /tmp/feature-source
+
+      - name: Materialize the exact v0.8.0 release tree
+        run: |
+          set -euo pipefail
+          for file in \
+            src/repo_state_agent/runtime/relevance.py \
+            src/repo_state_agent/runtime/v6.py \
+            src/repo_state_agent/runtime/tui/v6.py \
+            src/repo_state_agent/v7_cli.py \
+            tests/test_v8_relevance.py \
+            tests/test_v8_supervisor_focus.py \
+            scripts/benchmark_relevance.py \
+            docs/relevance-first-context.md \
+            docs/edgeflow-v080-deployment.md
+          do
+            mkdir -p "$(dirname "$file")"
+            cp "/tmp/feature-source/$file" "$file"
+          done
+          git apply --check --binary /tmp/rsaw-v080-final.patch
+          git apply --binary /tmp/rsaw-v080-final.patch
+
+          rm -rf .release
+          rm -f .github/workflows/materialize-v080-release.yml
+          rm -f .github/workflows/repair-materialize-v080-release.yml
+          rm -f .github/workflows/diagnose-v080-materialization.yml
+          rm -f .github/workflows/finalize-v080-release.yml
+          rm -f .github/workflows/restore-v080-readme.yml
+          rm -f .github/workflows/restore-v080-zh-readme.yml
+
+      - name: Install validation tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Validate implementation, documentation, and packaging
+        run: |
+          set -euo pipefail
+          ruff check . --fix
+          ruff format .
+          ruff format --check .
+          ruff check .
+          python -m compileall -q src tests scripts
+          pytest -q
+          rsaw verify .
+          rsaw focus . --rebuild --json > /tmp/focus-first.json
+          rsaw focus . --json > /tmp/focus-cached.json
+          rsaw compile . --mode FRESH --json > /tmp/context.json
+          rsaw run . --dry-run --json > /tmp/dry-run.json
+          rsaw report . --json > /tmp/report.json
+          rsaw acceptance . --horizon all --json > /tmp/acceptance.json
+          python scripts/benchmark_relevance.py > docs/validation/V080_RELEVANCE_BENCHMARK.json
+          python scripts/check_markdown_links.py .
+          python -m build
+          git diff --check
+          test "$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | sort)" = "ci.yml"
+          grep -q '^version = "0.8.0"' pyproject.toml
+          grep -q 'RSAW-0.8.0' README.md
+          grep -q 'Truth → Focus → Work → Checkpoint' README.md
+          grep -q 'Truth → Focus → Work → Checkpoint' README.zh-TW.md
+
+      - name: Commit and publish the clean release branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "release: RSAW v0.8.0 relevance-first context runtime"
+          git push origin HEAD:release/v0.8.0-relevance-first
