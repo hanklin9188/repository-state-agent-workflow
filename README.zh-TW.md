@@ -268,6 +268,26 @@ second index build      43/43 cache hits
 
 這是 **mechanism test**，不是 universal provider-cost 或 task-success claim。正式 promotion 仍需與 direct Codex 及舊 RSAW 做 matched evaluation。詳見 [validation](docs/validation/V080_RELEASE_VALIDATION.md)。
 
+### Desk Code Agent matched 實測
+
+後續 48 次 matched study 比較 direct Codex 與精確固定 commit 的 RSAW v0.8.0。
+不可變的 preregistered primary result 與 post-hoc independent attribution 分開保留。
+獨立歸因確認 12 個唯讀驗證指令被 classifier 誤判，以及兩個語意等價實作被過窄的
+structural oracle 拒絕；歸因後兩個條件都是 24/24 checkpoints：
+
+| 指標 | NO_RSAW | RSAW v0.8.0 | RSAW 差異 |
+|---|---:|---:|---:|
+| 總 input tokens | 5,332,809 | 2,912,039 | 降低 45.39% |
+| Uncached input／成功 | 23,310 | 17,687 | 降低 24.12% |
+| Broad discovery | 12 | 0 | 降低 100% |
+| Active time／成功 | 29.99 秒 | 38.64 秒 | 增加 28.87% |
+| Tool calls | 196 | 214 | 增加 9.18% |
+| Fresh contexts | 6 | 17 | 增加 183.33% |
+
+目前證據支持 **retrieval-heavy 長工作流的 opt-in 使用**，不支持預設啟用：token
+與 discovery 明顯改善，但 lifecycle overhead 超過 preregistered 20% wall-time
+regression 上限。請閱讀[完整研究與 primary-result 限制](docs/case-studies/desk-code-agent-rsaw-v080-matched.md)。
+
 ---
 
 ## EdgeFlow 部署

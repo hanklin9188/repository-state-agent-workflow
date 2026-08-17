@@ -46,3 +46,16 @@ Do not claim production token superiority until matched real-workstream evidence
 - no increase in manual relay, safety errors, or authority violations.
 
 The deterministic fixture is a mechanism test, not the matched product evaluation.
+
+## Post-release matched evidence
+
+Desk Code Agent subsequently completed a 48-attempt matched comparison of direct
+Codex and exact commit-pinned RSAW v0.8.0. The preregistered primary result did
+not pass the value gate. A separately labelled post-hoc sensitivity found equal
+24/24 attributed completion, 45.39% lower input per success, 24.12% lower
+uncached input per success, no broad-discovery commands, and 28.87% higher active
+time per success under RSAW.
+
+This supports an opt-in retrieval-heavy long-workstream pilot, not universal
+default activation. See the
+[full matched case study](../case-studies/desk-code-agent-rsaw-v080-matched.md).
