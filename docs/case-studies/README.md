@@ -15,6 +15,19 @@ Real-project adoption studies live here. Results are reported conservatively and
 
 Machine-readable summary: [`../../data/case-studies/desk-code-agent-rsaw-v1.json`](../../data/case-studies/desk-code-agent-rsaw-v1.json).
 
+- [RSAW v0.8.0 Matched Workflow Evaluation](desk-code-agent-rsaw-v080-matched.md)
+  - Status: post-release matched evidence with post-hoc sensitivity
+  - Formal population: 48 attempts / zero harness failures
+  - Immutable primary: NO_RSAW 22/24; RSAW v0.8.0 17/24
+  - Independently attributed sensitivity: 24/24 versus 24/24
+  - RSAW sensitivity effects: 45.39% lower input/success, 24.12% lower uncached
+    input/success, 100% fewer broad-discovery commands, and 28.87% higher active
+    time/success
+  - Disposition: opt-in retrieval-heavy long-workstream pilot only
+
+Machine-readable matched result:
+[`../../data/case-studies/desk-code-agent-rsaw-v080-matched.json`](../../data/case-studies/desk-code-agent-rsaw-v080-matched.json).
+
 ## Reporting rule
 
 A bootstrap-context reduction is not automatically a provider cost reduction or a quality result. Case studies should report task mix, measurement method, continuity, validation, negative findings, and threats to validity as evidence becomes available.

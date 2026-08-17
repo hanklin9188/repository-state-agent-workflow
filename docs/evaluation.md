@@ -12,6 +12,18 @@ This is explicitly a `BOOTSTRAP_CONTEXT_ESTIMATE`. It is not provider billing sa
 
 Machine-readable data: [`../data/case-studies/desk-code-agent-rsaw-v1.json`](../data/case-studies/desk-code-agent-rsaw-v1.json).
 
+The first v0.8 matched real-workstream result is
+[Desk Code Agent — RSAW v0.8.0 Matched Workflow Evaluation](case-studies/desk-code-agent-rsaw-v080-matched.md).
+Its 48-attempt immutable primary result did not pass the preregistered value
+gate. A separately labelled post-hoc attribution found safety-classifier and
+structural-oracle false negatives; under equal attributed completion, RSAW used
+45.39% fewer input tokens per success and eliminated broad discovery, but took
+28.87% longer per success. The supported disposition is opt-in use for
+retrieval-heavy long workstreams, not default activation.
+
+Machine-readable matched data:
+[`../data/case-studies/desk-code-agent-rsaw-v080-matched.json`](../data/case-studies/desk-code-agent-rsaw-v080-matched.json).
+
 ## RSAW 0.2 evaluation question
 
 RSAW 0.2 introduces adaptive context epochs. The primary comparison should include:

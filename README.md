@@ -285,6 +285,28 @@ This is a **mechanism test**, not a universal provider-cost or task-success clai
 promotion requires matched evaluation against direct Codex and previous RSAW versions.
 See [validation details](docs/validation/V080_RELEASE_VALIDATION.md).
 
+### Matched Desk Code Agent evidence
+
+A later 48-attempt matched study compared direct Codex with exact commit-pinned RSAW
+v0.8.0. The immutable preregistered primary result is preserved separately from a
+post-hoc independent attribution. After accounting for 12 read-only classifier false
+positives and two equivalent implementations rejected by an over-narrow structural
+oracle, both conditions completed 24/24 checkpoints:
+
+| Metric | NO_RSAW | RSAW v0.8.0 | RSAW change |
+|---|---:|---:|---:|
+| Total input tokens | 5,332,809 | 2,912,039 | 45.39% lower |
+| Uncached input / success | 23,310 | 17,687 | 24.12% lower |
+| Broad discovery | 12 | 0 | 100% lower |
+| Active seconds / success | 29.99 | 38.64 | 28.87% higher |
+| Tool calls | 196 | 214 | 9.18% higher |
+| Fresh contexts | 6 | 17 | 183.33% higher |
+
+The result supports **opt-in use for retrieval-heavy long workstreams**, not default
+activation: token and discovery costs improved materially, while lifecycle overhead
+exceeded the preregistered 20% wall-time regression limit. Read the
+[full study and primary-result caveat](docs/case-studies/desk-code-agent-rsaw-v080-matched.md).
+
 ---
 
 ## EdgeFlow deployment

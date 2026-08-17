@@ -2,6 +2,14 @@
 
 All notable changes to the public reference implementation are documented here.
 
+## Unreleased
+
+### Evidence
+
+- publish the 48-attempt Desk Code Agent NO_RSAW versus RSAW v0.8.0 matched
+  case study, including the immutable preregistered primary result, separately
+  labelled post-hoc sensitivity, machine-readable aggregate, negative wall-time
+  result, and opt-in-only adoption boundary.
 
 ## 0.8.0 — Relevance-First Context Runtime
 

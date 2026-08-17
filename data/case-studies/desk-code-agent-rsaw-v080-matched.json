@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "study_id": "desk-code-agent-rsaw-v080-matched",
+  "status": "POST_RELEASE_MATCHED_EVIDENCE_WITH_POST_HOC_SENSITIVITY",
+  "study_date": "2026-08-17",
+  "repository": "hanklin9188/Desk-Code-Agent",
+  "workflow": {
+    "baseline": "NO_RSAW",
+    "treatment": "RSAW_V080",
+    "repository": "https://github.com/hanklin9188/repository-state-agent-workflow.git",
+    "tag": "v0.8.0",
+    "commit": "b9759c40532689d91606b5643d4be8c809f4598d"
+  },
+  "design": {
+    "model": "gpt-5.6-sol",
+    "reasoning": "medium",
+    "workstreams": 6,
+    "checkpoints_per_workstream": 4,
+    "attempts_per_condition": 24,
+    "total_attempts": 48,
+    "paired_unit": "checkpoint within an identical fixture revision",
+    "condition_order": "alternating by workstream",
+    "harness_failures": 0,
+    "model_promotion_holdout_excluded": true,
+    "fixed_variables": [
+      "model and reasoning effort",
+      "checkpoint text and order",
+      "fixture bytes and Git revision",
+      "sandbox and approval policy",
+      "timeout",
+      "semantic oracle and focused validation",
+      "host hardware",
+      "safety audit"
+    ]
+  },
+  "implementation_validation": {
+    "upstream_tests": {
+      "passed": 121,
+      "failed": 0
+    },
+    "ruff": "PASS",
+    "deterministic_relevance_benchmark": {
+      "status": "PASS",
+      "baseline_tokens": 36712,
+      "focus_tokens": 252,
+      "reduction": 0.993136,
+      "target_implementation_retained": true,
+      "rejecting_test_retained": true,
+      "second_build_cache": "43/43"
+    }
+  },
+  "immutable_primary_result": {
+    "status": "AUTHORITATIVE_PREREGISTERED_RESULT",
+    "attempts_sha256": "1650e6346c38006303fade819aa3984dc226d14736551a52644e028d287ce84b",
+    "comparison_sha256": "1c57a7a607ef07933e07088d3233f546444dcabd9ccf5139d8d89521c038d0ce",
+    "decision": "RSAW_V080_VALUE_NOT_DEMONSTRATED",
+    "NO_RSAW": {
+      "successful_checkpoints": 22,
+      "attempted_checkpoints": 24,
+      "success_rate": 0.9166666666666666,
+      "input_tokens_per_success": 242400.4090909091,
+      "uncached_input_tokens_per_success": 25428.772727272728,
+      "active_seconds_per_success": 32.71097235771065,
+      "broad_discovery_commands": 12,
+      "raw_tool_calls": 196
+    },
+    "RSAW_V080": {
+      "successful_checkpoints": 17,
+      "attempted_checkpoints": 24,
+      "success_rate": 0.7083333333333334,
+      "input_tokens_per_success": 171296.41176470587,
+      "uncached_input_tokens_per_success": 24969.823529411766,
+      "active_seconds_per_success": 54.552933706874576,
+      "broad_discovery_commands": 0,
+      "raw_tool_calls": 214
+    },
+    "statistics": {
+      "mcnemar_control_only_successes": 5,
+      "mcnemar_rsaw_only_successes": 0,
+      "mcnemar_two_sided_exact_p": 0.0625,
+      "workstream_bootstrap_success_delta": -0.20833333333333334,
+      "workstream_bootstrap_lower_95": -0.375,
+      "workstream_bootstrap_upper_95": -0.041666666666666664
+    }
+  },
+  "independent_attribution": {
+    "status": "POST_HOC_SENSITIVITY_DOES_NOT_REPLACE_PRIMARY",
+    "classifier_false_positive_findings_all_conditions": 12,
+    "classifier_false_positive_findings_counted_by_primary_rsaw_gate": 11,
+    "equivalent_implementation_oracle_false_negatives": 2,
+    "equivalent_implementation_focused_tests": {
+      "NO_RSAW": "20/20 PASS",
+      "RSAW_V080": "20/20 PASS"
+    },
+    "remaining_unexplained_failures": 0
+  },
+  "sensitivity_result": {
+    "status": "EQUAL_SEMANTIC_COMPLETION_AFTER_INDEPENDENT_ATTRIBUTION",
+    "NO_RSAW": {
+      "successful_checkpoints": 24,
+      "attempted_checkpoints": 24,
+      "total_input_tokens": 5332809,
+      "input_tokens_per_success": 222200.375,
+      "uncached_input_tokens_per_success": 23309.708333333332,
+      "output_tokens_per_success": 2604.4583333333335,
+      "active_seconds_per_success": 29.9850579945681,
+      "broad_discovery_commands": 12,
+      "raw_tool_calls": 196,
+      "fresh_contexts": 6
+    },
+    "RSAW_V080": {
+      "successful_checkpoints": 24,
+      "attempted_checkpoints": 24,
+      "total_input_tokens": 2912039,
+      "input_tokens_per_success": 121334.95833333333,
+      "uncached_input_tokens_per_success": 17686.958333333332,
+      "output_tokens_per_success": 2013.7083333333333,
+      "active_seconds_per_success": 38.641661375702824,
+      "broad_discovery_commands": 0,
+      "raw_tool_calls": 214,
+      "fresh_contexts": 17
+    },
+    "relative_change_positive_is_reduction": {
+      "input_tokens_per_success": 0.4539390028782205,
+      "uncached_input_tokens_per_success": 0.24121923447490584,
+      "output_tokens_per_success": 0.2268225958692627,
+      "broad_discovery_commands": 1.0,
+      "active_seconds_per_success": -0.2886972365603862,
+      "raw_tool_calls": -0.09183673469387756,
+      "fresh_contexts": -1.8333333333333333
+    }
+  },
+  "rsaw_runtime_diagnostics": {
+    "runtime_checkpoints_valid": "24/24",
+    "focus_target_recall": 1.0,
+    "focus_builds": 24,
+    "focus_reuses": 0,
+    "context_compactions": 5,
+    "role_rotations": 6,
+    "fresh_contexts": 17,
+    "resumed_turns": 7,
+    "index_cache_hits": 822,
+    "index_cache_misses": 312
+  },
+  "decision": {
+    "implementation_import": "VALID_ISOLATED_COMMIT_PINNED",
+    "empirical_value": "TOKEN_AND_RETRIEVAL_VALUE_DEMONSTRATED_IN_SENSITIVITY",
+    "recommended_use": "OPT_IN_RETRIEVAL_HEAVY_LONG_WORKSTREAM_PILOT_ONLY",
+    "default_workflow": "NOT_AUTHORIZED",
+    "reason": "RSAW materially reduced provider input and broad discovery at equal attributed completion, but active time per successful checkpoint increased 28.87%, exceeding the preregistered 20% compensating-regression limit."
+  },
+  "claim_boundaries": [
+    "The post-hoc sensitivity result does not replace the preregistered primary result.",
+    "The six-workstream sample does not establish universal product value.",
+    "RSAW v0.7.1 was not included in this two-condition study.",
+    "Aggregate results are public; raw model event streams and outputs are not published here."
+  ]
+}
